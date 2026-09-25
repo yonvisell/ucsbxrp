@@ -1,0 +1,27 @@
+{
+  "default_world": "course-arena-straight",
+  "worlds": [
+    {
+      "id": "course-arena-straight",
+      "label": "Course arena · straight practice",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_line",
+          "x1_mm": 0,
+          "y1_mm": -180,
+          "x2_mm": 0,
+          "y2_mm": 180,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,495 @@
+{
+  "bootstrapFiles": [
+    {
+      "bytes": 13500,
+      "destination": "/course_boot.py",
+      "sha256": "e903e7a97157a3297b5de6f395fa906be7638287a40b984c6c286188c8c09ab9",
+      "source": "device_service/course_boot.py",
+      "url": "files/bootstrap/course_boot.py"
+    },
+    {
+      "bytes": 117,
+      "destination": "/main.py",
+      "sha256": "1b0adafa6e30b77ced3c05e460932c0c8feb049a8b1cf34ffb348dbe16fe77ca",
+      "source": "device_service/main.py",
+      "url": "files/bootstrap/main.py"
+    }
+  ],
+  "compatibility": {
+    "bootstrapVersion": 1,
+    "courseApiRevision": "0.6-draft",
+    "courseLibraryVersion": "0.6.0-dev",
+    "minimumRobotReleaseSequence": 53,
+    "protocolRevision": 5,
+    "protocolVersion": 1,
+    "serviceVersion": "0.1.0"
+  },
+  "controller": {
+    "id": "sparkfun-xrp-controller-rp2350",
+    "usbProductId": 70,
+    "usbVendorId": 6991
+  },
+  "micropython": {
+    "board": "SPARKFUN_XRP_CONTROLLER",
+    "firmware": {
+      "asset": "SPARKFUN_XRP_CONTROLLER-20260824-v1.29.0.uf2",
+      "bytes": 1787904,
+      "sha256": "8a1547159764a9f3a0a94ba078f64b21124f540571a6004ce19981dcda6dc590",
+      "url": "firmware/sha256/8a1547159764a9f3a0a94ba078f64b21124f540571a6004ce19981dcda6dc590/SPARKFUN_XRP_CONTROLLER-20260824-v1.29.0.uf2"
+    },
+    "version": "1.29.0"
+  },
+  "networkDefaults": {
+    "address": "192.168.4.1",
+    "mode": "access_point",
+    "password": "ucsb-xrp"
+  },
+  "releaseId": "2026.09-dev.53",
+  "releaseSequence": 53,
+  "runtime": {
+    "files": [
+      {
+        "bytes": 467,
+        "path": "lib/XRPLib/__init__.py",
+        "sha256": "04f4afd232c61c928d56372f848ae17707952e9df0f10cbec7d93708eebaeb0d",
+        "source": "vendor/current/xrplib/XRPLib/__init__.py",
+        "url": "files/runtime/lib/XRPLib/__init__.py"
+      },
+      {
+        "bytes": 5344,
+        "path": "lib/XRPLib/board.py",
+        "sha256": "c269c43a1db278d74bb2823834124bc46911dcb8760cb828d3dce97042bba764",
+        "source": "vendor/current/xrplib/XRPLib/board.py",
+        "url": "files/runtime/lib/XRPLib/board.py"
+      },
+      {
+        "bytes": 14042,
+        "path": "lib/XRPLib/buzzer.py",
+        "sha256": "1cc64469e53497ecca9743fb88801f3cf91bca4d6c8e5b79969d92d460ad9752",
+        "source": "vendor/current/xrplib/XRPLib/buzzer.py",
+        "url": "files/runtime/lib/XRPLib/buzzer.py"
+      },
+      {
+        "bytes": 908,
+        "path": "lib/XRPLib/controller.py",
+        "sha256": "aa35927f51c6f55d8f401d4265e79a5b0703eb48e60a1785290dfe289970deab",
+        "source": "vendor/current/xrplib/XRPLib/controller.py",
+        "url": "files/runtime/lib/XRPLib/controller.py"
+      },
+      {
+        "bytes": 9033,
+        "path": "lib/XRPLib/dashboard.py",
+        "sha256": "af9155e8e835f585fdb116f415c8d1ed8d9be01ea2d9147efaafcac9a68f453a",
+        "source": "vendor/current/xrplib/XRPLib/dashboard.py",
+        "url": "files/runtime/lib/XRPLib/dashboard.py"
+      },
+      {
+        "bytes": 1431,
+        "path": "lib/XRPLib/defaults.py",
+        "sha256": "e00ecdb50a9a6f41a6785b1a4a11709ebe8042d8f0635e6bad7b5cd12a5edb3e",
+        "source": "vendor/current/xrplib/XRPLib/defaults.py",
+        "url": "files/runtime/lib/XRPLib/defaults.py"
+      },
+      {
+        "bytes": 16051,
+        "path": "lib/XRPLib/differential_drive.py",
+        "sha256": "09727192d13572d2cb43b3b520219837109fa4717f0e0e3bb3ae76de024f9f61",
+        "source": "vendor/current/xrplib/XRPLib/differential_drive.py",
+        "url": "files/runtime/lib/XRPLib/differential_drive.py"
+      },
+      {
+        "bytes": 7449,
+        "path": "lib/XRPLib/encoded_motor.py",
+        "sha256": "edc914e1a055ef2fa07b78a49c99ab5ca12a4c7933b8597219d3caed42e1e805",
+        "source": "vendor/current/xrplib/XRPLib/encoded_motor.py",
+        "url": "files/runtime/lib/XRPLib/encoded_motor.py"
+      },
+      {
+        "bytes": 6301,
+        "path": "lib/XRPLib/encoder.py",
+        "sha256": "db61a4fb54874c665c5f1ee610eca13eb1d22826b09ee8a8f5e776416012c4e6",
+        "source": "vendor/current/xrplib/XRPLib/encoder.py",
+        "url": "files/runtime/lib/XRPLib/encoder.py"
+      },
+      {
+        "bytes": 5299,
+        "path": "lib/XRPLib/gamepad.py",
+        "sha256": "f490c5ea8c769096c393c3a35f62f149af2722ce017931df0257625aebc89172",
+        "source": "vendor/current/xrplib/XRPLib/gamepad.py",
+        "url": "files/runtime/lib/XRPLib/gamepad.py"
+      },
+      {
+        "bytes": 20436,
+        "path": "lib/XRPLib/imu.py",
+        "sha256": "edfdbdaec5e4acc91188218789815c131158f3c073302369929b84eb9645445f",
+        "source": "vendor/current/xrplib/XRPLib/imu.py",
+        "url": "files/runtime/lib/XRPLib/imu.py"
+      },
+      {
+        "bytes": 2025,
+        "path": "lib/XRPLib/imu_defs.py",
+        "sha256": "3c92d316e91b274ffc6ca2d74a186c01bcc0b9d9f1ecf9888761881e16d25116",
+        "source": "vendor/current/xrplib/XRPLib/imu_defs.py",
+        "url": "files/runtime/lib/XRPLib/imu_defs.py"
+      },
+      {
+        "bytes": 3308,
+        "path": "lib/XRPLib/motor.py",
+        "sha256": "68f92f3f45e7d694df395f46356a0eceedeb3cdc4a8d20c63cadc36f1ef6685b",
+        "source": "vendor/current/xrplib/XRPLib/motor.py",
+        "url": "files/runtime/lib/XRPLib/motor.py"
+      },
+      {
+        "bytes": 3059,
+        "path": "lib/XRPLib/motor_group.py",
+        "sha256": "63c0c7ca188bfc94ac28a12a83cb59c0447f8cdae9fecc1c9198e56ef47571ed",
+        "source": "vendor/current/xrplib/XRPLib/motor_group.py",
+        "url": "files/runtime/lib/XRPLib/motor_group.py"
+      },
+      {
+        "bytes": 4363,
+        "path": "lib/XRPLib/pid.py",
+        "sha256": "03fae5a6a73cf9672457bd67db98cae44b9798e59da9dd9c37adde51a0346680",
+        "source": "vendor/current/xrplib/XRPLib/pid.py",
+        "url": "files/runtime/lib/XRPLib/pid.py"
+      },
+      {
+        "bytes": 32725,
+        "path": "lib/XRPLib/puppet.py",
+        "sha256": "e96f858a078a22f9db630ae430cdd0b50a113b82f74bbc03908b5120f6480b79",
+        "source": "vendor/current/xrplib/XRPLib/puppet.py",
+        "url": "files/runtime/lib/XRPLib/puppet.py"
+      },
+      {
+        "bytes": 3798,
+        "path": "lib/XRPLib/rangefinder.py",
+        "sha256": "d8c62a6f3754d2b734220a3f5816e6f516bd67f3f9187d5b57e2c06bbb92e907",
+        "source": "vendor/current/xrplib/XRPLib/rangefinder.py",
+        "url": "files/runtime/lib/XRPLib/rangefinder.py"
+      },
+      {
+        "bytes": 2735,
+        "path": "lib/XRPLib/reflectance.py",
+        "sha256": "371e26316ee84b9477ee04d742960a6d60dac260d8ca85e1c2de44e1d8805880",
+        "source": "vendor/current/xrplib/XRPLib/reflectance.py",
+        "url": "files/runtime/lib/XRPLib/reflectance.py"
+      },
+      {
+        "bytes": 2634,
+        "path": "lib/XRPLib/resetbot.py",
+        "sha256": "ca13fd1d8324fdcb75bc33d8847e5547df284f0073e6373bdee2eed21a945d37",
+        "source": "vendor/current/xrplib/XRPLib/resetbot.py",
+        "url": "files/runtime/lib/XRPLib/resetbot.py"
+      },
+      {
+        "bytes": 2437,
+        "path": "lib/XRPLib/servo.py",
+        "sha256": "d0fb33c76dee9a55256e426184fb1270c419e6237f8a6a8d937223931d870015",
+        "source": "vendor/current/xrplib/XRPLib/servo.py",
+        "url": "files/runtime/lib/XRPLib/servo.py"
+      },
+      {
+        "bytes": 651,
+        "path": "lib/XRPLib/timeout.py",
+        "sha256": "916cb93f16944288efba9ad2df7489137bae2162d2bc33d2b002633c725f294b",
+        "source": "vendor/current/xrplib/XRPLib/timeout.py",
+        "url": "files/runtime/lib/XRPLib/timeout.py"
+      },
+      {
+        "bytes": 12213,
+        "path": "lib/XRPLib/webserver.py",
+        "sha256": "9b574dccbd7eaee7134eb6c9714dbbd67e4590c863d700a3b42c721a9913a3fa",
+        "source": "vendor/current/xrplib/XRPLib/webserver.py",
+        "url": "files/runtime/lib/XRPLib/webserver.py"
+      },
+      {
+        "bytes": 2092,
+        "path": "lib/phew/__init__.py",
+        "sha256": "40b53231c3853ae89271bfc42b23728146cba5c7cd4089ab6c9712462ef4846f",
+        "source": "vendor/current/xrplib/phew/__init__.py",
+        "url": "files/runtime/lib/phew/__init__.py"
+      },
+      {
+        "bytes": 1357,
+        "path": "lib/phew/dns.py",
+        "sha256": "a1b66fda0057a5ee586024b793a1a1203b71996f62815d89f086361995b0efd4",
+        "source": "vendor/current/xrplib/phew/dns.py",
+        "url": "files/runtime/lib/phew/dns.py"
+      },
+      {
+        "bytes": 3065,
+        "path": "lib/phew/logging.py",
+        "sha256": "3f91106bb64bd14893804eb5df038613cc5d1e0873181a71557e22df5d2c4a41",
+        "source": "vendor/current/xrplib/phew/logging.py",
+        "url": "files/runtime/lib/phew/logging.py"
+      },
+      {
+        "bytes": 11505,
+        "path": "lib/phew/server.py",
+        "sha256": "a2c4b99d383bad880d5a7583c3e5e282f3de3feeb5ddc5dc758c36b02bcc75f7",
+        "source": "vendor/current/xrplib/phew/server.py",
+        "url": "files/runtime/lib/phew/server.py"
+      },
+      {
+        "bytes": 1974,
+        "path": "lib/phew/template.py",
+        "sha256": "a512940fd29f6c03fe6a4325b1c7ad0551f94f4e5d8a1120da594c93e344ba21",
+        "source": "vendor/current/xrplib/phew/template.py",
+        "url": "files/runtime/lib/phew/template.py"
+      },
+      {
+        "bytes": 496,
+        "path": "lib/ucsb_xrp_service/__init__.py",
+        "sha256": "fad1d674de7a281c41b29af103e147a368de40e0d5d2338232f53b9bfdbf6b5b",
+        "source": "device_service/ucsb_xrp_service/__init__.py",
+        "url": "files/runtime/lib/ucsb_xrp_service/__init__.py"
+      },
+      {
+        "bytes": 5520,
+        "path": "lib/ucsb_xrp_service/diagnostics.py",
+        "sha256": "f772bcf3f4d4e03c89ebd184d324a5714c6c408d4a27e4675382cb7193c33f59",
+        "source": "device_service/ucsb_xrp_service/diagnostics.py",
+        "url": "files/runtime/lib/ucsb_xrp_service/diagnostics.py"
+      },
+      {
+        "bytes": 15145,
+        "path": "lib/ucsb_xrp_service/http_admission.py",
+        "sha256": "522741111cd3918d6629adf7d54a1e16cf725e22565d77c0a6f822561bfb5b79",
+        "source": "device_service/ucsb_xrp_service/http_admission.py",
+        "url": "files/runtime/lib/ucsb_xrp_service/http_admission.py"
+      },
+      {
+        "bytes": 24233,
+        "path": "lib/ucsb_xrp_service/networking.py",
+        "sha256": "5a850cc3bc3a6040fa72db5bba2834d3f53d631cda109d55c3aabd6bdd705d8f",
+        "source": "device_service/ucsb_xrp_service/networking.py",
+        "url": "files/runtime/lib/ucsb_xrp_service/networking.py"
+      },
+      {
+        "bytes": 6228,
+        "path": "lib/ucsb_xrp_service/protocol.py",
+        "sha256": "3585afcef650bfc505380d5febeb6025464aa6551b9d2d065f5965d49d26f759",
+        "source": "device_service/ucsb_xrp_service/protocol.py",
+        "url": "files/runtime/lib/ucsb_xrp_service/protocol.py"
+      },
+      {
+        "bytes": 101914,
+        "path": "lib/ucsb_xrp_service/service.py",
+        "sha256": "e8ae6185c19ff4cdc62238ad87ac76bb806aa9a5f482510c8e1a1627475e681e",
+        "source": "device_service/ucsb_xrp_service/service.py",
+        "url": "files/runtime/lib/ucsb_xrp_service/service.py"
+      },
+      {
+        "bytes": 2073,
+        "path": "lib/ucsb_xrp/__init__.py",
+        "sha256": "fe1c8fbd30c347887aadd59b5f65eea938c40b59f8362d7ef94966514c759f73",
+        "source": "vendor/current/ucsb_xrp/__init__.py",
+        "url": "files/runtime/lib/ucsb_xrp/__init__.py"
+      },
+      {
+        "bytes": 3428,
+        "path": "lib/ucsb_xrp/_hardware.py",
+        "sha256": "2ed2a8fe28bceae4c24ac1fc365b60ac6f65e33f808780265f0db25158faa869",
+        "source": "vendor/current/ucsb_xrp/_hardware.py",
+        "url": "files/runtime/lib/ucsb_xrp/_hardware.py"
+      },
+      {
+        "bytes": 2583,
+        "path": "lib/ucsb_xrp/_range.py",
+        "sha256": "a76e286ed1ed3b27b5b8dc4567138e9a485c786496f22f5dc3831a3511dff9f4",
+        "source": "vendor/current/ucsb_xrp/_range.py",
+        "url": "files/runtime/lib/ucsb_xrp/_range.py"
+      },
+      {
+        "bytes": 438,
+        "path": "lib/ucsb_xrp/_run_control.py",
+        "sha256": "cd87ed8ff14273c9765677abdb49bdc209a0fb05fca74dce348e919be07571b8",
+        "source": "vendor/current/ucsb_xrp/_run_control.py",
+        "url": "files/runtime/lib/ucsb_xrp/_run_control.py"
+      },
+      {
+        "bytes": 16660,
+        "path": "lib/ucsb_xrp/_telemetry.py",
+        "sha256": "48fd69e7cedeaa14f0585232e5ded202d0aa5e309c660521ee10d85af3fcc959",
+        "source": "vendor/current/ucsb_xrp/_telemetry.py",
+        "url": "files/runtime/lib/ucsb_xrp/_telemetry.py"
+      },
+      {
+        "bytes": 1736,
+        "path": "lib/ucsb_xrp/_validation.py",
+        "sha256": "266b1e145ba0c6d090ddb39b3458a5413adbabe0562ab8a87ef340467e8fa5dc",
+        "source": "vendor/current/ucsb_xrp/_validation.py",
+        "url": "files/runtime/lib/ucsb_xrp/_validation.py"
+      },
+      {
+        "bytes": 29711,
+        "path": "lib/ucsb_xrp/component_checks.py",
+        "sha256": "7382f3e031afbfbbe79f1452d8fb1461f90fc88b731bf33cbed7ac158d395782",
+        "source": "vendor/current/ucsb_xrp/component_checks.py",
+        "url": "files/runtime/lib/ucsb_xrp/component_checks.py"
+      },
+      {
+        "bytes": 10361,
+        "path": "lib/ucsb_xrp/config.py",
+        "sha256": "f541c086c98da100950ca54885ec4514c19c7804ba4679d3ffcc3d637ac32883",
+        "source": "vendor/current/ucsb_xrp/config.py",
+        "url": "files/runtime/lib/ucsb_xrp/config.py"
+      },
+      {
+        "bytes": 14406,
+        "path": "lib/ucsb_xrp/live.py",
+        "sha256": "4fe74954ec5f2996140f33c063e342895218a5f779494faabd6f19db773047e0",
+        "source": "vendor/current/ucsb_xrp/live.py",
+        "url": "files/runtime/lib/ucsb_xrp/live.py"
+      },
+      {
+        "bytes": 10576,
+        "path": "lib/ucsb_xrp/maps.py",
+        "sha256": "7a747b754809038af1fe1333daf6e480c8a945d03a84275a4f4e4c1c538a9d4f",
+        "source": "vendor/current/ucsb_xrp/maps.py",
+        "url": "files/runtime/lib/ucsb_xrp/maps.py"
+      },
+      {
+        "bytes": 9722,
+        "path": "lib/ucsb_xrp/mission.py",
+        "sha256": "f66a01d487a97276908838f87a303cc7fc8c189ac4f761a334a7596ab4941201",
+        "source": "vendor/current/ucsb_xrp/mission.py",
+        "url": "files/runtime/lib/ucsb_xrp/mission.py"
+      },
+      {
+        "bytes": 12593,
+        "path": "lib/ucsb_xrp/records.py",
+        "sha256": "5dcf7a32c4590c6e001eec560261d7b1690abd7378bc0054ec6994177cfe1b9e",
+        "source": "vendor/current/ucsb_xrp/records.py",
+        "url": "files/runtime/lib/ucsb_xrp/records.py"
+      },
+      {
+        "bytes": 10774,
+        "path": "lib/ucsb_xrp/robot.py",
+        "sha256": "92883cbec67e0aeb00966e75a4fd186311038fe4ff0538575796baa88fbc8d70",
+        "source": "vendor/current/ucsb_xrp/robot.py",
+        "url": "files/runtime/lib/ucsb_xrp/robot.py"
+      },
+      {
+        "bytes": 2658,
+        "path": "lib/ucsb_xrp/straight_line.py",
+        "sha256": "beca7506d1009183d6c2b541d710ea0bcc7acc0a3e1807136b08c2978cbf5a74",
+        "source": "vendor/current/ucsb_xrp/straight_line.py",
+        "url": "files/runtime/lib/ucsb_xrp/straight_line.py"
+      },
+      {
+        "bytes": 4609,
+        "path": "lib/ucsb_xrp/straight_trial.py",
+        "sha256": "70721025240bec80e162e83ea9cefc5e2c53634b6ebe2650fa9cbef9057394b3",
+        "source": "vendor/current/ucsb_xrp/straight_trial.py",
+        "url": "files/runtime/lib/ucsb_xrp/straight_trial.py"
+      },
+      {
+        "bytes": 11296,
+        "path": "lib/ucsb_xrp/student_api.py",
+        "sha256": "bae1590c24ca1b4891e4257a7a7bfcdcdbcfb85463339544a5482889ef3f1bb8",
+        "source": "vendor/current/ucsb_xrp/student_api.py",
+        "url": "files/runtime/lib/ucsb_xrp/student_api.py"
+      },
+      {
+        "bytes": 2490,
+        "path": "lib/ucsb_xrp/utils.py",
+        "sha256": "082017adb8a2a38d7e960d816bccabfbade319cb7da5400b98d16ba34734cd3b",
+        "source": "vendor/current/ucsb_xrp/utils.py",
+        "url": "files/runtime/lib/ucsb_xrp/utils.py"
+      },
+      {
+        "bytes": 6198,
+        "path": "lib/ucsb_xrp/world.py",
+        "sha256": "f5a21eb760978ec709d3ec255e63cdd8d0cb499f32f5e1730721162959060d0d",
+        "source": "vendor/current/ucsb_xrp/world.py",
+        "url": "files/runtime/lib/ucsb_xrp/world.py"
+      },
+      {
+        "bytes": 11303,
+        "path": "lib/ucsb_xrp/xrpbot.py",
+        "sha256": "0320ac73cb29c15e876db7c835ed0bac14ac5c86b75953bae2cef46847a462cb",
+        "source": "vendor/current/ucsb_xrp/xrpbot.py",
+        "url": "files/runtime/lib/ucsb_xrp/xrpbot.py"
+      },
+      {
+        "bytes": 383,
+        "path": "lib/ucsb_xrp_reference/__init__.mpy",
+        "sha256": "658e3c0f1d6f8da4c75821c1775d6ea4a141933d4101c4b30b2b6250534dca77",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/__init__.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/__init__.mpy"
+      },
+      {
+        "bytes": 3298,
+        "path": "lib/ucsb_xrp_reference/challenge_1.mpy",
+        "sha256": "a79724a39bc13f8abd6243c6726f888c61956b58fea2b88ebdd868a8d1480b51",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_1.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy"
+      },
+      {
+        "bytes": 1155,
+        "path": "lib/ucsb_xrp_reference/challenge_2.mpy",
+        "sha256": "6c019f49d85c454e03c3fd4daf66837140e5b20de32a057dbbd6cc18fed480aa",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_2.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy"
+      },
+      {
+        "bytes": 1380,
+        "path": "lib/ucsb_xrp_reference/challenge_3.mpy",
+        "sha256": "a0fa0e3ffa7296e4378cd315d6cd173caa1deb31ead87957b0421153200f54ea",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_3.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy"
+      },
+      {
+        "bytes": 639,
+        "path": "lib/ucsb_xrp_reference/challenge_4.mpy",
+        "sha256": "6498a5593c1f96741e37fb5acabdae0e6623e52da0d5495c2ff9843be3eb69eb",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_4.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy"
+      },
+      {
+        "bytes": 799,
+        "path": "lib/ucsb_xrp_reference/challenge_6.mpy",
+        "sha256": "0f938c29af9916d0d09cc695b2c00c4bbb9a91eaf8fd7f2b2fbfabbfec94681f",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_6.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy"
+      },
+      {
+        "bytes": 1261,
+        "path": "lib/ucsb_xrp_reference/challenge_7.mpy",
+        "sha256": "4a0d3956290f81d7e7db80bdbe77e2025e20218a630bfd4462fd8d5c267552be",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_7.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy"
+      },
+      {
+        "bytes": 1399,
+        "path": "lib/ucsb_xrp_reference/challenge_8.mpy",
+        "sha256": "b8fe42140d4716526179402017446dadb54fc626725f145c12c17c8fddbb0c0f",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_8.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy"
+      },
+      {
+        "bytes": 734,
+        "path": "lib/ucsb_xrp_reference/challenge_9.mpy",
+        "sha256": "163c222e31dd0482998d15ed3f95a2b77963c0b219a83d6bfe71b6be8dff5406",
+        "source": "vendor/current/reference_mpy/ucsb_xrp_reference/challenge_9.mpy",
+        "url": "files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy"
+      }
+    ],
+    "manifest": {
+      "bytes": 8038,
+      "sha256": "c4715d972278a9d4416433d3197c7306572a7ca2a42c0ab989b67630129edac0",
+      "url": "files/runtime/runtime-manifest.json"
+    }
+  },
+  "schemaVersion": 2,
+  "xrplib": {
+    "requiredModules": [
+      "XRPLib.board",
+      "XRPLib.encoded_motor",
+      "XRPLib.imu",
+      "XRPLib.rangefinder"
+    ],
+    "version": "2026.07.1"
+  }
+}

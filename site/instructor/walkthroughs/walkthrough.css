@@ -1,0 +1,225 @@
+body {
+  margin: 0;
+  height: auto;
+  background: var(--page);
+  color: var(--ink);
+}
+.course-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--line);
+}
+.walkthrough-layout {
+  display: grid;
+  grid-template-columns: 245px minmax(0, 880px);
+  gap: 30px;
+  max-width: 1220px;
+  margin: auto;
+  padding: 28px 20px 56px;
+}
+.walkthrough-sidebar {
+  position: sticky;
+  top: 52px;
+  align-self: start;
+  max-height: calc(100vh - 75px);
+  overflow: auto;
+  font-size: var(--doc-small);
+  line-height: 1.45;
+}
+.walkthrough-sidebar nav {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.walkthrough-sidebar a {
+  color: var(--muted);
+  text-decoration: none;
+}
+.walkthrough-sidebar a:hover,
+.walkthrough-sidebar a[aria-current] {
+  color: var(--brand);
+  text-decoration: underline;
+}
+.walkthrough-toc {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.walkthrough-toc summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.walkthrough-reading {
+  min-width: 0;
+  font-size: var(--doc-body);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.walkthrough-reading h1 {
+  font-size: var(--doc-title);
+  line-height: 1.25;
+  margin: 16px 0;
+}
+
+.walkthrough-reading img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+}
+.walkthrough-reading h2 {
+  font-size: var(--doc-heading);
+  line-height: 1.3;
+  margin: 36px 0 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.walkthrough-reading h3 {
+  font-size: var(--doc-subheading);
+  margin-top: 24px;
+}
+.walkthrough-reading :is(h1, h2, h3) {
+  scroll-margin-top: 50px;
+}
+.walkthrough-reading :is(p, ul, ol) {
+  margin: 12px 0;
+}
+.walkthrough-reading li {
+  margin: 6px 0;
+}
+.walkthrough-reading pre {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel-raised);
+  overflow: auto;
+  font-size: 13px;
+  line-height: 1.55;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.walkthrough-reading pre code {
+  padding: 0;
+  background: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.walkthrough-reading table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.walkthrough-reading :is(td, th) {
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.walkthrough-reading td:first-child code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.walkthrough-reading summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin: 12px 0;
+}
+.walkthrough-reading .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 0;
+}
+.walkthrough-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: var(--doc-small);
+  color: var(--muted);
+}
+.walkthrough-actions span {
+  margin-right: auto;
+}
+.copy-code {
+  margin-top: 8px;
+  font-size: var(--doc-small);
+}
+.copy-code + pre {
+  margin-top: 5px;
+}
+.walkthrough-end {
+  margin-top: 35px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.skip-content {
+  position: absolute;
+  left: -9999px;
+}
+.skip-content:focus {
+  left: 8px;
+  top: 32px;
+  background: white;
+  z-index: 10;
+  padding: 10px;
+}
+@media (max-width: 800px) {
+  .walkthrough-layout {
+    display: block;
+    padding: 20px 16px 40px;
+  }
+  .walkthrough-sidebar {
+    position: static;
+    max-height: none;
+  }
+  .walkthrough-sidebar > nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+  }
+  .walkthrough-toc {
+    margin-bottom: 24px;
+  }
+}
+@media print {
+  .course-header,
+  .walkthrough-sidebar,
+  .walkthrough-actions,
+  .copy-code,
+  .skip-content,
+  .walkthrough-end {
+    display: none;
+  }
+  .walkthrough-layout {
+    display: block;
+    padding: 0;
+    max-width: none;
+  }
+  .walkthrough-reading {
+    font-size: 10pt;
+    line-height: 1.45;
+  }
+  .walkthrough-reading pre {
+    white-space: pre-wrap;
+    overflow: visible;
+    font-size: 8pt;
+  }
+  .walkthrough-reading pre code {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .walkthrough-reading :is(h1, h2, h3) {
+    break-after: avoid;
+  }
+  .walkthrough-reading .katex-display {
+    overflow: visible;
+  }
+  .walkthrough-reading a {
+    color: inherit;
+  }
+}
+
+.walkthrough-reading a {
+  color: var(--brand);
+}

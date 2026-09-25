@@ -1,0 +1,134 @@
+{
+  "default_world": "mapped-route",
+  "worlds": [
+    {
+      "id": "mapped-route",
+      "label": "Mapped route",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -1224,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [
+        {
+          "type": "block",
+          "minimum_x_mm": -150,
+          "minimum_y_mm": -200,
+          "maximum_x_mm": 150,
+          "maximum_y_mm": 200,
+          "label": "Center block"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -1304,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": -1144,
+          "maximum_y_mm": 80,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 500,
+          "y_mm": 300,
+          "heading_rad": 0,
+          "label": "Destination"
+        }
+      ]
+    },
+    {
+      "id": "destination-blocked",
+      "label": "Destination blocked",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -1224,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [
+        {
+          "type": "block",
+          "minimum_x_mm": -150,
+          "minimum_y_mm": -200,
+          "maximum_x_mm": 150,
+          "maximum_y_mm": 200,
+          "label": "Center block"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -1304,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": -1144,
+          "maximum_y_mm": 80,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 0,
+          "y_mm": 0,
+          "heading_rad": 0,
+          "label": "Blocked destination"
+        }
+      ]
+    },
+    {
+      "id": "no-connection",
+      "label": "No connecting route",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -1224,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [
+        {
+          "type": "wall",
+          "minimum_x_mm": -50,
+          "minimum_y_mm": -609.6,
+          "maximum_x_mm": 50,
+          "maximum_y_mm": 609.6,
+          "label": "Dividing wall"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -1304,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": -1144,
+          "maximum_y_mm": 80,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "destination",
+          "x_mm": 500,
+          "y_mm": 0,
+          "heading_rad": 0,
+          "label": "Destination"
+        }
+      ]
+    }
+  ]
+}

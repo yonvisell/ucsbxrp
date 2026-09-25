@@ -1,0 +1,93 @@
+"""Small, typed course interface shared by the physical and virtual XRP."""
+
+from .config import NavigationConfig, RobotConfig
+from .maps import ArenaMap, OccupancyGrid, Rectangle
+from .mission import DeliveryMission, DeliveryTask
+from .records import (
+    DriveCommand,
+    GridCell,
+    GridPath,
+    Measurements,
+    MotionCommand,
+    MotorEfforts,
+    NavigationGoal,
+    Pose,
+    RawSensors,
+    ReflectanceReadings,
+    RobotState,
+    STOP_COMMAND,
+    WheelSpeeds,
+)
+from .robot import Robot
+from . import live
+from .straight_line import StraightLineController
+from .straight_trial import StraightTrialResult, run_straight_trial
+from .student_api import (
+    DifferentialDriveBase,
+    GridPlannerBase,
+    LineFollowerBase,
+    NavigationControllerBase,
+    OdometryBase,
+    PoseCorrectorBase,
+    RangeSafetyControllerBase,
+    SensorModelBase,
+    VisitOrderPlannerBase,
+    WheelSpeedControllerBase,
+)
+from .utils import (
+    bearing_to_goal,
+    clamp,
+    distance_to_goal,
+    elapsed_time_s,
+    wrap_angle_rad,
+)
+from .xrpbot import XRPBot
+from .world import ProjectWorld, load_world
+
+__version__ = "0.6.0-dev"
+
+__all__ = (
+    "ArenaMap",
+    "DeliveryMission",
+    "DeliveryTask",
+    "DifferentialDriveBase",
+    "DriveCommand",
+    "GridCell",
+    "GridPath",
+    "GridPlannerBase",
+    "LineFollowerBase",
+    "NavigationConfig",
+    "NavigationControllerBase",
+    "RobotConfig",
+    "OccupancyGrid",
+    "OdometryBase",
+    "PoseCorrectorBase",
+    "RangeSafetyControllerBase",
+    "Rectangle",
+    "Measurements",
+    "MotionCommand",
+    "MotorEfforts",
+    "NavigationGoal",
+    "Pose",
+    "ProjectWorld",
+    "RawSensors",
+    "ReflectanceReadings",
+    "Robot",
+    "RobotState",
+    "SensorModelBase",
+    "STOP_COMMAND",
+    "StraightLineController",
+    "StraightTrialResult",
+    "VisitOrderPlannerBase",
+    "WheelSpeeds",
+    "WheelSpeedControllerBase",
+    "XRPBot",
+    "bearing_to_goal",
+    "clamp",
+    "distance_to_goal",
+    "elapsed_time_s",
+    "wrap_angle_rad",
+    "live",
+    "load_world",
+    "run_straight_trial",
+)

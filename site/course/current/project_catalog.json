@@ -1,0 +1,797 @@
+[
+  {
+    "id": "challenge_1",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_1",
+    "label": "Challenge 1 \u00b7 Straight Run",
+    "short_label": "1 \u00b7 Straight Run",
+    "summary": "Measure wheel motion and stop at the assigned distance and time.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_2",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_2",
+    "label": "Challenge 2 \u00b7 Turn and Return",
+    "short_label": "2 \u00b7 Turn and Return",
+    "summary": "Turn, return to the start, and estimate position and heading.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_3",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_3",
+    "label": "Challenge 3 \u00b7 Waypoint Courier",
+    "short_label": "3 \u00b7 Waypoint Courier",
+    "summary": "Visit the assigned map positions in order and finish at the requested heading.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_4",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_4",
+    "label": "Challenge 4 \u00b7 Mapped Route",
+    "short_label": "4 \u00b7 Mapped Route",
+    "summary": "Plan and follow a route around known obstacles.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_5",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_5",
+    "label": "Challenge 5 \u00b7 Delivery Mission",
+    "short_label": "5 \u00b7 Delivery Mission",
+    "summary": "Use range measurements to choose an available route and deliver.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_6",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_6",
+    "label": "Challenge 6 \u00b7 Range-Constrained Stopping",
+    "short_label": "6 \u00b7 Range-Constrained Stopping",
+    "summary": "Use measured speed and ultrasound range to stop with a defined clearance margin.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      },
+      {
+        "name": "RangeSafetyController",
+        "file": "range_safety_controller.py",
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_7",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_7",
+    "label": "Challenge 7 \u00b7 Wall-Range Pose Correction",
+    "short_label": "7 \u00b7 Wall-Range Pose Correction",
+    "summary": "Correct odometry position from stationary observations of two known walls.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      },
+      {
+        "name": "RangeSafetyController",
+        "file": "range_safety_controller.py",
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER"
+      },
+      {
+        "name": "PoseCorrector",
+        "file": "pose_corrector.py",
+        "selection_flag": "USE_STUDENT_POSE_CORRECTOR"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_8",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_8",
+    "label": "Challenge 8 \u00b7 Multi-Stop Route Planning",
+    "short_label": "8 \u00b7 Multi-Stop Route Planning",
+    "summary": "Choose and execute the least-cost order for three required service stops.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      },
+      {
+        "name": "RangeSafetyController",
+        "file": "range_safety_controller.py",
+        "selection_flag": "USE_STUDENT_RANGE_SAFETY_CONTROLLER"
+      },
+      {
+        "name": "PoseCorrector",
+        "file": "pose_corrector.py",
+        "selection_flag": "USE_STUDENT_POSE_CORRECTOR"
+      },
+      {
+        "name": "VisitOrderPlanner",
+        "file": "visit_order_planner.py",
+        "selection_flag": "USE_STUDENT_VISIT_ORDER_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "challenge_9",
+    "group": "archived",
+    "kind": "challenge",
+    "source": "starters/challenge_9",
+    "label": "Experimental Challenge 9 \u00b7 Arena Circuit",
+    "short_label": "Experimental 9 \u00b7 Arena Circuit",
+    "summary": "Follow a visible closed circuit using local left/right reflectance feedback.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "LineFollower",
+        "file": "line_follower.py",
+        "selection_flag": "USE_STUDENT_LINE_FOLLOWER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "demo_obstacle_turn",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_obstacle_turn",
+    "label": "Demo \u00b7 Obstacle, Left, Obstacle",
+    "short_label": "Obstacle, left, obstacle",
+    "summary": "Drive to a nearby obstacle, turn left 90 degrees, then drive to the next obstacle.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_spiral",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_spiral",
+    "label": "Demo \u00b7 Expanding Spiral",
+    "short_label": "Expanding spiral",
+    "summary": "Drive an expanding spiral and stop when the forward range sensor detects a nearby obstacle.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_random_snake",
+    "group": "archived",
+    "kind": "demo",
+    "source": "templates/demo_random_snake",
+    "label": "Demo \u00b7 Random Snake",
+    "short_label": "Random snake",
+    "summary": "Drive random-length straight segments separated by reproducible 90-degree left or right turns.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_snake_game",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_snake_game",
+    "label": "Demo \u00b7 SnakeGame",
+    "short_label": "SnakeGame",
+    "summary": "Drive through food waypoints; each pellet lengthens a finite tail, and crossing that tail ends the game.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_roomba",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_roomba",
+    "label": "Demo \u00b7 Roomba-Style Avoidance",
+    "short_label": "Roomba-style avoidance",
+    "summary": "Drive until ultrasound detects a nearby obstacle, reverse briefly, turn randomly, and repeat.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_manual_drive",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_manual_drive",
+    "label": "Demo \u00b7 Manual Driving",
+    "short_label": "Manual driving",
+    "summary": "Steer the XRP with bounded speed and turn sliders in Monitor; Run starts stopped.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "demo_ucsb_logo",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_ucsb_logo",
+    "label": "Demo \u00b7 Draw UCSB",
+    "short_label": "Draw UCSB",
+    "summary": "Use ordered waypoints to trace block-letter UCSB across the course arena.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "micropython_tutorial",
+    "group": "tutorials",
+    "kind": "tutorial",
+    "source": "templates/tutorial_1_python_essentials",
+    "label": "Tutorial 1 \u00b7 Python Essentials",
+    "short_label": "Tutorial 1 \u00b7 Python essentials",
+    "summary": "Practice Python values, typed functions, conditions, loops, and collections with immediate examples.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_virtual_drawing",
+    "group": "tutorials",
+    "kind": "tutorial",
+    "source": "templates/tutorial_2_virtual_drawing",
+    "label": "Tutorial 2 \u00b7 Virtual XRP Drawing",
+    "short_label": "Tutorial 2 \u00b7 Virtual XRP drawing",
+    "summary": "Use modules, records, classes, inheritance, and loops to draw a path with the Virtual XRP.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_robot_programs",
+    "group": "tutorials",
+    "kind": "tutorial",
+    "source": "templates/tutorial_3_robot_programs",
+    "label": "Tutorial 3 \u00b7 Sampled Robot Programs",
+    "short_label": "Tutorial 3 \u00b7 Sampled robot programs",
+    "summary": "Read RobotState records and write a finite sampled robot program without an added delay.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_behavior_telemetry",
+    "group": "tutorials",
+    "kind": "tutorial",
+    "source": "templates/tutorial_4_behavior_telemetry",
+    "label": "Tutorial 4 \u00b7 Behavior, Controls, and Telemetry",
+    "short_label": "Tutorial 4 \u00b7 Behavior, controls, and telemetry",
+    "summary": "Combine a measured finite-state behavior with live controls, watch values, and plot signals.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "tutorial_physical_preflight",
+    "group": "tutorials",
+    "kind": "tutorial",
+    "source": "templates/tutorial_5_physical_preflight",
+    "label": "Tutorial 5 \u00b7 Physical XRP Deployment",
+    "short_label": "Tutorial 5 \u00b7 Physical XRP deployment",
+    "summary": "Rehearse virtually, then verify sensors, motors, encoders, telemetry, and stopping on a physical XRP.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "new_challenge_1_robot_curling",
+    "group": "newest-challenges",
+    "kind": "challenge",
+    "source": "starters/new_challenge_1_robot_curling",
+    "label": "1 \u00b7 Robot Curling",
+    "short_label": "1 \u00b7 Robot Curling",
+    "summary": "Travel 1000 mm and stop close to the target as quickly as possible. Develop sensing, wheel-speed feedback, and stopping control.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_2_arena_line_circuit",
+    "group": "newest-challenges",
+    "kind": "challenge",
+    "source": "starters/new_challenge_2_arena_line_circuit",
+    "label": "2 \u00b7 Arena Line Circuit",
+    "short_label": "2 \u00b7 Arena Line Circuit",
+    "summary": "Use floor sensors to follow the arena line counterclockwise for one lap.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "LineFollower",
+        "file": "line_follower.py",
+        "selection_flag": "USE_STUDENT_LINE_FOLLOWER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_3_waypoint_courier",
+    "group": "newest-challenges",
+    "kind": "challenge",
+    "source": "starters/new_challenge_3_waypoint_courier",
+    "label": "3 \u00b7 Waypoint Courier",
+    "short_label": "3 \u00b7 Waypoint Courier",
+    "summary": "Estimate position from wheel travel and visit the marked waypoints in order.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_4_mapped_route",
+    "group": "newest-challenges",
+    "kind": "challenge",
+    "source": "starters/new_challenge_4_mapped_route",
+    "label": "4 \u00b7 Mapped Route",
+    "short_label": "4 \u00b7 Mapped Route",
+    "summary": "Find a grid route around mapped obstacles and check its cells before driving.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_5_out_and_back",
+    "group": "newest-challenges",
+    "kind": "challenge",
+    "source": "starters/new_challenge_5_out_and_back",
+    "label": "5 \u00b7 Out-and-Back",
+    "short_label": "5 \u00b7 Out-and-Back",
+    "summary": "Visit outbound waypoints, measure gate range while stopped, and plan a route home.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      },
+      {
+        "name": "NavigationController",
+        "file": "navigation_controller.py",
+        "selection_flag": "USE_STUDENT_NAVIGATION_CONTROLLER"
+      },
+      {
+        "name": "GridPlanner",
+        "file": "grid_planner.py",
+        "selection_flag": "USE_STUDENT_GRID_PLANNER"
+      }
+    ],
+    "published": true
+  },
+  {
+    "id": "new_demo_odometry_calibration",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/new_demo_odometry_calibration",
+    "label": "Odometry Calibration",
+    "short_label": "Odometry Calibration",
+    "summary": "Compare estimated and measured pose through bounded straight, arc, turn and square experiments.",
+    "entrypoint": "main.py",
+    "published": false,
+    "components": [
+      {
+        "name": "SensorModel",
+        "file": "sensor_model.py",
+        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+      },
+      {
+        "name": "WheelSpeedController",
+        "file": "wheel_speed_controller.py",
+        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      },
+      {
+        "name": "Odometry",
+        "file": "odometry.py",
+        "selection_flag": "USE_STUDENT_ODOMETRY"
+      }
+    ]
+  },
+  {
+    "id": "new_demo_reflectance_calibration",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/new_demo_reflectance_calibration",
+    "label": "Reflectance Calibration",
+    "short_label": "Reflectance Calibration",
+    "summary": "Record two reflectance sensors without motor motion and check floor/tape contrast.",
+    "entrypoint": "main.py",
+    "published": false
+  },
+  {
+    "id": "new_demo_motor_characterization",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/new_demo_motor_characterization",
+    "label": "Motor Characterization",
+    "short_label": "Motor Characterization",
+    "summary": "Measure separate left/right speed responses to bounded open-loop effort steps.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
+    "id": "new_demo_planning_comparison",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/new_demo_planning_comparison",
+    "label": "BFS and A* Comparison",
+    "short_label": "BFS and A* Comparison",
+    "summary": "Compare BFS and heapq A* path cost and expanded cells without starting the robot.",
+    "entrypoint": "main.py",
+    "published": false
+  },
+  {
+    "id": "complete_new_challenge_1_robot_curling",
+    "group": "newest-challenges",
+    "kind": "complete-challenge",
+    "source": "starters/new_challenge_1_robot_curling",
+    "label": "Complete 1 \u00b7 Robot Curling",
+    "short_label": "Complete 1 \u00b7 Robot Curling",
+    "summary": "Completed implementation of Robot Curling.",
+    "entrypoint": "main.py",
+    "solution_stage": 1,
+    "published": true
+  },
+  {
+    "id": "complete_new_challenge_2_arena_line_circuit",
+    "group": "newest-challenges",
+    "kind": "complete-challenge",
+    "source": "starters/new_challenge_2_arena_line_circuit",
+    "label": "Complete 2 \u00b7 Arena Line Circuit",
+    "short_label": "Complete 2 \u00b7 Arena Line Circuit",
+    "summary": "Completed implementation of Arena Line Circuit.",
+    "entrypoint": "main.py",
+    "solution_stage": 2,
+    "published": true
+  },
+  {
+    "id": "complete_new_challenge_3_waypoint_courier",
+    "group": "newest-challenges",
+    "kind": "complete-challenge",
+    "source": "starters/new_challenge_3_waypoint_courier",
+    "label": "Complete 3 \u00b7 Waypoint Courier",
+    "short_label": "Complete 3 \u00b7 Waypoint Courier",
+    "summary": "Completed implementation of Waypoint Courier.",
+    "entrypoint": "main.py",
+    "solution_stage": 3,
+    "published": true
+  },
+  {
+    "id": "complete_new_challenge_4_mapped_route",
+    "group": "newest-challenges",
+    "kind": "complete-challenge",
+    "source": "starters/new_challenge_4_mapped_route",
+    "label": "Complete 4 \u00b7 Mapped Route",
+    "short_label": "Complete 4 \u00b7 Mapped Route",
+    "summary": "Completed implementation of Mapped Route.",
+    "entrypoint": "main.py",
+    "solution_stage": 4,
+    "published": true
+  },
+  {
+    "id": "complete_new_challenge_5_out_and_back",
+    "group": "newest-challenges",
+    "kind": "complete-challenge",
+    "source": "starters/new_challenge_5_out_and_back",
+    "label": "Complete 5 \u00b7 Out-and-Back",
+    "short_label": "Complete 5 \u00b7 Out-and-Back",
+    "summary": "Completed implementation of Out-and-Back.",
+    "entrypoint": "main.py",
+    "solution_stage": 5,
+    "published": true
+  }
+]

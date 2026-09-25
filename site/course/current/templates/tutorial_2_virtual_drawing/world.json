@@ -1,0 +1,27 @@
+{
+  "default_world": "course-arena-drawing",
+  "worlds": [
+    {
+      "id": "course-arena-drawing",
+      "label": "Course arena · drawing",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -70,
+          "minimum_y_mm": -70,
+          "maximum_x_mm": 70,
+          "maximum_y_mm": 70,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

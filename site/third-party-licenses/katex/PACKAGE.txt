@@ -1,0 +1,4 @@
+name: katex
+version: 0.18.7
+license: MIT
+repository: https://github.com/KaTeX/KaTeX.git

@@ -1,0 +1,4 @@
+name: marked
+version: 14.0.0
+license: MIT
+repository: git://github.com/markedjs/marked.git

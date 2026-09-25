@@ -1,0 +1,4 @@
+name: @micropython/micropython-webassembly-pyscript
+version: 1.28.0-6
+license: MIT
+repository: git+https://github.com/micropython/micropython.git

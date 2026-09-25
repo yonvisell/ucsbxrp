@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-DE3RlOCf.js";import{n as t,r as n}from"./marked.esm-CG-jVnC-.js";var r=e();function i({source:e}){return(0,r.jsx)(`div`,{className:`documentation-markdown`,dangerouslySetInnerHTML:{__html:n.sanitize(t.parse(e,{async:!1}))}})}export{i as t};

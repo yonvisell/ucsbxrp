@@ -1,0 +1,4 @@
+name: @monaco-editor/react
+version: 4.7.0
+license: MIT
+repository: git+https://github.com/suren-atoyan/monaco-react.git

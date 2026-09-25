@@ -1,0 +1,23 @@
+{
+  "id": "./",
+  "name": "UCSBXRP Course Tools",
+  "short_name": "UCSBXRP",
+  "description": "Program, simulate, and run live telemetry for the XRP with the UCSB wheeled robotics course tools.",
+  "start_url": "./workspace/?mode=ide",
+  "scope": "./",
+  "display": "browser",
+  "background_color": "#ffffff",
+  "theme_color": "#00588a",
+  "icons": [
+    {
+      "src": "./app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

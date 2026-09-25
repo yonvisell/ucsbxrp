@@ -1,0 +1,92 @@
+{
+  "default_world": "open-field",
+  "worlds": [
+    {
+      "id": "open-field",
+      "label": "Arena",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": 0,
+        "y_mm": -230,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -120,
+          "minimum_y_mm": -350,
+          "maximum_x_mm": 120,
+          "maximum_y_mm": -110,
+          "label": "Start"
+        }
+      ]
+    },
+    {
+      "id": "obstacle-ahead",
+      "label": "Obstacle ahead",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": 0,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [
+        {
+          "type": "block",
+          "minimum_x_mm": 1000,
+          "minimum_y_mm": -250,
+          "maximum_x_mm": 1100,
+          "maximum_y_mm": 250,
+          "label": "Test obstacle"
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -120,
+          "minimum_y_mm": -120,
+          "maximum_x_mm": 120,
+          "maximum_y_mm": 120,
+          "label": "Start"
+        }
+      ]
+    },
+    {
+      "id": "open-space",
+      "label": "Open space",
+      "bounds": {
+        "minimum_x_mm": -10000,
+        "minimum_y_mm": -10000,
+        "maximum_x_mm": 10000,
+        "maximum_y_mm": 10000
+      },
+      "initial_pose": {
+        "x_mm": 0,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -120,
+          "minimum_y_mm": -120,
+          "maximum_x_mm": 120,
+          "maximum_y_mm": 120,
+          "label": "Start"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "default_world": "preflight-bench",
+  "worlds": [
+    {
+      "id": "preflight-bench",
+      "label": "Stationary preflight",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": { "x_mm": 0, "y_mm": 0, "heading_rad": 0 },
+      "obstacles": [
+        {
+          "type": "wall",
+          "label": "Range target",
+          "minimum_x_mm": 600,
+          "minimum_y_mm": -250,
+          "maximum_x_mm": 650,
+          "maximum_y_mm": 250
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -80,
+          "minimum_y_mm": -80,
+          "maximum_x_mm": 80,
+          "maximum_y_mm": 80,
+          "label": "Stationary XRP"
+        }
+      ]
+    }
+  ]
+}

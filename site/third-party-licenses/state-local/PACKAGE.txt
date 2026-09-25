@@ -1,0 +1,4 @@
+name: state-local
+version: 1.0.7
+license: MIT
+repository: git+https://github.com/suren-atoyan/state-local

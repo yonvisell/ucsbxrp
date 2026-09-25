@@ -1,0 +1,107 @@
+{
+  "default_world": "snake-virtual",
+  "worlds": [
+    {
+      "id": "snake-virtual",
+      "label": "SnakeGame \u00b7 virtual arena",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -1200,
+        "y_mm": -260,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -1305,
+          "minimum_y_mm": -365,
+          "maximum_x_mm": -1095,
+          "maximum_y_mm": -155,
+          "label": "Start"
+        }
+      ]
+    },
+    {
+      "id": "snake-physical",
+      "label": "SnakeGame \u00b7 physical field",
+      "bounds": {
+        "minimum_x_mm": -3048,
+        "minimum_y_mm": -1219.2,
+        "maximum_x_mm": 3048,
+        "maximum_y_mm": 1219.2
+      },
+      "initial_pose": {
+        "x_mm": -2650,
+        "y_mm": -650,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -2755,
+          "minimum_y_mm": -755,
+          "maximum_x_mm": -2545,
+          "maximum_y_mm": -545,
+          "label": "Start"
+        }
+      ]
+    },
+    {
+      "id": "snake-crossing",
+      "label": "SnakeGame \u00b7 crossing test",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -300,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -405,
+          "minimum_y_mm": -105,
+          "maximum_x_mm": -195,
+          "maximum_y_mm": 105,
+          "label": "Start"
+        },
+        {
+          "type": "waypoint",
+          "name": "food_01",
+          "x_mm": 0,
+          "y_mm": 0
+        },
+        {
+          "type": "waypoint",
+          "name": "food_02",
+          "x_mm": 0,
+          "y_mm": 200
+        },
+        {
+          "type": "waypoint",
+          "name": "food_03",
+          "x_mm": -300,
+          "y_mm": 200
+        },
+        {
+          "type": "waypoint",
+          "name": "food_04",
+          "x_mm": -300,
+          "y_mm": -100
+        }
+      ]
+    }
+  ]
+}

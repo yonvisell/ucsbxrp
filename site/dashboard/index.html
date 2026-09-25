@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/ucsbxrp/favicon.svg" />
+    <link rel="manifest" href="/ucsbxrp/manifest.webmanifest" />
+    <meta name="theme-color" content="#00588a" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>UCSBXRP Monitor</title>
+  </head>
+  <body>
+    <p>Opening the <a href="../monitor/">UCSBXRP Monitor</a>…</p>
+    <script>
+      const destination = new URL("../monitor/", window.location.href);
+      destination.search = window.location.search;
+      destination.hash = window.location.hash;
+      window.location.replace(destination);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,473 @@
+"""In-process pose channel shared with the optional browser target service."""
+
+try:
+    from time import ticks_diff as _ticks_diff
+    from time import ticks_ms as _ticks_ms
+except ImportError:  # CPython tests
+    from time import monotonic
+
+    def _ticks_ms():
+        return int(monotonic() * 1000.0)
+
+    def _ticks_diff(newer, older):
+        return newer - older
+
+import json
+from .records import DriveCommand, RawSensors, RobotState
+from ._range import begin_range_scope
+from .live import _plot_sample_snapshot
+
+try:
+    import _thread
+    _snapshot_lock = _thread.allocate_lock()
+except (ImportError, AttributeError):
+    _snapshot_lock = None
+
+try:
+    import xrp_sim_bridge as _browser_bridge
+except ImportError:
+    _browser_bridge = None
+
+_publish_browser_state = (
+    None
+    if _browser_bridge is None
+    else getattr(_browser_bridge, "publish_course_state", None)
+)
+_publish_browser_raw = (
+    None
+    if _browser_bridge is None
+    else getattr(_browser_bridge, "publish_sensor_sample", None)
+)
+
+# Retain nearly two seconds of the 50 Hz course loop. This covers the brief
+# interval in which the browser prioritizes Run or Stop over telemetry polling.
+_BUFFER_SIZE = 96
+_latest = None
+_buffer = [None] * _BUFFER_SIZE
+_buffer_write_index = 0
+_sample_seq = 0
+_sample_time_ms = 0
+_last_sample_ticks_ms = None
+_hardware_latest = None
+_drive_latest = DriveCommand(0.0, 0.0)
+_clock_ticks_ms = None
+_clock_elapsed_ms = 0
+_raw_seq = 0
+_last_raw = None
+_raw_timing = None
+_range_seq = 0
+_range_time_ms = None
+_diagnostics_seq = 0
+_diagnostics_time_ms = None
+_diagnostics_latest = (None, None, None, None, None)
+_course_samples = False
+_range_sampled = False
+
+
+def _acquire_snapshot():
+    if _snapshot_lock is not None:
+        _snapshot_lock.acquire()
+
+
+def _release_snapshot():
+    if _snapshot_lock is not None:
+        _snapshot_lock.release()
+
+
+def _elapsed_at(ticks_ms):
+    """Unwrap nearby acquisition/publication ticks from the first acquisition."""
+    global _clock_ticks_ms, _clock_elapsed_ms
+    if _clock_ticks_ms is None:
+        _clock_ticks_ms = ticks_ms
+        return 0
+    delta = _ticks_diff(ticks_ms, _clock_ticks_ms)
+    elapsed = _clock_elapsed_ms + delta
+    if delta >= 0:
+        _clock_ticks_ms = ticks_ms
+        _clock_elapsed_ms = elapsed
+    return elapsed
+
+
+def begin_course_samples():
+    """Suppress a raw publication while Robot performs its current sensor read."""
+    global _course_samples
+    _course_samples = True
+
+
+def end_course_samples():
+    global _course_samples
+    _course_samples = False
+
+
+def _remember_acquisition(raw, range_sampled=False, diagnostics=None, range_seq=None):
+    global _raw_seq, _last_raw, _raw_timing
+    global _range_seq, _range_time_ms
+    global _diagnostics_seq, _diagnostics_time_ms, _diagnostics_latest
+    global _range_sampled
+    if raw is _last_raw:
+        return
+    acquired_ms = _elapsed_at(raw.time_ms)
+    _raw_seq += 1
+    _last_raw = raw
+    _range_sampled = range_sampled
+    if range_sampled and range_seq is not None and range_seq != _range_seq:
+        _range_seq = range_seq
+        # The optional range read precedes the encoder timestamp. This is its
+        # acquisition-completion upper bound, not a simultaneous sensor claim.
+        # Requests during cooldown retain this attempt's identity and time.
+        _range_time_ms = acquired_ms
+    if diagnostics is not None:
+        _diagnostics_seq += 1
+        _diagnostics_time_ms = _elapsed_at(_ticks_ms())
+        values = [None, None, None, None, None]
+        for index, key in enumerate(("accelerationMg", "angularRateMdps", "temperatureC", "batteryV", "sensorError")):
+            if key in diagnostics:
+                value = diagnostics[key]
+                values[index] = tuple(value) if index < 2 and value is not None else value
+        _diagnostics_latest = tuple(values)
+    _raw_timing = (
+        raw.time_ms, acquired_ms, _raw_seq,
+        _range_time_ms, _range_seq or None,
+        _diagnostics_time_ms, _diagnostics_seq or None,
+        raw.left_encoder_count, raw.right_encoder_count, raw.range_mm,
+    )
+
+
+def _publication_timing(kind, dt_ms=None, period_ms=None, overrun_ms=None):
+    if _raw_timing is None:
+        return None
+    return _raw_timing + (_elapsed_at(_ticks_ms()), dt_ms, period_ms, overrun_ms, kind, _range_sampled)
+
+
+def _retain_snapshot(snapshot):
+    global _latest, _buffer_write_index
+    _acquire_snapshot()
+    try:
+        _latest = snapshot
+        _buffer[_buffer_write_index] = snapshot
+        _buffer_write_index = (_buffer_write_index + 1) % _BUFFER_SIZE
+    finally:
+        _release_snapshot()
+
+
+def publish_raw_sensors(
+    raw_sensors,
+    range_sampled=False,
+    diagnostics=None,
+    reflectance_sampled=False,
+    range_seq=None,
+):
+    """Mirror hardware values already read by the student program.
+
+    The browser service runs on the other RP2350 core and must not read the
+    same encoder, I2C, or GPIO devices concurrently. This whole-dictionary
+    replacement lets that service observe current values without a second
+    hardware access.
+    """
+    global _hardware_latest
+    if not isinstance(raw_sensors, RawSensors):
+        raise TypeError("raw_sensors must be a RawSensors value")
+    if not isinstance(range_sampled, bool):
+        raise TypeError("range_sampled must be True or False")
+    if not isinstance(reflectance_sampled, bool):
+        raise TypeError("reflectance_sampled must be True or False")
+    _remember_acquisition(raw_sensors, range_sampled, diagnostics, range_seq)
+    previous = {} if _hardware_latest is None else _hardware_latest
+    snapshot = {
+        "leftEncoderCount": raw_sensors.left_encoder_count,
+        "rightEncoderCount": raw_sensors.right_encoder_count,
+        "rangeMm": (
+            raw_sensors.range_mm
+            if range_sampled
+            else previous.get("rangeMm")
+        ),
+        "buttonPressed": raw_sensors.button_pressed,
+        "leftReflectance": (
+            None
+            if reflectance_sampled and raw_sensors.reflectance is None
+            else (
+                raw_sensors.reflectance.left
+                if reflectance_sampled
+                else previous.get("leftReflectance")
+            )
+        ),
+        "rightReflectance": (
+            None
+            if reflectance_sampled and raw_sensors.reflectance is None
+            else (
+                raw_sensors.reflectance.right
+                if reflectance_sampled
+                else previous.get("rightReflectance")
+            )
+        ),
+        "accelerationMg": previous.get("accelerationMg"),
+        "angularRateMdps": previous.get("angularRateMdps"),
+        "temperatureC": previous.get("temperatureC"),
+        "batteryV": previous.get("batteryV"),
+        "sensorError": previous.get("sensorError"),
+    }
+    if diagnostics is not None:
+        for key in (
+            "accelerationMg",
+            "angularRateMdps",
+            "temperatureC",
+            "batteryV",
+            "sensorError",
+        ):
+            if key in diagnostics:
+                snapshot[key] = diagnostics[key]
+    _acquire_snapshot()
+    try:
+        _hardware_latest = snapshot
+    finally:
+        _release_snapshot()
+    if not _course_samples:
+        sequence, elapsed = _next_sample_identity()
+        _retain_snapshot({
+            "sampleSeq": sequence, "sampleTimeMs": elapsed,
+            "poseAvailable": False, "xMm": 0.0, "yMm": 0.0, "headingRad": 0.0,
+            "leftWheelSpeedMmS": 0.0, "rightWheelSpeedMmS": 0.0,
+            "leftEncoderCount": raw_sensors.left_encoder_count,
+            "rightEncoderCount": raw_sensors.right_encoder_count,
+            "rangeMm": raw_sensors.range_mm, "buttonPressed": raw_sensors.button_pressed,
+            "leftEffort": _drive_latest.left, "rightEffort": _drive_latest.right,
+            "plotValues": _plot_sample_snapshot(),
+            "timing": _publication_timing("raw"),
+            "diagnostics": _diagnostics_latest,
+        })
+        if _publish_browser_raw is not None:
+            try:
+                publication = {"timing": _latest["timing"], "diagnostics": _latest["diagnostics"]}
+                if _latest["plotValues"]:
+                    publication["plots"] = [
+                        {"name": name, "label": label, "unit": unit, "value": value}
+                        for name, label, unit, value in _latest["plotValues"]
+                    ]
+                _publish_browser_raw(json.dumps(publication))
+            except Exception:
+                # A diagnostic bridge failure must not stop sensor acquisition.
+                pass
+
+
+def publish_drive_command(command):
+    """Mirror the latest logical motor command without touching hardware."""
+    global _drive_latest, _hardware_latest
+    if not isinstance(command, DriveCommand):
+        raise TypeError("command must be a DriveCommand")
+    empty_hardware = None
+    if _hardware_latest is None:
+        empty_hardware = {
+            "leftEncoderCount": 0,
+            "rightEncoderCount": 0,
+            "rangeMm": None,
+            "buttonPressed": False,
+            "leftReflectance": None,
+            "rightReflectance": None,
+            "accelerationMg": None,
+            "angularRateMdps": None,
+            "temperatureC": None,
+            "batteryV": None,
+            "sensorError": None,
+        }
+    _acquire_snapshot()
+    try:
+        _drive_latest = command
+        if _hardware_latest is None:
+            _hardware_latest = empty_hardware
+    finally:
+        _release_snapshot()
+
+
+def hardware_snapshot():
+    """Return the latest student-thread hardware mirror for the service."""
+    _acquire_snapshot()
+    try:
+        hardware, drive = _hardware_latest, _drive_latest
+    finally:
+        _release_snapshot()
+    if hardware is None:
+        return None
+    snapshot = dict(hardware)
+    snapshot["leftEffort"] = drive.left
+    snapshot["rightEffort"] = drive.right
+    return snapshot
+
+
+def _next_sample_identity():
+    """Return a sequence and elapsed time for one published robot sample."""
+    global _sample_seq, _sample_time_ms, _last_sample_ticks_ms
+    now = _ticks_ms()
+    if _last_sample_ticks_ms is not None:
+        elapsed = _ticks_diff(now, _last_sample_ticks_ms)
+        if elapsed > 0:
+            _sample_time_ms += elapsed
+    _last_sample_ticks_ms = now
+    _sample_seq += 1
+    return _sample_seq, _sample_time_ms
+
+
+def publish_state(
+    state,
+    drive_command=None,
+    motion_command=None,
+    target_wheel_speeds=None,
+    raw_sensors=None,
+    sample_period_ms=None,
+    overrun_ms=None,
+    kind="course",
+):
+    global _latest, _buffer_write_index
+    if not isinstance(state, RobotState):
+        raise TypeError("state must be a RobotState")
+    if drive_command is not None and not isinstance(drive_command, DriveCommand):
+        raise TypeError("drive_command must be a DriveCommand value or None")
+    if raw_sensors is not None and not isinstance(raw_sensors, RawSensors):
+        raise TypeError("raw_sensors must be a RawSensors value or None")
+    if raw_sensors is not None:
+        _remember_acquisition(raw_sensors)
+    requested_forward = (
+        None if motion_command is None else motion_command.forward_speed_mm_s
+    )
+    requested_turn = None if motion_command is None else motion_command.turn_rate_rad_s
+    target_left = (
+        None if target_wheel_speeds is None else target_wheel_speeds.left_mm_s
+    )
+    target_right = (
+        None if target_wheel_speeds is None else target_wheel_speeds.right_mm_s
+    )
+    sample_seq, sample_time_ms = _next_sample_identity()
+    snapshot = {
+        "sampleSeq": sample_seq,
+        "sampleTimeMs": sample_time_ms,
+        "xMm": state.pose.x_mm,
+        "yMm": state.pose.y_mm,
+        "headingRad": state.pose.heading_rad,
+        "leftWheelSpeedMmS": state.measurements.left_speed_mm_s,
+        "rightWheelSpeedMmS": state.measurements.right_speed_mm_s,
+        "leftWheelDistanceMm": state.measurements.left_position_mm,
+        "rightWheelDistanceMm": state.measurements.right_position_mm,
+        "leftEncoderCount": (
+            None if raw_sensors is None else raw_sensors.left_encoder_count
+        ),
+        "rightEncoderCount": (
+            None if raw_sensors is None else raw_sensors.right_encoder_count
+        ),
+        "rangeMm": state.measurements.range_mm,
+        "buttonPressed": state.measurements.button_pressed,
+        "leftReflectance": (
+            None
+            if state.measurements.reflectance is None
+            else state.measurements.reflectance.left
+        ),
+        "rightReflectance": (
+            None
+            if state.measurements.reflectance is None
+            else state.measurements.reflectance.right
+        ),
+        # The physical-service wire keys remain stable for older app builds.
+        "leftEffort": 0.0 if drive_command is None else drive_command.left,
+        "rightEffort": 0.0 if drive_command is None else drive_command.right,
+        "requestedForwardSpeedMmS": requested_forward,
+        "requestedTurnRateRadS": requested_turn,
+        "targetLeftWheelSpeedMmS": target_left,
+        "targetRightWheelSpeedMmS": target_right,
+        "plotValues": _plot_sample_snapshot(),
+        "timing": _publication_timing(kind, state.measurements.dt_s * 1000.0, sample_period_ms, overrun_ms),
+        "diagnostics": _diagnostics_latest,
+    }
+    # Each snapshot is replaced as a whole and is never mutated after this
+    # point. Publish its pointer under the same short lock used to snapshot
+    # the fixed ring, so a reader cannot skip entries added during its scan.
+    _retain_snapshot(snapshot)
+    if _publish_browser_state is not None:
+        try:
+            _publish_browser_state(
+                state.pose.x_mm,
+                state.pose.y_mm,
+                state.pose.heading_rad,
+                state.measurements.left_speed_mm_s,
+                state.measurements.right_speed_mm_s,
+                state.measurements.left_position_mm,
+                state.measurements.right_position_mm,
+                requested_forward,
+                requested_turn,
+                target_left,
+                target_right,
+                json.dumps([
+                    {"name": name, "label": label, "unit": unit, "value": value}
+                    for name, label, unit, value in snapshot["plotValues"]
+                ]),
+                json.dumps({"timing": snapshot["timing"], "diagnostics": snapshot["diagnostics"]}),
+            )
+        except Exception:
+            # Diagnostics must never stop a student control loop.
+            pass
+
+
+def state_snapshot():
+    _acquire_snapshot()
+    try:
+        latest = _latest
+    finally:
+        _release_snapshot()
+    return None if latest is None else dict(latest)
+
+
+def buffered_state_snapshots(after_sample_seq=0):
+    """Return retained robot samples newer than ``after_sample_seq``.
+
+    The returned tuple is ordered by sequence. Its dictionaries are internal
+    immutable snapshots; callers must treat them as read-only.
+    """
+    try:
+        after_sample_seq = int(after_sample_seq)
+    except (TypeError, ValueError):
+        after_sample_seq = 0
+    _acquire_snapshot()
+    try:
+        retained = tuple(_buffer)
+    finally:
+        _release_snapshot()
+    snapshots = []
+    for snapshot in retained:
+        if snapshot is not None and snapshot["sampleSeq"] > after_sample_seq:
+            snapshots.append(snapshot)
+    snapshots.sort(key=lambda value: value["sampleSeq"])
+    return tuple(snapshots)
+
+
+def clear_state():
+    global _latest, _buffer, _buffer_write_index
+    global _sample_seq, _sample_time_ms, _last_sample_ticks_ms
+    global _hardware_latest, _drive_latest
+    global _clock_ticks_ms, _clock_elapsed_ms, _raw_seq, _last_raw, _raw_timing
+    global _range_seq, _range_time_ms, _diagnostics_seq, _diagnostics_time_ms
+    global _diagnostics_latest, _course_samples
+    global _range_sampled
+    begin_range_scope()
+    empty_buffer = [None] * _BUFFER_SIZE
+    stopped_drive = DriveCommand(0.0, 0.0)
+    _acquire_snapshot()
+    try:
+        _latest = None
+        _buffer = empty_buffer
+        _buffer_write_index = 0
+        _hardware_latest = None
+        _drive_latest = stopped_drive
+    finally:
+        _release_snapshot()
+    _sample_seq = 0
+    _sample_time_ms = 0
+    _last_sample_ticks_ms = None
+    _clock_ticks_ms = None
+    _clock_elapsed_ms = 0
+    _raw_seq = 0
+    _last_raw = None
+    _raw_timing = None
+    _range_seq = 0
+    _range_time_ms = None
+    _diagnostics_seq = 0
+    _diagnostics_time_ms = None
+    _diagnostics_latest = (None, None, None, None, None)
+    _course_samples = False
+    _range_sampled = False

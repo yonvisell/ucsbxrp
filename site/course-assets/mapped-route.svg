@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 330" role="img" aria-labelledby="title desc">
+<title id="title">Mapped Route: reachable case</title>
+<desc id="desc">Start, destination, and known center obstacle for the reachable world. The planner must find the path; none is shown. Geometry comes from the active world.json.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#0f766e"/></marker></defs>
+<style>.background{fill:#fff}.arena{fill:#f8fafc;stroke:#64748b;stroke-width:1.5}.start-box{fill:#dbeafe;fill-opacity:.55;stroke:#155e75;stroke-width:1.5;stroke-dasharray:4 3}.obstacle{fill:#475569;stroke:#334155;stroke-width:1.5}.gate{fill:#f59e0b;fill-opacity:.55;stroke:#92400e;stroke-width:2;stroke-dasharray:5 3}.track{fill:none;stroke:#1f2937;stroke-linejoin:round;stroke-linecap:round}.finish{stroke:#111827;stroke-linecap:round}.outbound{fill:none;stroke:#0f766e;stroke-width:3;stroke-dasharray:7 5;stroke-linejoin:round}.direction{stroke:#0f766e;stroke-width:3;stroke-linecap:round}.point{fill:#155e75;stroke:#fff;stroke-width:2}.goal{fill:#b45309;stroke:#fff;stroke-width:2}.home{fill:#155e75;stroke:#fff;stroke-width:2}.point-text{fill:#fff;font:700 12px system-ui,sans-serif}.label{fill:#0f172a;font:600 13px system-ui,sans-serif;paint-order:stroke;stroke:#fff;stroke-width:3px}.small{fill:#334155;font:12px system-ui,sans-serif}</style>
+<rect class="background" width="700" height="330"/>
+<rect class="arena" x="50.0" y="45.0" width="600.00" height="240.00"/>
+<rect class="start-box" x="93.31" y="149.25" width="31.49" height="31.50"/>
+<rect class="obstacle" x="320.47" y="125.63" width="59.06" height="78.74"/>
+<circle class="home" cx="109.06" cy="165.0" r="10"/>
+<text class="point-text" x="109.06" y="169.0" text-anchor="middle">S</text>
+<line class="direction" x1="126.06" y1="165.0" x2="156.06" y2="165.0" marker-end="url(#arrow)"/>
+<circle class="goal" cx="448.43" cy="105.94" r="10"/><text class="point-text" x="448.43" y="109.94" text-anchor="middle">G</text>
+<text class="label" x="465.43" y="109.94" text-anchor="start">Destination</text>
+<text class="label" x="350" y="119" text-anchor="middle">Known block</text>
+<text class="small" x="52" y="41" text-anchor="start">+y ↑</text>
+<text class="small" x="649" y="301" text-anchor="end">+x →</text>
+<text class="small" x="50" y="311" text-anchor="start">Known obstacle shown at its physical size · Planned path not shown</text>
+</svg>

@@ -1,0 +1,1 @@
+function e(){return typeof window<`u`&&new URLSearchParams(window.location.search).get(`embedded`)===`1`}export{e as t};

@@ -1,0 +1,61 @@
+{
+  "default_world": "arena-circuit",
+  "worlds": [
+    {
+      "id": "arena-circuit",
+      "label": "Arena circuit",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": { "x_mm": -555, "y_mm": -300, "heading_rad": 0 },
+      "obstacles": [],
+      "tracks": [
+        {
+          "type": "line",
+          "name": "arena_circuit",
+          "label": "Arena circuit",
+          "width_mm": 18,
+          "darkness": 1,
+          "closed": true,
+          "points": [
+            { "x_mm": -500, "y_mm": -300 },
+            { "x_mm": 500, "y_mm": -300 },
+            { "x_mm": 750, "y_mm": -220 },
+            { "x_mm": 900, "y_mm": 0 },
+            { "x_mm": 750, "y_mm": 220 },
+            { "x_mm": 500, "y_mm": 300 },
+            { "x_mm": -500, "y_mm": 300 },
+            { "x_mm": -750, "y_mm": 220 },
+            { "x_mm": -900, "y_mm": 0 },
+            { "x_mm": -750, "y_mm": -220 }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "finish",
+          "label": "Start and finish bar",
+          "width_mm": 50,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            { "x_mm": -500, "y_mm": -365 },
+            { "x_mm": -500, "y_mm": -235 }
+          ]
+        }
+      ],
+      "markers": [
+        {
+          "type": "start_box",
+          "minimum_x_mm": -600,
+          "minimum_y_mm": -390,
+          "maximum_x_mm": -470,
+          "maximum_y_mm": -210,
+          "label": "Start on finish bar"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+name: commander
+version: 15.0.0
+license: MIT
+repository: git+https://github.com/tj/commander.js.git

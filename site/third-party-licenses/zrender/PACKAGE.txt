@@ -1,0 +1,4 @@
+name: zrender
+version: 6.1.0
+license: BSD-3-Clause
+repository: https://github.com/ecomfe/zrender.git
