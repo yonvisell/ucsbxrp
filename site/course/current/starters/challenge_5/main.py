@@ -1,8 +1,8 @@
 # Challenge 5: observe the gate, plan, and complete the delivery.
 
 from challenge import DELIVERY_TASK
-from course_setup import make_grid_planner, make_navigation_controller, make_robot
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import make_grid_planner, make_navigation_controller, make_robot
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import DeliveryMission
 
 

@@ -17,7 +17,7 @@ keep the random seed fixed so the requested segment sequence is comparable.
 - **world.json** sets the arena and initial position and heading. Its finish
   marker shows the expected region for the supplied settings.
 - **main.py** runs the sequence; **live_variables.py** declares speed and turn controls and publishes the watches;
-  **robot_config.py** holds robot dimensions and controller settings.
+  **robot_setup.py** holds robot dimensions and controller settings.
 
 On the physical XRP, place the robot at the configured starting pose in a
 clear arena. Wheel slip and robot dimensions affect where the route finishes.

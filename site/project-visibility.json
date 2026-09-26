@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "projects": {
+    "challenge_1": false,
+    "challenge_2": false,
+    "challenge_3": false,
+    "challenge_4": false,
+    "challenge_5": false,
+    "challenge_6": false,
+    "challenge_7": false,
+    "challenge_8": false,
+    "challenge_9": false,
+    "demo_obstacle_turn": true,
+    "demo_spiral": true,
+    "demo_random_snake": false,
+    "demo_snake_game": true,
+    "demo_roomba": true,
+    "demo_manual_drive": true,
+    "demo_ucsb_logo": true,
+    "micropython_tutorial": true,
+    "tutorial_virtual_drawing": true,
+    "tutorial_robot_programs": true,
+    "tutorial_behavior_telemetry": true,
+    "tutorial_physical_preflight": true,
+    "new_challenge_1_robot_curling": true,
+    "new_challenge_2_arena_line_circuit": true,
+    "new_challenge_3_waypoint_courier": true,
+    "new_challenge_4_mapped_route": true,
+    "new_challenge_5_out_and_back": true,
+    "new_demo_motor_characterization": true
+  }
+}

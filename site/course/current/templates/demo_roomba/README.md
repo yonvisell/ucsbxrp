@@ -17,7 +17,7 @@ distance, and turn rate during the run. Their current values appear in Monitor.
 - **world.json** defines the arena, divider and starting pose.
 - **main.py** implements the approach → reverse → turn sequence using the
   supplied robot services. **live_variables.py** declares speed, obstacle distance and turn controls, and publishes the watch values;
-  **robot_config.py** contains robot-specific settings.
+  **robot_setup.py** contains robot-specific settings.
 
 For a physical run, leave space behind the robot for reversing and use broad,
 firm obstacles. A missing ultrasound echo allows the approach to continue;

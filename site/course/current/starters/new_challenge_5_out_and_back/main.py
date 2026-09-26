@@ -2,13 +2,13 @@
 from challenge import INITIAL_POSE, OUTBOUND_ROUTE
 from challenge import RANGE_SAMPLE_COUNT, MINIMUM_USABLE_RANGE_COUNT, RANGE_COLLECTION_TIMEOUT_S
 from challenge import BLOCKED_RANGE_THRESHOLD_MM
-from course_setup import make_grid_planner, make_navigation_controller, make_robot
+from robot_setup import make_grid_planner, make_navigation_controller, make_robot
 from live_variables import publish_phase, report_result, publish_return_path_cells
 from mission_policy import observed_gate
 from mission_steps import follow_route
 from return_route import plan_return
 from stationary_observation import wait_until_stationary
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import elapsed_time_s
 
 robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.

@@ -3,9 +3,9 @@
 from math import pi
 
 from challenge import WORLD, RANDOM_SEED, SEGMENT_COUNT, TURN_TOLERANCE_RAD, TURN_TIMEOUT_S, SEGMENT_TIMEOUT_S, MINIMUM_SEGMENT_TRAVEL_MM, MAXIMUM_SEGMENT_TRAVEL_MM
-from course_setup import make_robot
+from robot_setup import make_robot
 from live_variables import FORWARD_SPEED_MM_S, TURN_RATE_RAD_S, publish_phase, publish_segment, publish_travel
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, elapsed_time_s, wrap_angle_rad
 
 # SeededRandom — Generate reproducible pseudo-random demo choices.

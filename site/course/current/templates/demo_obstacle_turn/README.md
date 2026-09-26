@@ -15,7 +15,7 @@ watches** shows the current phase, distance and heading error.
 
 **challenge.py** defines the rotation-failure limit; **live_variables.py** declares the live controls.
 **world.json** defines the arena, obstacles and starting pose. **main.py**
-contains the approach and rotation functions. **robot_config.py** holds robot
+contains the approach and rotation functions. **robot_setup.py** holds robot
 geometry and controller settings. **live_variables.py** also publishes range,
 phase, and heading-error watches.
 

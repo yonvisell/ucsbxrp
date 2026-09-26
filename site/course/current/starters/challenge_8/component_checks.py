@@ -4,7 +4,7 @@ from differential_drive import DifferentialDrive
 from grid_planner import GridPlanner
 from navigation_controller import NavigationController
 from odometry import Odometry
-from sensor_model import SensorModel
+from sensor_processor import SensorProcessor
 from visit_order_planner import VisitOrderPlanner
 from wheel_speed_controller import WheelSpeedController
 
@@ -14,7 +14,7 @@ from ucsb_xrp.student_api import VisitOrderPlannerBase
 
 # Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
-    SensorModel,
+    SensorProcessor,
     WheelSpeedController,
     DifferentialDrive,
     Odometry,

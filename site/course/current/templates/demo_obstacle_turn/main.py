@@ -3,9 +3,9 @@
 from math import pi
 
 from challenge import WORLD, TURN_TOLERANCE_RAD, TURN_TIMEOUT_S
-from course_setup import make_robot
+from robot_setup import make_robot
 from live_variables import CLOSE_RANGE_MM, FORWARD_SPEED_MM_S, TURN_RATE_RAD_S, TURN_DIRECTION, SECOND_APPROACH, publish_heading_error, publish_phase, publish_range
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s, wrap_angle_rad
 
 

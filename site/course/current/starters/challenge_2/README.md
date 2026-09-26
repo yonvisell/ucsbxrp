@@ -34,21 +34,20 @@ Implement two new classes:
   not requested speeds, motor commands, or simulator ground truth.
 
 If turn-and-return results expose a measurement or control problem, revise
-`sensor_model.py` or `wheel_speed_controller.py` as needed. Keep the effective
+`sensor_processor.py` or `wheel_speed_controller.py` as needed. Keep the effective
 track width and other robot-specific values in
-[`robot_config.py`](robot_config.py).
+[`robot_setup.py`](robot_setup.py).
 
 ## Project modules
 
 | File | Role |
 | --- | --- |
-| [`sensor_model.py`](sensor_model.py) | Measures wheel travel and speed from encoder samples. |
+| [`sensor_processor.py`](sensor_processor.py) | Measures wheel travel and speed from encoder samples. |
 | [`wheel_speed_controller.py`](wheel_speed_controller.py) | Converts wheel-speed error to limited motor commands. |
 | [`differential_drive.py`](differential_drive.py) | Converts robot motion to two wheel-speed targets. |
 | [`odometry.py`](odometry.py) | Estimates world position and heading from wheel travel. |
-| [`robot_config.py`](robot_config.py) | Stores measured geometry, calibration, gains, and motion settings. |
-| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
-| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorModel`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |
+| [`robot_setup.py`](robot_setup.py) | Holds robot calibration and settings, selects components, and constructs the robot. |
+| [`component_checks.py`](component_checks.py) | Calls the required methods of `SensorProcessor`, `WheelSpeedController`, `DifferentialDrive`, and `Odometry` without starting a robot. |
 
 ## Provided files and tools
 
@@ -64,7 +63,7 @@ track width and other robot-specific values in
 requested forward speed and turn rate
                  -> DifferentialDrive -> wheel-speed targets
                  -> wheel control     -> motor commands
-encoder readings -> SensorModel       -> wheel increments
+encoder readings -> SensorProcessor       -> wheel increments
 wheel increments -> Odometry          -> estimated Pose
 ```
 

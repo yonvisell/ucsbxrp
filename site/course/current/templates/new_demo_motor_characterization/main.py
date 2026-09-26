@@ -6,14 +6,14 @@ from experiment import (
     MAXIMUM_WHEEL_TRAVEL_MM,
     ZERO_DURATION_S,
 )
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from live_variables import publish_motor_values
 from ucsb_xrp import DriveCommand, XRPBot, elapsed_time_s
-from ucsb_xrp_reference import SensorModel
+from ucsb_xrp_reference import SensorProcessor
 
 # Direct XRPBot commands bypass Robot's wheel-speed feedback.
 bot = XRPBot(ROBOT_CONFIG)
-model = SensorModel(ROBOT_CONFIG)
+model = SensorProcessor(ROBOT_CONFIG)
 bot.stop()
 try:  # Ensure finally stops motors on exit.
     bot.reset_encoders()

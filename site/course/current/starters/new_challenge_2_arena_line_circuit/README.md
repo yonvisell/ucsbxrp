@@ -21,7 +21,7 @@ seven other circuits, also defined in `world.json`.*
 
 1. **Measure reflectance.** Establish how the two sensors distinguish the floor,
    line, and finish bar. In the file list, open **Actions for
-   reflectance_readout.py → Make main**, then **Compile** and **Run** with the
+   experiment_reflectance_readout.py → Make main**, then **Compile** and **Run** with the
    robot stationary at its normal sensor height. Selecting a file in the
    editor alone does not change what Run executes. The readout prints ten left/right reading
    pairs. Place the sensors over bare floor, centered on the narrow tape,
@@ -29,7 +29,7 @@ seven other circuits, also defined in `world.json`.*
    and record the range of both readings. Values near 0 indicate a light
    surface; values near 1 indicate a dark surface.
 2. **Set detection thresholds.** Use the paired readings to choose
-   `LINE_VISIBLE_THRESHOLD` and `FINISH_THRESHOLD` in `robot_config.py`.
+   `LINE_VISIBLE_THRESHOLD` and `FINISH_THRESHOLD` in `robot_setup.py`.
    The first is compared with the darker of the two sensors; the second is
    compared with the lighter sensor when recognizing the wide bar. Check
    whether the observed line, lost-line,
@@ -45,20 +45,20 @@ seven other circuits, also defined in `world.json`.*
    in mm/s, counterclockwise turn rate in rad/s, and
    `self.config.track_width_mm`; return left/right `WheelSpeeds` in mm/s.
    Measure the center-to-center spacing of the driven wheels at the floor
-   as an initial `track_width_mm` estimate in `robot_config.py`.
+   as an initial `track_width_mm` estimate in `robot_setup.py`.
    Account for straight motion, rotation in place, and simultaneous forward
    motion and turning. A positive turn rate requires the right target speed
    to exceed the left.
 2. **Check motion cases.** Use **Test functions** to run defined input/output
    examples for straight, in-place, and combined motion. Set
-   `USE_STUDENT_DIFFERENTIAL_DRIVE = True` in `course_setup.py` to use your
+   `USE_STUDENT_DIFFERENTIAL_DRIVE = True` in `robot_setup.py` to use your
    class during a run.
-3. **Reuse wheel control.** Copy the completed `sensor_model.py` and
+3. **Reuse wheel control.** Copy the completed `sensor_processor.py` and
    `wheel_speed_controller.py` from Robot Curling into the files of the same
    names in this project. Copy your measured calibration values into
-   `robot_config.py`, keeping the line-following settings. Select the two
-   classes with their matching flags in `course_setup.py`.
-   `component_checks.py` also checks that `SensorModel` preserves floor readings
+   `robot_setup.py`, keeping the line-following settings. Select the two
+   classes with their matching flags in `robot_setup.py`.
+   `component_checks.py` also checks that `SensorProcessor` preserves floor readings
    in `Measurements`.
 
 ## 3. Build local line following
@@ -80,7 +80,7 @@ seven other circuits, also defined in `world.json`.*
    coefficient that converts dimensionless left-minus-right sensor error
    into a turn-rate contribution
    in rad/s. `live_variables.py` declares both controls;
-   `apply_line_controls()` in `robot_config.py` copies their current values
+   `apply_line_controls()` in `robot_setup.py` copies their current values
    into `follower.settings` before each sensor update. Make your controller
    use those entries so changes affect the next motion request. The supplied
    settings also contain a derivative term; P gain changes only the
@@ -89,7 +89,7 @@ seven other circuits, also defined in `world.json`.*
 4. **Check steering responses.** Use the corresponding **Test functions**
    examples to check centered, left-dark, and right-dark readings, output
    bounds, and reset behavior. Then select
-   `USE_STUDENT_LINE_FOLLOWER = True` in `course_setup.py`. Restore **Actions for
+   `USE_STUDENT_LINE_FOLLOWER = True` in `robot_setup.py`. Restore **Actions for
    main.py → Make main**, then **Compile** and **Run**. Inspect sensor readings, `line_error`,
    and requested turn rate through a straight segment and a bend, using the
    Virtual XRP if useful. Revise the controller if it oscillates, cuts a bend,
@@ -133,7 +133,7 @@ virtual from physical results.
 <span class="supplied-file">Gray S</span>: code provided or completed earlier.
 `main.py` is supplied and normally unchanged; a controlled experiment may
 still edit it. **Test functions** checks project files regardless of the
-`USE_STUDENT_*` flags. **Run** uses the classes selected in `course_setup.py`;
+`USE_STUDENT_*` flags. **Run** uses the classes selected in `robot_setup.py`;
 turn on and check each new class separately.
 
 <div class="project-file-table">
@@ -143,15 +143,14 @@ turn on and check each new class separately.
 | <span class="supplied-file"><code>main.py</code> S</span> | Runs line following and stops at lap completion or persistent line loss. |
 | <strong class="student-file"><code>differential_drive.py</code> *</strong> | Converts forward speed and turn rate into left/right wheel-speed targets. |
 | <strong class="student-file"><code>line_follower.py</code> *</strong> | Uses paired floor readings to request forward speed and turn rate. |
-| <span class="supplied-file"><code>sensor_model.py</code> S</span> | Completed wheel measurement component; preserves floor readings. |
+| <span class="supplied-file"><code>sensor_processor.py</code> S</span> | Completed wheel measurement component; preserves floor readings. |
 | <span class="supplied-file"><code>wheel_speed_controller.py</code> S</span> | Completed wheel-speed feedback component. |
-| <strong class="config-file"><code>robot_config.py</code> †</strong> | Holds robot calibration, line thresholds, follower settings, and live control application. |
+| <strong class="config-file"><code>robot_setup.py</code> †</strong> | Holds robot calibration and settings, selects components, and constructs the robot. |
 | <strong class="config-file"><code>challenge.py</code> †</strong> | Loads course geometry and holds checkpoint and line-loss settings. |
-| <strong class="config-file"><code>course_setup.py</code> †</strong> | Selects component implementations and creates the robot and follower. |
 | <span class="supplied-file"><code>component_checks.py</code> S</span> | Checks component methods without driving. |
 | <span class="supplied-file"><code>lap_progress.py</code> S</span> | Counts ordered checkpoints from estimated position and confirms the finish bar. |
 | <strong class="config-file"><code>live_variables.py</code> †</strong> | Declares controls and publishes sensor, steering, and lap values. |
-| <span class="supplied-file"><code>reflectance_readout.py</code> S</span> | Prints ten stationary left/right floor-sensor pairs. |
+| <span class="supplied-file"><code>experiment_reflectance_readout.py</code> S</span> | Prints ten stationary left/right floor-sensor pairs. |
 | <strong class="config-file"><code>world.json</code> †</strong> | Defines arena geometry, start pose, tracks, obstacles, and markers. |
 
 </div>
@@ -167,9 +166,9 @@ full field definitions; the Guide explains project-file selection.
 | --- | --- | --- |
 | Cruise speed | `live_variables.py`; mm/s | Copied to `follower.settings["cruise_speed_mm_s"]` each sample. |
 | P gain | `live_variables.py`; rad/s per unit reflectance difference | Copied to `follower.settings["kp_rad_s"]` each sample. |
-| `maximum_turn_rate_rad_s` | `robot_config.py`; rad/s | Limits requested turning. |
-| `LINE_VISIBLE_THRESHOLD` | `robot_config.py`; normalized reflectance | Minimum reading at either sensor for visible line. |
-| `FINISH_THRESHOLD` | `robot_config.py`; normalized reflectance | Minimum reading at both sensors for the wide bar. |
+| `maximum_turn_rate_rad_s` | `robot_setup.py`; rad/s | Limits requested turning. |
+| `LINE_VISIBLE_THRESHOLD` | `robot_setup.py`; normalized reflectance | Minimum reading at either sensor for visible line. |
+| `FINISH_THRESHOLD` | `robot_setup.py`; normalized reflectance | Minimum reading at both sensors for the wide bar. |
 | `CHECKPOINT_TOLERANCE_MM` | `challenge.py`; mm | Radius of each ordered estimated-position region. |
 | `MAXIMUM_LOST_LINE_S` | `challenge.py`; s | Stops a run after persistent line loss; the robot requests zero motion during that interval. |
 

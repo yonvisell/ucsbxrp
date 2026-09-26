@@ -15,14 +15,14 @@ The task values have one source:
 
 Use these names in your program. Do not copy their current numerical values
 into another file. Record robot-specific calibration in
-[`robot_config.py`](robot_config.py).
+[`robot_setup.py`](robot_setup.py).
 
 ## What you implement
 
 Implement two classes:
 
-- [`sensor_model.py`](sensor_model.py): `SensorModel.reset()` establishes the
-  encoder and time origins. `SensorModel.update()` converts each later raw
+- [`sensor_processor.py`](sensor_processor.py): `SensorProcessor.reset()` establishes the
+  encoder and time origins. `SensorProcessor.update()` converts each later raw
   sample into wheel position, newest wheel travel, elapsed time, and wheel-speed
   estimates. Use the encoder signs, wheel geometry, and speed-estimator setting
   in `self.config`.
@@ -32,18 +32,17 @@ Implement two classes:
   exact zero command for that wheel. Use the calibration, feedback gain, and
   command limit in `self.config`.
 
-Leave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.
+Leave `SensorProcessor.estimate_range()` unfinished; Challenge 5 introduces it.
 
 ## Project modules
 
 | File | Role |
 | --- | --- |
-| [`sensor_model.py`](sensor_model.py) | Defines `SensorModel`, which converts encoder counts and time to physical measurements. |
+| [`sensor_processor.py`](sensor_processor.py) | Defines `SensorProcessor`, which converts encoder counts and time to physical measurements. |
 | [`wheel_speed_controller.py`](wheel_speed_controller.py) | Defines `WheelSpeedController`, which converts wheel-speed error to a `DriveCommand`. |
-| [`robot_config.py`](robot_config.py) | Measured and tuned settings for your XRP. |
-| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
+| [`robot_setup.py`](robot_setup.py) | Holds robot calibration and settings, selects components, and constructs the robot. |
 | [`main.py`](main.py) | Runs the straight-distance task and reports distance and elapsed time. |
-| [`component_checks.py`](component_checks.py) | Calls the required `SensorModel` and `WheelSpeedController` methods without starting a robot. |
+| [`component_checks.py`](component_checks.py) | Calls the required `SensorProcessor` and `WheelSpeedController` methods without starting a robot. |
 
 ## Provided files and tools
 
@@ -60,7 +59,7 @@ Leave `SensorModel.estimate_range()` unfinished; Challenge 5 introduces it.
 finish distance + measured wheel travel
                  -> StraightLineController -> requested forward speed
                  -> DifferentialDrive       -> wheel-speed targets
-encoder readings -> SensorModel             -> measured wheel speeds
+encoder readings -> SensorProcessor             -> measured wheel speeds
 targets + measured speeds
                  -> WheelSpeedController     -> motor commands
 ```
@@ -74,8 +73,8 @@ handles the IDE's **Stop** separately; forced termination can bypass Python clea
 
 ## Check each component
 
-Select **Test functions** in the IDE. The checks load `SensorModel` from
-`sensor_model.py` and `WheelSpeedController` from
+Select **Test functions** in the IDE. The checks load `SensorProcessor` from
+`sensor_processor.py` and `WheelSpeedController` from
 `wheel_speed_controller.py`; they do not move either robot. For each class,
 read its `USE`,
 `INPUT`, and `EXPECT` lines before the result:
@@ -86,14 +85,14 @@ read its `USE`,
   requirement.
 
 Fix every `NOT IMPLEMENTED` and `FAIL`, then run **Test functions** again. Set
-the matching `USE_STUDENT_*` flag in `course_setup.py` to `True` only after that
+the matching `USE_STUDENT_*` flag in `robot_setup.py` to `True` only after that
 class passes its checks.
 
 ## Complete the challenge
 
 1. Run the supplied classes on the virtual XRP. Locate requested wheel
    speed, measured wheel speed, drive command, and wheel travel in Monitor.
-2. Select the `SensorModel` defined in `sensor_model.py`. Verify that
+2. Select the `SensorProcessor` defined in `sensor_processor.py`. Verify that
    forward position increases, each
    increment contains only the newest wheel travel, and the speed estimate
    follows changes without reporting each encoder-count step as a speed spike.

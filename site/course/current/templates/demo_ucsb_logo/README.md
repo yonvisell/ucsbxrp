@@ -12,7 +12,7 @@ as the robot moves.
 ## Change the experiment
 
 Edit the waypoint positions in **world.json** to change the drawing. The route
-is loaded in marker order. **robot_config.py** contains navigation speeds and
+is loaded in marker order. **robot_setup.py** contains navigation speeds and
 tolerances; **challenge.py** loads the named route. **main.py** passes
 the route to the supplied navigation class and repeatedly applies its commands.
 

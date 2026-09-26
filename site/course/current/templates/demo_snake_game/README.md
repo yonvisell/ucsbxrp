@@ -26,7 +26,7 @@ and the tail is 50 mm across.
 
 `main.py` uses the supplied navigation controller to drive between positions.
 `snake_game.py` tracks food and the tail and detects a crossing.
-`robot_config.py` applies the configured calibration and navigation settings.
+`robot_setup.py` applies the configured calibration and navigation settings.
 It requests 80% of the selected cruise speed within 80 mm of each pellet
 position. The head follows the robot's estimated position; a pellet is not
 collected merely because the robot passed near it.

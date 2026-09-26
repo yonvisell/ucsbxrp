@@ -1,7 +1,7 @@
 # Follow a checked grid path through navigation goals and report arrival.
 
 from live_variables import publish_navigation_steps
-from robot_config import apply_navigation_controls
+from robot_setup import apply_navigation_controls
 from route_validation import goal_is_reached
 
 

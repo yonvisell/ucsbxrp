@@ -17,9 +17,9 @@ from challenge import (
     SUCCESS_MAXIMUM_RANGE_MM,
     SUCCESS_MINIMUM_RANGE_MM,
 )
-from course_setup import make_range_safety_controller, make_robot
+from robot_setup import make_range_safety_controller, make_robot
 from live_variables import publish_range_decision
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s
 
 
@@ -83,7 +83,7 @@ def current_range_estimate(robot, state, observations):
 
 
 def run_challenge():
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     controller = make_range_safety_controller(
         RESPONSE_TIME_S,

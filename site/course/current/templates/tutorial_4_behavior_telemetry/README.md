@@ -19,7 +19,7 @@ motor stop; edit `student_work.py` only when exploring a function.
 | `live_variables.py` | Supplied Monitor control declarations for speed, distance, direction, and Run behavior. |
 | `main.py` | Supplied measured approach/turn sequence and motor cleanup. |
 | `exercise_checks.py` | Supplied input/output examples that run before motion. |
-| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |
+| `robot_setup.py`, `robot_setup.py` | Supplied robot assembly and settings. |
 | `world.json` | Supplied arena, wall, and start pose shown in Monitor. |
 
 `Robot.step(command, read_range=True)` takes the next sample while approaching.

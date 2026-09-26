@@ -55,7 +55,7 @@ methods; your class retains only the translation state. Import the base from
   or a Python exception. The target runtime handles the IDE's **Stop** separately;
   forced termination can bypass Python cleanup.
 - The robot components and `NavigationController` are selected independently
-  in `course_setup.py`.
+  in `robot_setup.py`.
 - [`component_checks.py`](component_checks.py) varies sensor offsets, wall
   coordinates and wall sides, exercises sequential x/y corrections and reset,
   verifies retained translation and heading, and rejects invalid range.

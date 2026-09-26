@@ -1,9 +1,9 @@
 # Follow one qualified circuit; stop with an explicit result if the line is lost.
 from challenge import INITIAL_POSE
-from course_setup import make_line_follower, make_robot
+from robot_setup import make_line_follower, make_robot
 from lap_progress import LapProgress
 from live_variables import publish_line_values
-from robot_config import (
+from robot_setup import (
     FINISH_CONFIRM_SAMPLES,
     FINISH_THRESHOLD,
     LINE_FOLLOWER_SETTINGS,
@@ -17,7 +17,7 @@ MAXIMUM_RUN_TIME_S = 100.0
 MAXIMUM_LOST_LINE_S = 0.4
 
 def run_challenge():
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
     follower.reset()

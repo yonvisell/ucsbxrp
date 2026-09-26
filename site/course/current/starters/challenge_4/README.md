@@ -55,14 +55,13 @@ information between `plan()` calls.
 
 | File | Role |
 | --- | --- |
-| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |
+| [`sensor_processor.py`](sensor_processor.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples. |
 | [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |
 | [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |
 | [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |
 | [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
 | [`grid_planner.py`](grid_planner.py) | Connects the requested start and goal through free grid cells. |
-| [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
-| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
+| [`robot_setup.py`](robot_setup.py) | Holds robot calibration and settings, selects components, and constructs the robot. |
 
 **Test functions always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
@@ -102,7 +101,7 @@ Select **Test functions**. The checks call `GridPlanner.plan()` from
 - `FAIL` means the method ran but returned an invalid path or incorrect `None`.
 
 Fix every unfinished or failing result, repeat **Test functions**, and then
-set `USE_STUDENT_GRID_PLANNER` to `True` in `course_setup.py`.
+set `USE_STUDENT_GRID_PLANNER` to `True` in `robot_setup.py`.
 
 ## Complete the challenge
 

@@ -1,9 +1,9 @@
 # Follow the dark line for one lap; stop if the line is lost.
 from challenge import CHECKPOINTS_MM, INITIAL_POSE, MAXIMUM_LOST_LINE_S
-from course_setup import make_line_follower, make_robot
+from robot_setup import make_line_follower, make_robot
 from lap_progress import LapProgress
 from live_variables import publish_line_values
-from robot_config import (
+from robot_setup import (
     FINISH_CONFIRM_SAMPLES,
     FINISH_THRESHOLD,
     LINE_FOLLOWER_SETTINGS,

@@ -14,8 +14,8 @@ runtime also stops motor output when the IDE interrupts execution. Keyboard arro
 editor and other controls keep their normal keyboard behavior.
 
 `live_variables.py` declares the slider ranges and initial values; `main.py` contains the drive loop. `world.json`
-defines the virtual arena and starting pose. `course_setup.py` assembles the
-supplied robot components; `robot_config.py` holds the robot settings. The
+defines the virtual arena and starting pose. `robot_setup.py` assembles the
+supplied robot components; `robot_setup.py` holds the robot settings. The
 same project can run on a physical XRP, but use a clear floor area, keep the
 robot in view, and have **Stop** ready. This demonstration has no automatic
 obstacle avoidance; the front range sensor cannot see behind the robot.

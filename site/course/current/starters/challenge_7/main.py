@@ -15,8 +15,8 @@ from challenge import (
     Y_WALL_IS_POSITIVE,
     Y_WALL_MM,
 )
-from course_setup import make_navigation_controller, make_pose_corrector, make_robot
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import make_navigation_controller, make_pose_corrector, make_robot
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import (
     MotionCommand,
     STOP_COMMAND,
@@ -81,7 +81,7 @@ def destination_is_reached(corrected_pose, raw_pose):
 
 
 def run_challenge():
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     corrector = make_pose_corrector(SENSOR_FORWARD_OFFSET_MM)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)

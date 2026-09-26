@@ -4,7 +4,7 @@ from ucsb_xrp import DriveCommand
 from ucsb_xrp.student_api import WheelSpeedControllerBase
 
 # WheelSpeedController — Convert wheel-speed targets and measurements into motor commands.
-# Called by: Robot.step() after DifferentialDrive and SensorModel.
+# Called by: Robot.step() after DifferentialDrive and SensorProcessor.
 # Methods: reset(), update().
 # Inputs: Target and measured WheelSpeeds (mm/s).
 # State: Feedback history reset before each run.

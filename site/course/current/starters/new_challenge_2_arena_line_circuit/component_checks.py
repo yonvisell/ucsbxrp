@@ -1,17 +1,17 @@
-from sensor_model import SensorModel
+from sensor_processor import SensorProcessor
 from wheel_speed_controller import WheelSpeedController
 from differential_drive import DifferentialDrive
 from ucsb_xrp.component_checks import run_component_checks
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import RawSensors, ReflectanceReadings
 
 # Exercise the project classes directly, regardless of Run selectors.
-run_component_checks(SensorModel, WheelSpeedController, DifferentialDrive)
+run_component_checks(SensorProcessor, WheelSpeedController, DifferentialDrive)
 
 
 def check_reflectance_preservation():
     # An earlier wheel-only model must retain the newly requested sensors.
-    model = SensorModel(ROBOT_CONFIG)
+    model = SensorProcessor(ROBOT_CONFIG)
     readings = ReflectanceReadings(0.2, 0.8)
     try:
         first = model.reset(RawSensors(0, 0, 0, None, False, readings))
@@ -19,16 +19,16 @@ def check_reflectance_preservation():
         if first.reflectance != readings or later.reflectance != readings:
             raise AssertionError("Preserve raw.reflectance in both Measurements results")
     except NotImplementedError as error:
-        print("NOT IMPLEMENTED · SensorModel reflectance:", error)
+        print("NOT IMPLEMENTED · SensorProcessor reflectance:", error)
         return
-    print("PASS · SensorModel: reset and update preserve reflectance")
+    print("PASS · SensorProcessor: reset and update preserve reflectance")
 
 
 check_reflectance_preservation()
 
 # Exercise the student file directly, independently of the Run selector.
 from line_follower import LineFollower
-from robot_config import LINE_FOLLOWER_SETTINGS
+from robot_setup import LINE_FOLLOWER_SETTINGS
 from ucsb_xrp import MotionCommand, ReflectanceReadings
 
 def check_line_follower():

@@ -1,9 +1,9 @@
 # Check stationary sensors, then request one short straight motion.
 
-from course_setup import make_robot
+from robot_setup import make_robot
 from exercise_checks import run_exercise_checks
 from live_variables import ENABLE_SHORT_MOTION
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from student_work import preflight_report
 from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
 

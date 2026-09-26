@@ -5,7 +5,7 @@ from grid_planner import GridPlanner
 from navigation_controller import NavigationController
 from odometry import Odometry
 from range_safety_controller import RangeSafetyController
-from sensor_model import SensorModel
+from sensor_processor import SensorProcessor
 from wheel_speed_controller import WheelSpeedController
 
 from ucsb_xrp.component_checks import run_component_checks
@@ -14,7 +14,7 @@ from ucsb_xrp.student_api import RangeSafetyControllerBase
 
 # Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(
-    SensorModel,
+    SensorProcessor,
     WheelSpeedController,
     DifferentialDrive,
     Odometry,

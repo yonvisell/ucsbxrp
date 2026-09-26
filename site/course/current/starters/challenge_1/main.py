@@ -6,13 +6,12 @@ from challenge import (
     TARGET_TIME_S,
     TRAVEL_DISTANCE_MM,
 )
-from course_setup import make_robot
-from robot_config import ROBOT_CONFIG, STRAIGHT_CONFIG
+from robot_setup import make_robot, ROBOT_CONFIG, STRAIGHT_CONFIG
 from ucsb_xrp import StraightLineController, elapsed_time_s, wrap_angle_rad
 
 
 def run_challenge():
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     straight = StraightLineController(STRAIGHT_CONFIG)
     try:

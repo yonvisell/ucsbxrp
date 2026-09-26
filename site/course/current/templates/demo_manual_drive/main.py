@@ -1,8 +1,8 @@
 # Drive with Monitor sliders. Each Run starts with both commands at zero.
 
-from course_setup import make_robot
+from robot_setup import make_robot
 from live_variables import FORWARD_SPEED, TURN_RATE
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
 
 

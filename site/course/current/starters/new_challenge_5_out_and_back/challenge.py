@@ -1,6 +1,6 @@
 # Geometry is known; only the named gate's occupancy is uncertain.
 from ucsb_xrp import load_world
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 
 WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose

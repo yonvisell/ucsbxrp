@@ -10,9 +10,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -33,9 +33,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -66,9 +66,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -104,9 +104,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -147,9 +147,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -190,9 +190,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -238,9 +238,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -291,9 +291,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -499,9 +499,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -522,9 +522,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -555,9 +555,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -593,9 +593,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -636,9 +636,9 @@
     "entrypoint": "main.py",
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",
@@ -680,9 +680,9 @@
     "published": false,
     "components": [
       {
-        "name": "SensorModel",
-        "file": "sensor_model.py",
-        "selection_flag": "USE_STUDENT_SENSOR_MODEL"
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
         "name": "WheelSpeedController",

@@ -11,13 +11,13 @@ from challenge import (
     REQUIRED_NODE_INDICES,
     START_NODE_INDEX,
 )
-from course_setup import (
+from robot_setup import (
     make_navigation_controller,
     make_robot,
     make_route_cost_grid_planner,
     make_visit_order_planner,
 )
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import OccupancyGrid, distance_to_goal, wrap_angle_rad
 
 
@@ -77,7 +77,7 @@ def run_challenge():
         return None
     order = validate_order(order)
 
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     serviced = []

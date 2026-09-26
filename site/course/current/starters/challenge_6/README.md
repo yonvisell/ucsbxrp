@@ -77,7 +77,7 @@ the age limit without reconsidering the response allowance and stopping model.
   a two-second elapsed limit; missing echoes count as completed attempts.
 - [`live_variables.py`](live_variables.py) publishes the filtered range and
   requested speed in Monitor.
-- `Robot`, the selected robot components, and `SensorModel.estimate_range()`
+- `Robot`, the selected robot components, and `SensorProcessor.estimate_range()`
   provide measurement and motion services.
 - [`component_checks.py`](component_checks.py) tests the same range at different
   measured speeds, several response times, decelerations and margins, command

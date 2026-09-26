@@ -7,8 +7,8 @@ from challenge import (
     GRID_RESOLUTION_MM,
     INITIAL_POSE,
 )
-from course_setup import make_grid_planner, make_navigation_controller, make_robot
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import make_grid_planner, make_navigation_controller, make_robot
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import GridPath, OccupancyGrid, distance_to_goal, wrap_angle_rad
 
 
@@ -54,7 +54,7 @@ def run_challenge():
     goals = list(path.to_goals(grid))
     goals[-1] = DESTINATION
 
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0

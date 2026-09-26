@@ -4,11 +4,11 @@
 # PASS means the example matched. NOT IMPLEMENTED means a named method still
 # needs code. FAIL means the method ran but its result was incorrect.
 
-from sensor_model import SensorModel
+from sensor_processor import SensorProcessor
 from wheel_speed_controller import WheelSpeedController
 
 from ucsb_xrp.component_checks import run_component_checks
 
 
 # Exercise the project classes directly, regardless of Run selectors.
-run_component_checks(SensorModel, WheelSpeedController)
+run_component_checks(SensorProcessor, WheelSpeedController)

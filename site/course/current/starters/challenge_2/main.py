@@ -11,8 +11,7 @@ from challenge import (
     RETURN_DISTANCE_MM,
     TURN_HEADING_RAD,
 )
-from course_setup import make_robot
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import make_robot, NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, StraightLineController, wrap_angle_rad
 
 
@@ -68,7 +67,7 @@ def turn_to_heading(robot, state, target_heading_rad, phase_name):
 
 
 def run_challenge():
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     try:
         # Reset measurements, pose, and sample timing at INITIAL_POSE.

@@ -19,7 +19,7 @@ implement the Challenge 1 sensor or stopping controllers.
 | `student_work.py` | The measured-position calculation and straight program to read and edit. |
 | `main.py` | Supplied entrypoint with the 120 mm/s request and 300 mm target. |
 | `exercise_checks.py` | Supplied software robot that checks returned data and stop behavior without motors. |
-| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |
+| `robot_setup.py`, `robot_setup.py` | Supplied robot assembly and settings. |
 | `world.json` | Supplied arena and start pose shared by the Virtual XRP and Monitor. |
 
 Read `main.py` first. `from student_work import ...` loads the functions from

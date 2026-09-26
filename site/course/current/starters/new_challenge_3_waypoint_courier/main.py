@@ -1,9 +1,9 @@
 # Challenge 3: follow the ordered waypoint route.
 
 from challenge import INITIAL_POSE, ROUTE
-from course_setup import make_navigation_controller, make_robot
+from robot_setup import make_navigation_controller, make_robot
 from live_variables import publish_goal_count, publish_heading
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_controls
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_controls
 from route_progress import count_reached_goals
 
 

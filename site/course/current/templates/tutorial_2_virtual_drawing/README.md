@@ -18,7 +18,7 @@ files are already runnable so that each later edit has a visible baseline.
 | `student_work.py` | Edit the segment data classes and `build_drawing(...)` to explore a path. |
 | `main.py` | Supplied entrypoint; sets target dimensions, runs each segment, and stops the robot. |
 | `exercise_checks.py` | Supplied checks for commands, measured completion, and segment order. |
-| `course_setup.py`, `robot_config.py` | Supplied robot assembly and settings. |
+| `robot_setup.py`, `robot_setup.py` | Supplied robot assembly and settings. |
 | `world.json` | Supplied arena and initial pose used by the Virtual XRP. |
 
 Each `.py` file is a Python module. `main.py` imports `build_drawing` from

@@ -1,8 +1,8 @@
 # Challenge 3: follow the ordered waypoint route.
 
 from challenge import INITIAL_POSE, ROUTE
-from course_setup import make_navigation_controller, make_robot
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import make_navigation_controller, make_robot
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import distance_to_goal, wrap_angle_rad
 
 
@@ -23,7 +23,7 @@ def count_reached_goals(pose, route, reached_count):
 
 
 def run_challenge():
-    # Construct Robot with the drive components selected in course_setup.
+    # Construct Robot with the drive components selected in robot_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0

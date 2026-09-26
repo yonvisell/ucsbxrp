@@ -3,9 +3,9 @@
 from math import pi
 
 from challenge import INITIAL_POSE, OBSTACLE_STOP_MM, SPIRAL_EXPANSION_MM
-from course_setup import make_robot
+from robot_setup import make_robot
 from live_variables import FORWARD_SPEED, WINDING_RATE, publish_spiral_values
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND
 
 

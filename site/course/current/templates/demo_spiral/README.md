@@ -18,7 +18,7 @@ selected under **Plot signals**.
   **live_variables.py** declares speed and winding controls; its 0.7 revolutions/m winding default starts
   with a broad curve; increase winding to compare tighter turns.
 - **main.py** contains the spiral calculation and the repeated motion commands.
-  **live_variables.py** also publishes travel and yaw rate; **robot_config.py**
+  **live_variables.py** also publishes travel and yaw rate; **robot_setup.py**
   holds the robot dimensions and controller settings.
 
 The **Obstacle ahead** world places a block 1000 mm in front of the starting

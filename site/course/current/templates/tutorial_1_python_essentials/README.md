@@ -119,7 +119,7 @@ after the function works.
 | `value is None` | Missing reading; never substitute a physical zero silently. |
 | `if error_mm > tolerance_mm:` | Indentation defines the conditional block. |
 | `self.previous_count = count` | Store state for the next call on this object. |
-| `from robot_config import ROBOT_CONFIG` | Import a named value from a file. |
+| `from robot_setup import ROBOT_CONFIG` | Import a named value from a file. |
 
 `=` assigns; `==` compares. Use `and`, `or` and `not` for scalar conditions.
 Two names assigned the same list refer to the same mutable list; use `list(old)`

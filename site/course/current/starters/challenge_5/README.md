@@ -29,8 +29,8 @@ Project. The current Project remains unchanged.
 
 ## What you implement
 
-Implement `SensorModel.estimate_range(samples, minimum_usable)` in
-[`sensor_model.py`](sensor_model.py). For the supplied sequence:
+Implement `SensorProcessor.estimate_range(samples, minimum_usable)` in
+[`sensor_processor.py`](sensor_processor.py). For the supplied sequence:
 
 - ignore missing values, Booleans, and numeric values that are not finite and
   positive;
@@ -44,14 +44,13 @@ estimate was available; it does not represent zero distance.
 
 | File | Role |
 | --- | --- |
-| [`sensor_model.py`](sensor_model.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples; now also combines range readings. |
+| [`sensor_processor.py`](sensor_processor.py) | Converts encoder samples to wheel travel and wheel-speed estimates based on recent encoder samples; now also combines range readings. |
 | [`wheel_speed_controller.py`](wheel_speed_controller.py) | Produces motor commands within the configured limits from wheel-speed error. |
 | [`differential_drive.py`](differential_drive.py) | Produces target wheel speeds from requested robot motion. |
 | [`odometry.py`](odometry.py) | Updates the estimated `Pose` from measured wheel travel. |
 | [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
 | [`grid_planner.py`](grid_planner.py) | Connects the requested start and goal through free grid cells. |
-| [`robot_config.py`](robot_config.py) | Stores robot calibration and navigation settings. |
-| [`course_setup.py`](course_setup.py) | Selects the supplied class or the class defined in each named component file. |
+| [`robot_setup.py`](robot_setup.py) | Holds robot calibration and settings, selects components, and constructs the robot. |
 
 **Test functions always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
@@ -67,7 +66,7 @@ files**, regardless of which classes are selected for a complete robot run.
 - [`main.py`](main.py) constructs the mission services, runs the mission, and
   prints one result summary.
 - [`component_checks.py`](component_checks.py) calls
-  `SensorModel.estimate_range()` and the required methods of the other selected
+  `SensorProcessor.estimate_range()` and the required methods of the other selected
   classes without starting a robot.
 - `ArenaMap`, `OccupancyGrid`, and `GridPath.to_goals()` connect the observed
   map condition to planning and navigation.
@@ -75,7 +74,7 @@ files**, regardless of which classes are selected for a complete robot run.
 ## How the program runs
 
 ```text
-stationary range samples -> SensorModel.estimate_range()
+stationary range samples -> SensorProcessor.estimate_range()
                          -> open/blocked named feature
                          -> OccupancyGrid -> GridPlanner -> route or no_path
 route                    -> NavigationController -> delivery motion
@@ -97,7 +96,7 @@ medians, mixed unusable readings, too few usable readings, and invalid
 - `FAIL` means the method ran but returned an incorrect estimate or error.
 
 Fix every unfinished or failing result, repeat **Test functions**, and then
-select the `SensorModel` defined in `sensor_model.py` in `course_setup.py`.
+select the `SensorProcessor` defined in `sensor_processor.py` in `robot_setup.py`.
 
 ## Complete the challenge
 
@@ -106,7 +105,7 @@ select the `SensorModel` defined in `sensor_model.py` in `course_setup.py`.
    and estimated final pose.
 2. Calculate the median of the usable readings and compare it with the reported
    estimate.
-3. Select the `SensorModel` defined in `sensor_model.py` and repeat every
+3. Select the `SensorProcessor` defined in `sensor_processor.py` and repeat every
    case. Verify that range determines the map condition.
 4. Select the classes from all six component project files to distinguish
    sensing, planning, navigation, odometry, and wheel-control results.

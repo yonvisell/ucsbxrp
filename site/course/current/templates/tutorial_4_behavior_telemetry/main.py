@@ -2,9 +2,9 @@
 
 from math import pi
 
-from course_setup import make_robot
+from robot_setup import make_robot
 from exercise_checks import run_exercise_checks
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from student_work import (
     APPROACH,
     DONE,

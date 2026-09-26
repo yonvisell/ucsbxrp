@@ -1,6 +1,6 @@
 # Exercise the student file directly, independently of the Run selector.
 from line_follower import LineFollower
-from robot_config import LINE_FOLLOWER_SETTINGS
+from robot_setup import LINE_FOLLOWER_SETTINGS
 from ucsb_xrp import MotionCommand, ReflectanceReadings
 
 def check_line_follower():

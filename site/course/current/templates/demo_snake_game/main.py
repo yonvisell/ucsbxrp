@@ -1,9 +1,9 @@
 # Drive between Cartesian food waypoints; stop on a wall or the finite tail.
 
 from challenge import WORLD
-from course_setup import make_navigation_controller, make_robot
+from robot_setup import make_navigation_controller, make_robot
 from live_variables import GROWTH_MM, SPEED_MM_S, publish_game, publish_scene_config
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, navigation_config_for_speed
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG, navigation_config_for_speed
 from snake_game import SnakeGame
 
 

@@ -1,8 +1,8 @@
 # Construct the Virtual XRP and call the checked Tutorial 3 program.
 
-from course_setup import make_robot
+from robot_setup import make_robot
 from exercise_checks import run_exercise_checks
-from robot_config import ROBOT_CONFIG
+from robot_setup import ROBOT_CONFIG
 from student_work import mean_wheel_position_mm, run_robot_program
 
 

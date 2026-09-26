@@ -1,7 +1,7 @@
 # Follow ordered route goals and count arrivals from estimated position.
 
 from live_variables import publish_goals_reached
-from robot_config import apply_navigation_controls
+from robot_setup import apply_navigation_controls
 from ucsb_xrp import distance_to_goal, wrap_angle_rad
 
 # Inputs: estimated Pose, NavigationGoal, NavigationConfig tolerances.

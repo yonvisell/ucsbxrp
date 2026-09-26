@@ -31,7 +31,7 @@ fact instead of treating its final speed as a steady value.
 
 Estimate a relation `effort = offset + gain * speed_mm_s` for each wheel. Enter
 its offset and gain as `left_start_command` and `left_speed_command_gain` in
-`robot_config.py`, and use the corresponding `right_` fields for the right
+`robot_setup.py`, and use the corresponding `right_` fields for the right
 wheel. Verify these values in the closed-loop Curling run. Keep the plots,
 measurement conditions, and fitted values for the preliminary lab-work section
 of the pair's Challenge 1 report.

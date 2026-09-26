@@ -3,9 +3,9 @@
 from challenge import WORLD, ARENA_MAP, INITIAL_POSE, DESTINATION
 from challenge import GRID_RESOLUTION_MM, CLEARANCE_MM, MAXIMUM_GRID_CELLS
 from challenge import EXECUTE_ROUTE
-from course_setup import make_grid_planner, make_navigation_controller, make_robot
+from robot_setup import make_grid_planner, make_navigation_controller, make_robot
 from grid_display import print_grid
-from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
+from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from route_runner import run_route
 from route_validation import path_error
 from ucsb_xrp import OccupancyGrid
