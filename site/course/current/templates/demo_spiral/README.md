@@ -9,6 +9,12 @@ During the run, **Forward speed** and **Spiral winding rate** appear under
 value makes a tighter curve. **Travel** and **Yaw rate** are recorded and can be
 selected under **Plot signals**.
 
+**Ignore obstacles** is unchecked by default. Check it for raised-wheel testing
+to continue the spiral regardless of ultrasound distance, until you press
+**Stop**. Uncheck it to restore obstacle stopping during the run.
+If an obstacle makes the program stop immediately at startup, set the
+`ignore_obstacles` default to `True` in **live_variables.py** before compiling.
+
 ## Change the experiment
 
 - **world.json** sets the arena, obstacles, and initial position and heading.

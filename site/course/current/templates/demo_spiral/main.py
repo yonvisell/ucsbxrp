@@ -4,7 +4,7 @@ from math import pi
 
 from challenge import INITIAL_POSE, OBSTACLE_STOP_MM, SPIRAL_EXPANSION_MM
 from robot_setup import make_robot
-from live_variables import FORWARD_SPEED, WINDING_RATE, publish_spiral_values
+from live_variables import FORWARD_SPEED, WINDING_RATE, IGNORE_OBSTACLES, publish_spiral_values
 from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND
 
@@ -18,7 +18,7 @@ try:  # Ensure finally stops motors on exit.
 
     while True:  # Update motion until an obstacle or Stop ends the run.
         range_mm = state.measurements.range_mm
-        if range_mm is not None and range_mm <= OBSTACLE_STOP_MM:  # Ignore missing echoes.
+        if not IGNORE_OBSTACLES.value and range_mm is not None and range_mm <= OBSTACLE_STOP_MM:  # Stop for nearby echoes unless disabled.
             result = "Obstacle detected; spiral stopped"
             break
 

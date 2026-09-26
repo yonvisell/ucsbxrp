@@ -10671,6 +10671,7 @@ from ucsb_xrp import live
 
 FORWARD_SPEED = live.number("forward_speed_mm_s", 110.0, minimum=60.0, maximum=160.0, step=10.0, unit="mm/s", label="Forward speed")
 WINDING_RATE = live.number("spiral_winding_turns_per_m", 0.7, minimum=0.3, maximum=1.4, step=0.1, unit="revolutions/m", label="Spiral winding rate")
+IGNORE_OBSTACLES = live.toggle("ignore_obstacles", False, label="Ignore obstacles")
 
 
 def publish_spiral_values(travel_mm, turn_rate_rad_s):
@@ -10682,7 +10683,7 @@ from math import pi
 
 from challenge import INITIAL_POSE, OBSTACLE_STOP_MM, SPIRAL_EXPANSION_MM
 from robot_setup import make_robot
-from live_variables import FORWARD_SPEED, WINDING_RATE, publish_spiral_values
+from live_variables import FORWARD_SPEED, WINDING_RATE, IGNORE_OBSTACLES, publish_spiral_values
 from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND
 
@@ -10696,7 +10697,7 @@ try:  # Ensure finally stops motors on exit.
 
     while True:  # Update motion until an obstacle or Stop ends the run.
         range_mm = state.measurements.range_mm
-        if range_mm is not None and range_mm <= OBSTACLE_STOP_MM:  # Ignore missing echoes.
+        if not IGNORE_OBSTACLES.value and range_mm is not None and range_mm <= OBSTACLE_STOP_MM:  # Stop for nearby echoes unless disabled.
             result = "Obstacle detected; spiral stopped"
             break
 
@@ -12552,6 +12553,12 @@ During the run, **Forward speed** and **Spiral winding rate** appear under
 **Live controls**. Winding rate is expressed in revolutions per metre: a larger
 value makes a tighter curve. **Travel** and **Yaw rate** are recorded and can be
 selected under **Plot signals**.
+
+**Ignore obstacles** is unchecked by default. Check it for raised-wheel testing
+to continue the spiral regardless of ultrasound distance, until you press
+**Stop**. Uncheck it to restore obstacle stopping during the run.
+If an obstacle makes the program stop immediately at startup, set the
+\`ignore_obstacles\` default to \`True\` in **live_variables.py** before compiling.
 
 ## Change the experiment
 
