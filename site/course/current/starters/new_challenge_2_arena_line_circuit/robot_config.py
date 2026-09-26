@@ -2,7 +2,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_P_GA
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Example motor settings; use measured calibration values for the physical XRP.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -13,7 +13,6 @@ ROBOT_CONFIG = RobotConfig(
 )
 
 # The supplied defaults use PD. Set ki = kd = 0 for a P-only comparison.
-# Steering limits and gains are read by LineFollower on each sample.
 LINE_FOLLOWER_SETTINGS = {
     "cruise_speed_mm_s": DEFAULT_CRUISE_SPEED_MM_S,
     "minimum_speed_mm_s": 45.0,
@@ -25,13 +24,12 @@ LINE_FOLLOWER_SETTINGS = {
     "turn_slowdown": 0.45,
 }
 
-# Apply changed Monitor values at the next measured control-loop boundary.
-# Input: active LineFollower; effect: update its mutable settings for this sample.
+# Copy the current slider settings into the line controller.
 def apply_line_controls(follower):
     follower.settings["cruise_speed_mm_s"] = CRUISE_SPEED.value
     follower.settings["kp_rad_s"] = P_GAIN.value
 
-# Physical values depend on the floor, tape, sensor height, and ambient light.
-LINE_VISIBLE_THRESHOLD = 0.12
-FINISH_THRESHOLD = 0.80
-FINISH_CONFIRM_SAMPLES = 4
+# Reflectance: 0 = light floor, 1 = dark tape. Tune thresholds using floor/tape readings.
+LINE_VISIBLE_THRESHOLD = 0.12  # Minimum reading at either sensor to detect the line.
+FINISH_THRESHOLD = 0.80  # Minimum reading at both sensors to detect the finish bar.
+FINISH_CONFIRM_SAMPLES = 4  # Consecutive finish-bar readings required.

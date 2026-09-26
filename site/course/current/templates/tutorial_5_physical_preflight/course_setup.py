@@ -9,7 +9,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,

@@ -50,5 +50,5 @@ def wheel_speed_summary(
         "sample_count": sample_count,
         "mean_left_mm_s": mean_left_mm_s,
         "mean_right_mm_s": mean_right_mm_s,
-        "mean_difference_mm_s": mean_left_mm_s - mean_right_mm_s,
+        "mean_difference_mm_s": mean_left_mm_s - mean_right_mm_s,  # Positive: left faster.
     }

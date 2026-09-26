@@ -7,26 +7,23 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_contr
 from route_progress import count_reached_goals
 
 
-# Keep robot sampling/odometry and route decisions in their selected components.
-robot = make_robot(ROBOT_CONFIG)
-navigation = make_navigation_controller(NAVIGATION_CONFIG)
+robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
+navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create the route controller.
 step_count = 0
 reached_count = 0
-try:
-    # The world pose initializes odometry; observed goal count starts there.
-    state = robot.start(INITIAL_POSE)
+try:  # Run this block, then stop the motors in finally.
+    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
     reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
-    navigation.start(ROUTE)
-    # One measured pose produces one navigation request and one robot sample.
-    while not navigation.is_complete():
+    navigation.start(ROUTE)  # Load the ordered waypoints and start at the first.
+    while not navigation.is_complete():  # Update motion until the controller finishes the route.
         publish_goal_count(reached_count)
         apply_navigation_controls(navigation)
-        state = robot.step(navigation.update(state.pose))
+        state = robot.step(navigation.update(state.pose))  # Calculate motion from pose; apply it and read new measurements.
         publish_heading(state.pose)
         step_count += 1
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
 
-    # Controller completion alone does not establish that each goal was observed.
+    # Confirm waypoint arrivals independently of controller completion.
     result = "complete" if reached_count == len(ROUTE) else "route_incomplete"
     print(
         "Challenge 3: result={} goals_reached={}/{} navigation_steps={} "
@@ -36,5 +33,5 @@ try:
     )
     if result != "complete":
         raise RuntimeError("Navigation finished before every waypoint was observed in order")
-finally:  # Stop the motors after normal completion or a Python exception.
-    robot.stop()
+finally:
+    robot.stop()  # Stop after route completion or an exception.

@@ -23,17 +23,17 @@ def count_reached_goals(pose, route, reached_count):
 
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     reached_count = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count)
         navigation.start(ROUTE)
-        # Recompute one motion request from each newly estimated pose.
+        # Choose each forward/turn request from the latest estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1

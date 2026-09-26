@@ -27,7 +27,7 @@ USE_STUDENT_ODOMETRY = False
 USE_STUDENT_NAVIGATION_CONTROLLER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -36,7 +36,7 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
-# Route decisions use the independently selected navigation class.
+# Create the selected navigation controller.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)

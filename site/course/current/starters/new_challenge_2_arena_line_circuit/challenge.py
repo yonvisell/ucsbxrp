@@ -1,8 +1,7 @@
 from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()
+WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose
 
 CHECKPOINTS_MM = tuple((goal.x_mm, goal.y_mm) for goal in WORLD.waypoints())

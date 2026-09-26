@@ -16,7 +16,7 @@ USE_STUDENT_SENSOR_MODEL = False
 USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelController

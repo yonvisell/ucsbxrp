@@ -14,7 +14,9 @@ def preflight_report(states: object) -> dict:
     button_was_pressed = False
     for state in states:
         measurements = state.measurements
+        # dt_s starts at zero on reset, so summing samples gives run duration.
         elapsed_time_s += measurements.dt_s
+        # Either wheel drifting from zero can fail a stationary preflight.
         maximum_abs_wheel_position_mm = max(
             maximum_abs_wheel_position_mm,
             abs(measurements.left_position_mm),

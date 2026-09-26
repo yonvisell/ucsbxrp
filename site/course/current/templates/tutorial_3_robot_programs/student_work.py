@@ -17,18 +17,18 @@ def run_robot_program(
     forward_speed_mm_s: float,
     target_distance_mm: float,
 ) -> RobotState:
-    # Request forward_speed_mm_s until measured wheel travel reaches
-    # target_distance_mm. Return the final RobotState; always stop the robot.
+    # Stop from encoder travel, rather than from elapsed time or a pose estimate.
     if forward_speed_mm_s <= 0.0 or target_distance_mm <= 0.0:
         raise ValueError("speed and target distance must be positive")
-    try:
-        state = robot.start(load_world().initial_pose)
+    try:  # Ensure finally stops motors on exit.
+        state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         start_position_mm = mean_wheel_position_mm(state)
         command = MotionCommand(forward_speed_mm_s, 0.0)
         for _ in range(MAXIMUM_SAMPLES):
+            # Subtract the initial axle position so reruns use their own origin.
             if mean_wheel_position_mm(state) - start_position_mm >= target_distance_mm:
                 return state
             state = robot.step(command)
         raise RuntimeError("Measured wheel travel did not reach the target")
-    finally:  # Stop the motors after completion or a Python exception.
+    finally:
         robot.stop()

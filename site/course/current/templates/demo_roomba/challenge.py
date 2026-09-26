@@ -2,8 +2,7 @@
 
 from ucsb_xrp import load_world
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()  # initial_pose and geometry come from world.json.
+WORLD = load_world()  # Match the arena and initial pose in the selected world.
 RANDOM_SEED = 0xC0FFEE
 REVERSE_TIME_S = 0.4
 MINIMUM_TURN_ANGLE_DEG = 70.0

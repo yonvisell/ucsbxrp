@@ -24,6 +24,7 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s
 
 
 def mean_forward_speed(state):
+    # Wheel-speed mean estimates axle-center forward speed in mm/s.
     return (
         state.measurements.left_speed_mm_s
         + state.measurements.right_speed_mm_s
@@ -72,6 +73,7 @@ def current_range_estimate(robot, state, observations):
     latest_age_s = robot.range_sample_age_s
     if state.measurements.range_mm is None or latest_age_s is None or latest_age_s > MAXIMUM_RANGE_SAMPLE_AGE_S:
         return None  # A missing or stale latest reading cannot authorize motion.
+    # Retain only samples whose collection age plus elapsed time is acceptable.
     current = []
     for distance_mm, observed_ms, initial_age_s in observations:
         age_s = initial_age_s + elapsed_time_s(state.measurements.time_ms, observed_ms)
@@ -81,7 +83,7 @@ def current_range_estimate(robot, state, observations):
 
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     controller = make_range_safety_controller(
         RESPONSE_TIME_S,
@@ -92,14 +94,14 @@ def run_challenge():
     observations = []
     previous_seq = None
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         for _ in range(INITIAL_RANGE_SAMPLE_COUNT):
             robot.collect_range_samples(1)
             state = robot.state
             previous_seq = remember_range(robot, state, observations, previous_seq)
 
-        # Reassess fresh range and measured speed before every forward command.
+        # Recompute the allowed speed from fresh range and measured wheel speed.
         while True:
             estimate = current_range_estimate(robot, state, observations)
             speed_mm_s = valid_student_speed(
@@ -114,6 +116,7 @@ def run_challenge():
             state = robot.step(MotionCommand(speed_mm_s, 0.0), read_range=True)
             previous_seq = remember_range(robot, state, observations, previous_seq)
 
+        # A zero request is followed by measured stopping, not assumed stopping.
         while not wheels_are_stopped(state):
             state = robot.step(STOP_COMMAND, read_range=True)
             previous_seq = remember_range(robot, state, observations, previous_seq)

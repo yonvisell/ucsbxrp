@@ -10,7 +10,7 @@ import{t as e}from"./project_catalog-BeH83WxD.js";function t(e){let t=new TextEn
 from ucsb_xrp import distance_to_goal, load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 TRAVEL_DISTANCE_MM = distance_to_goal(INITIAL_POSE, WORLD.waypoint("finish"))
@@ -64,7 +64,7 @@ def make_wheel_speed_controller(config):
     return SuppliedWheelController(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -88,18 +88,18 @@ from ucsb_xrp import StraightLineController, elapsed_time_s, wrap_angle_rad
 
 
 def run_challenge():
-    # Run the measured straight-line task and return the final RobotState.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     straight = StraightLineController(STRAIGHT_CONFIG)
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         start_time_ms = state.measurements.time_ms
         straight.start(state.measurements, TRAVEL_DISTANCE_MM)
         maximum_steps = max(1, int(MAX_RUN_TIME_S * 1000.0 / ROBOT_CONFIG.sample_period_ms))
         step_count = 0
 
-        # Continue from measured wheel travel until the distance controller completes.
+        # Feed each new encoder measurement back to the distance controller.
         while not straight.is_complete():
             if step_count >= maximum_steps:
                 message = (
@@ -112,6 +112,7 @@ def run_challenge():
             step_count += 1
 
         measured_elapsed_time_s = elapsed_time_s(state.measurements.time_ms, start_time_ms)
+        # The arithmetic mean of the two wheel positions estimates center travel.
         mean_wheel_travel_mm = (
             state.measurements.left_position_mm
             + state.measurements.right_position_mm
@@ -237,7 +238,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import distance_to_goal, load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 TURN_GOAL = WORLD.waypoint("turn")
@@ -320,7 +321,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -375,12 +376,12 @@ def maximum_steps(duration_s):
 
 
 def drive_straight(robot, state, distance_mm, phase_name):
-    # Drive one measured distance and return the updated RobotState.
+    # Each phase starts its travel target from the current encoder positions.
     print("Phase started:", phase_name)
     controller = StraightLineController(NAVIGATION_CONFIG)
     controller.start(state.measurements, distance_mm)
     step_count = 0
-    # Continue until this phase reaches its measured travel target.
+    # Recompute motion from the measured travel after each robot step.
     while not controller.is_complete():
         if step_count >= maximum_steps(MAX_STRAIGHT_TIME_S):
             message = "Challenge 2 stopped: {} did not complete within {} s".format(
@@ -396,7 +397,7 @@ def drive_straight(robot, state, distance_mm, phase_name):
 
 
 def turn_to_heading(robot, state, target_heading_rad, phase_name):
-    # Turn in place toward one world heading and return the updated state.
+    # Wrap the target-minus-estimate angle to select the shorter turn.
     print("Phase started:", phase_name)
     heading_error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
     step_count = 0
@@ -422,10 +423,10 @@ def turn_to_heading(robot, state, target_heading_rad, phase_name):
 
 
 def run_challenge():
-    # Run the out-turn-return sequence and return the final RobotState.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         state = drive_straight(robot, state, OUTBOUND_DISTANCE_MM, "outbound travel")
         state = turn_to_heading(robot, state, TURN_HEADING_RAD, "turnaround")
@@ -575,7 +576,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 ROUTE = WORLD.waypoints()
@@ -656,7 +657,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -720,17 +721,17 @@ def count_reached_goals(pose, route, reached_count):
 
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     reached_count = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count)
         navigation.start(ROUTE)
-        # Recompute one motion request from each newly estimated pose.
+        # Choose each forward/turn request from the latest estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1
@@ -929,7 +930,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 DESTINATION = WORLD.waypoint("destination")
@@ -1021,7 +1022,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -1105,7 +1106,7 @@ from ucsb_xrp import GridPath, OccupancyGrid, distance_to_goal, wrap_angle_rad
 
 
 def path_error(grid, start, goal, path):
-    # Return a readable reason when a planned path is unsafe to execute.
+    # Require matching endpoints and free, side-adjacent cells before driving.
     if not isinstance(path, GridPath):
         return "GridPlanner must return a GridPath or None"
     if path.cells[0] != start or path.cells[-1] != goal:
@@ -1129,9 +1130,7 @@ def goal_is_reached(pose, goal):
 
 
 def run_challenge():
-    # Plan and follow the mapped route, or report that no route exists.
-    # The occupancy grid accounts for the robot clearance around each obstacle.
-    # Convert arena geometry to clearance-aware cells before planning.
+    # Mark cells within CLEARANCE_MM of obstacles as blocked before planning.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
     goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
@@ -1144,19 +1143,19 @@ def run_challenge():
         print("Challenge 4: result=invalid_path reason={}".format(invalid_reason))
         return None
 
-    # Convert the checked cell path back to world-coordinate goals.
+    # Convert free cells to arena goals, retaining the destination's heading.
     goals = list(path.to_goals(grid))
     goals[-1] = DESTINATION
 
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         navigation.start(goals)
-        # Recompute one motion request from each newly estimated pose.
+        # Choose each forward/turn request from the latest estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1
@@ -1360,7 +1359,7 @@ from ucsb_xrp import DeliveryTask, load_world
 
 # WORLD is the case selected in the Monitor. It determines the virtual range
 # measurement and the start and destination shown to the student.
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 
 # Both cases use one dimensioned mission map. The gate-blocked entry defines
@@ -1466,7 +1465,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -1544,12 +1543,13 @@ from ucsb_xrp import DeliveryMission
 
 
 def run_challenge():
-    # DeliveryMission owns the observation, map update, route plan, and stop.
+    # The mission takes the selected navigation and grid-planning components.
     mission = DeliveryMission(
         DELIVERY_TASK,
         make_navigation_controller(NAVIGATION_CONFIG),
         make_grid_planner(),
     )
+    # Construct Robot; mission.run resets it, samples range, drives, and stops it.
     state = mission.run(make_robot(ROBOT_CONFIG))
     path_cells = (
         None
@@ -1759,7 +1759,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 
@@ -1950,7 +1950,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -2066,6 +2066,7 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s
 
 
 def mean_forward_speed(state):
+    # Wheel-speed mean estimates axle-center forward speed in mm/s.
     return (
         state.measurements.left_speed_mm_s
         + state.measurements.right_speed_mm_s
@@ -2114,6 +2115,7 @@ def current_range_estimate(robot, state, observations):
     latest_age_s = robot.range_sample_age_s
     if state.measurements.range_mm is None or latest_age_s is None or latest_age_s > MAXIMUM_RANGE_SAMPLE_AGE_S:
         return None  # A missing or stale latest reading cannot authorize motion.
+    # Retain only samples whose collection age plus elapsed time is acceptable.
     current = []
     for distance_mm, observed_ms, initial_age_s in observations:
         age_s = initial_age_s + elapsed_time_s(state.measurements.time_ms, observed_ms)
@@ -2123,7 +2125,7 @@ def current_range_estimate(robot, state, observations):
 
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     controller = make_range_safety_controller(
         RESPONSE_TIME_S,
@@ -2134,14 +2136,14 @@ def run_challenge():
     observations = []
     previous_seq = None
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         for _ in range(INITIAL_RANGE_SAMPLE_COUNT):
             robot.collect_range_samples(1)
             state = robot.state
             previous_seq = remember_range(robot, state, observations, previous_seq)
 
-        # Reassess fresh range and measured speed before every forward command.
+        # Recompute the allowed speed from fresh range and measured wheel speed.
         while True:
             estimate = current_range_estimate(robot, state, observations)
             speed_mm_s = valid_student_speed(
@@ -2156,6 +2158,7 @@ def run_challenge():
             state = robot.step(MotionCommand(speed_mm_s, 0.0), read_range=True)
             previous_seq = remember_range(robot, state, observations, previous_seq)
 
+        # A zero request is followed by measured stopping, not assumed stopping.
         while not wheels_are_stopped(state):
             state = robot.step(STOP_COMMAND, read_range=True)
             previous_seq = remember_range(robot, state, observations, previous_seq)
@@ -2384,7 +2387,7 @@ from math import pi
 from ucsb_xrp import Pose, load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 PHYSICAL_INITIAL_POSE = WORLD.initial_pose
 ODOMETRY_INITIAL_POSE = Pose(
@@ -2602,7 +2605,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -2753,6 +2756,7 @@ def settle(robot, state):
 
 
 def destination_is_reached(corrected_pose, raw_pose):
+    # Wall offsets correct position; heading remains the odometry estimate.
     if (
         distance_to_goal(corrected_pose, DESTINATION)
         > NAVIGATION_CONFIG.position_tolerance_mm
@@ -2765,17 +2769,18 @@ def destination_is_reached(corrected_pose, raw_pose):
 
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     corrector = make_pose_corrector(SENSOR_FORWARD_OFFSET_MM)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at ODOMETRY_INITIAL_POSE.
         state = robot.start(ODOMETRY_INITIAL_POSE)
         corrector.reset(state.pose)
 
         state = turn_to_heading(robot, state, X_SCAN_HEADING_RAD)
         state = settle(robot, state)
+        # Reject motion or off-axis heading before using range as an x constraint.
         state, x_range_mm = collect_stationary_range(robot, state, X_SCAN_HEADING_RAD)
         if x_range_mm is None:
             raise RuntimeError("No usable x-wall range observation")
@@ -2783,13 +2788,14 @@ def run_challenge():
 
         state = turn_to_heading(robot, state, Y_SCAN_HEADING_RAD)
         state = settle(robot, state)
+        # A second cardinal observation determines the retained y offset.
         state, y_range_mm = collect_stationary_range(robot, state, Y_SCAN_HEADING_RAD)
         if y_range_mm is None:
             raise RuntimeError("No usable y-wall range observation")
         corrector.observe_y(state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE)
 
         navigation.start((DESTINATION,))
-        # Recompute one motion request from each newly estimated pose.
+        # Apply retained wall offsets before computing each navigation command.
         while not navigation.is_complete():
             corrected = corrector.corrected_pose(state.pose)
             state = robot.step(navigation.update(corrected))
@@ -3063,7 +3069,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import NavigationGoal, load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 SERVICE_STOPS = (
@@ -3258,7 +3264,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,
@@ -3386,6 +3392,7 @@ def build_pairwise_paths(grid):
         for finish_index in range(len(NODE_GOALS)):
             path = planner.plan(grid, cells[start_index], cells[finish_index])
             paths[(start_index, finish_index)] = path
+            # Count free-cell transitions; None keeps disconnected pairs unavailable.
             row.append(None if path is None else len(path.cells) - 1)
         costs.append(tuple(row))
     return tuple(costs), paths
@@ -3415,7 +3422,7 @@ def goal_is_reached(pose, goal):
 
 
 def run_challenge():
-    # Convert arena geometry to clearance-aware cells before planning.
+    # Block cells inside CLEARANCE_MM of arena obstacles before route costing.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     cost_table, paths = build_pairwise_paths(grid)
     order = make_visit_order_planner().plan(
@@ -3429,24 +3436,24 @@ def run_challenge():
         return None
     order = validate_order(order)
 
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     serviced = []
     planned_transitions = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         for start_index, finish_index in zip(order, order[1:]):
             path = paths[(start_index, finish_index)]
             if path is None:
                 raise RuntimeError("Selected order contains a disconnected segment")
             planned_transitions += len(path.cells) - 1
-            # Convert the checked cell path back to world-coordinate goals.
+            # Convert cells to arena goals, preserving this stop's final heading.
             goals = list(path.to_goals(grid))
             goals[-1] = NODE_GOALS[finish_index]
             navigation.start(goals)
-            # Recompute one motion request from each newly estimated pose.
+            # Choose each forward/turn request from the latest estimated pose.
             while not navigation.is_complete():
                 state = robot.step(navigation.update(state.pose))
 
@@ -3740,7 +3747,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 `,vr=`from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
+# Load the selected world; its pose and markers set the task coordinates below.
 WORLD = load_world()
 INITIAL_POSE = WORLD.initial_pose
 `,yr=`# Exercise the student file directly, independently of the Run selector.
@@ -3888,7 +3895,7 @@ MAXIMUM_RUN_TIME_S = 100.0
 MAXIMUM_LOST_LINE_S = 0.4
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
     follower.reset()
@@ -3896,7 +3903,7 @@ def run_challenge():
     lost_line_s = 0.0
     result = "timeout"
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing; acquire reflectance now.
         state = robot.start(INITIAL_POSE, read_reflectance=True)
         start_ms = state.measurements.time_ms
         while elapsed_time_s(state.measurements.time_ms, start_ms) < MAXIMUM_RUN_TIME_S:
@@ -3904,10 +3911,12 @@ def run_challenge():
             if readings is None:
                 result = "reflectance_unavailable"
                 break
+            # Both sensors must see the dark finish bar in the same sample.
             on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
             if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
                 result = "complete"
                 break
+            # With neither sensor on the line, command zero and time the gap.
             if max(readings.left, readings.right) < LINE_VISIBLE_THRESHOLD:
                 command = MotionCommand(0.0, 0.0)
                 lost_line_s += state.measurements.dt_s
@@ -3915,6 +3924,7 @@ def run_challenge():
                     result = "line_lost"
                     break
             else:
+                # Update steering from this reflectance pair and sample interval.
                 command = follower.update(readings, state.measurements.dt_s)
                 lost_line_s = 0.0
             publish_line_values(readings, follower.line_error, lap.checkpoints_reached, lost_line_s > 0.0)
@@ -3960,8 +3970,7 @@ FINISH_CONFIRM_SAMPLES = 4
 from ucsb_xrp import distance_to_goal, load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()
+WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose
 FINISH = WORLD.waypoint("finish")
 TRAVEL_DISTANCE_MM = distance_to_goal(INITIAL_POSE, FINISH)
@@ -3997,18 +4006,17 @@ USE_STUDENT_SENSOR_MODEL = False
 USE_STUDENT_WHEEL_SPEED_CONTROLLER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelController
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 `,kr=`# Monitor controls for the distance-based stopping decision.
-# Read each control's current .value when choosing the next speed.
 
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
+# Create sliders in Monitor; .value reads each slider setting.
 CRUISE_SPEED_MM_S = live.number("cruise_speed_mm_s", 120.0, 0.0, 240.0, 5.0, unit="mm/s", label="Cruise speed")
 SLOWDOWN_DISTANCE_MM = live.number("slowdown_distance_mm", 120.0, 0.0, 1000.0, 10.0, unit="mm", label="Slowing distance")
 `,Ar=`# Robot Curling: measure travel and call the distance-based stopping rule.
@@ -4020,9 +4028,7 @@ from stopping_controller import speed_for_distance
 from ucsb_xrp import run_straight_trial
 
 
-# The world supplies the start pose and target distance; the selected robot
-# components supply measurements and wheel control. The callback alone chooses
-# forward speed from remaining measured travel. The runner records and stops.
+# speed_for_distance(remaining_mm) supplies speed requests; zero starts the stop.
 run_straight_trial(make_robot(ROBOT_CONFIG), INITIAL_POSE, TRAVEL_DISTANCE_MM, speed_for_distance)
 `,jr=`# Settings shared by Challenge 1 programs for one XRP robot.
 
@@ -4030,7 +4036,6 @@ from ucsb_xrp import RobotConfig
 
 
 # Example virtual settings; measure these quantities for a physical XRP.
-# Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -4113,8 +4118,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 `,Fr=`from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()
+WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose
 
 CHECKPOINTS_MM = tuple((goal.x_mm, goal.y_mm) for goal in WORLD.waypoints())
@@ -4203,14 +4207,14 @@ USE_STUDENT_DIFFERENTIAL_DRIVE = False
 USE_STUDENT_LINE_FOLLOWER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
     DifferentialDrive = StudentDifferentialDrive if USE_STUDENT_DIFFERENTIAL_DRIVE else SuppliedDifferentialDrive
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), SuppliedOdometry(config))
 
-# Local line steering is selected independently of wheel-speed control.
+# Create the selected line-following controller.
 def make_line_follower(settings):
     if USE_STUDENT_LINE_FOLLOWER:
         return StudentLineFollower(settings)
@@ -4237,8 +4241,7 @@ class DifferentialDrive(DifferentialDriveBase):
         # Return WheelSpeeds(left_mm_s, right_mm_s). Equal speeds drive
         # straight; a positive turn rate needs a faster right wheel.
         raise NotImplementedError("Complete DifferentialDrive.wheel_speeds")
-`,zr=`# Count a lap only after passing the four marked checkpoints in order.
-from math import sqrt
+`,zr=`from math import sqrt
 
 from challenge import CHECKPOINTS_MM, CHECKPOINT_TOLERANCE_MM
 
@@ -4252,32 +4255,26 @@ from challenge import CHECKPOINTS_MM, CHECKPOINT_TOLERANCE_MM
 class LapProgress:
     def __init__(self):
         self.checkpoints_reached = 0
-        self.left_start = False
-        self.finish_samples = 0
+        self.left_start = False  # Records whether an off-bar sample has occurred.
+        self.finish_samples = 0  # Consecutive readings on the finish bar.
         self.lost_line_s = 0.0
 
     def observe_line(self, readings, dt_s, visible_threshold):
-        # Return True when either normalized sensor reads above the threshold.
-        # Otherwise add dt_s (seconds) to retained lost_line_s.
-        visible = max(readings.left, readings.right) >= visible_threshold
-        self.lost_line_s = 0.0 if visible else self.lost_line_s + dt_s
+        visible = max(readings.left, readings.right) >= visible_threshold  # Either sensor detects the line.
+        self.lost_line_s = 0.0 if visible else self.lost_line_s + dt_s  # Accumulate only consecutive missing-line samples.
         return visible
 
     def update(self, pose, on_finish, confirm_samples):
-        # Return True after the estimated Pose visits each checkpoint in order
-        # and on_finish is observed for confirm_samples after leaving the start.
         if self.checkpoints_reached < len(CHECKPOINTS_MM):
-            x_mm, y_mm = CHECKPOINTS_MM[self.checkpoints_reached]
+            x_mm, y_mm = CHECKPOINTS_MM[self.checkpoints_reached]  # Next checkpoint in circuit order.
             distance_mm = sqrt((pose.x_mm - x_mm) ** 2 + (pose.y_mm - y_mm) ** 2)
             if distance_mm <= CHECKPOINT_TOLERANCE_MM:
                 self.checkpoints_reached += 1
-        # Finish detection requires leaving the bar, passing all checkpoints,
-        # and returning to the bar for consecutive confirmed readings.
         if not on_finish:
             self.left_start = True
-            self.finish_samples = 0
-        elif self.left_start and self.checkpoints_reached == len(CHECKPOINTS_MM):
-            self.finish_samples += 1
+            self.finish_samples = 0  # Restart the count when off the bar.
+        elif self.left_start and self.checkpoints_reached == len(CHECKPOINTS_MM):  # Count the finish only after an off-bar sample and all checkpoints.
+            self.finish_samples += 1  # Count finish readings only after all checkpoints.
         return self.finish_samples >= confirm_samples
 `,Br=`# Use two normalized reflectance readings to follow the line locally.
 
@@ -4308,19 +4305,15 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 100.0
 DEFAULT_P_GAIN_RAD_S = 1.8
-# Motion code reads the current .value when it applies these Monitor controls.
+# Create sliders in Monitor; .value reads each slider setting.
 CRUISE_SPEED = live.number("cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S, 50.0, 180.0, 5.0, label="Cruise speed", unit="mm/s")
 P_GAIN = live.number("line_gain", DEFAULT_P_GAIN_RAD_S, 0.0, 5.0, 0.1, label="P gain", unit="rad/s")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_line_values(readings, command, line_error, checkpoints_reached, phase):
-    # Plot normalized left/right reflectance, their signed difference, and
-    # command.turn_rate_rad_s (rad/s). Watch the reached-checkpoint count and
-    # phase label for this sample. Return None.
-    live.plot("reflectance_left", readings.left)
+    live.plot("reflectance_left", readings.left)  # Normalized reflectance: 0 = light, 1 = dark.
     live.plot("reflectance_right", readings.right)
-    live.plot("line_error", line_error)
+    live.plot("line_error", line_error)  # Left reading minus right reading.
     live.plot("turn_rate_rad_s", command.turn_rate_rad_s, unit="rad/s", label="Requested turn rate")
     live.watch("checkpoints_reached", checkpoints_reached)
     live.watch("phase", phase)
@@ -4340,46 +4333,41 @@ from robot_config import (
 from ucsb_xrp import STOP_COMMAND, elapsed_time_s
 
 
-# Assemble selected wheel and sensing components separately from local steering.
-robot = make_robot(ROBOT_CONFIG)
-follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
-follower.reset()
-lap = LapProgress()  # Track ordered checkpoints and return to the finish bar.
-try:
-    # Establish encoder/time origins and request floor readings on every step.
-    state = robot.start(INITIAL_POSE, read_reflectance=True)
-    start_ms = state.measurements.time_ms
-    while True:  # Read sensors and request motion until lap completion or line loss.
-        apply_line_controls(follower)
+robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
+follower = make_line_follower(LINE_FOLLOWER_SETTINGS)  # Create the line controller.
+follower.reset()  # Clear previous error and integral values.
+lap = LapProgress()  # Initialize checkpoint and finish-bar counters.
+try:  # Run the loop; finally stops the motors when this block exits.
+    state = robot.start(INITIAL_POSE, read_reflectance=True)  # Initialize estimated pose; reset measurements; read floor sensors.
+    start_ms = state.measurements.time_ms  # Save the run start timestamp.
+    while True:  # Update steering each sample until the lap ends or the line is lost.
+        apply_line_controls(follower)  # Copy current slider values into the controller.
         readings = state.measurements.reflectance
         if readings is None:
             result = "reflectance_unavailable"
             break
-        # Both sensors must see the wide bar; pose supplies ordered checkpoints.
-        on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
+        on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD  # Both sensors detect dark tape.
         if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
             result = "complete"
             break
-        # An unseen line requests zero motion while the loss duration accumulates.
         if not lap.observe_line(readings, state.measurements.dt_s, LINE_VISIBLE_THRESHOLD):
-            command = STOP_COMMAND
+            command = STOP_COMMAND  # Stop while neither sensor detects the line.
             if lap.lost_line_s >= MAXIMUM_LOST_LINE_S:
                 result = "line_lost"
                 break
         else:
-            command = follower.update(readings, state.measurements.dt_s)
-        # Publish the decision made from this sample before acquiring the next.
+            command = follower.update(readings, state.measurements.dt_s)  # Calculate forward speed and turn rate.
         publish_line_values(
             readings, command, follower.line_error, lap.checkpoints_reached,
             "line_lost_stopping" if lap.lost_line_s else "following",
         )
-        state = robot.step(command, read_reflectance=True)
+        state = robot.step(command, read_reflectance=True)  # Apply motion and read the next sample.
     print("Line circuit: result={} checkpoints={}/{} elapsed_s={}".format(
         result, lap.checkpoints_reached, len(CHECKPOINTS_MM),
         elapsed_time_s(state.measurements.time_ms, start_ms),
     ))
-finally:  # Stop the motors when the loop finishes or raises an error.
-    robot.stop()
+finally:
+    robot.stop()  # Stop after completion, a break, or an exception.
 `,Ur=`# Print ten stationary pairs of floor-sensor readings.
 
 from challenge import INITIAL_POSE
@@ -4389,21 +4377,18 @@ from ucsb_xrp import STOP_COMMAND
 
 
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # Enable floor sensing at the configured pose without requesting motion.
-    robot.start(INITIAL_POSE, read_reflectance=True)
-    # Repeated stationary pairs show sensor variability at one placement.
-    for _ in range(10):
-        state = robot.step(STOP_COMMAND, read_reflectance=True)
+try:  # Run this block, then stop the motors in finally.
+    robot.start(INITIAL_POSE, read_reflectance=True)  # Initialize estimated pose; reset measurements; read floor sensors.
+    for _ in range(10):  # Collect ten left/right readings at the same position.
+        state = robot.step(STOP_COMMAND, read_reflectance=True)  # Request zero motion and read both floor sensors.
         print(state.measurements.reflectance)
 finally:
-    # Leave the motors at zero if sensing or printing raises an exception.
-    robot.stop()
+    robot.stop()  # Stop after the readings or an exception.
 `,Wr=`from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_P_GAIN_RAD_S, P_GAIN
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Example motor settings; use measured calibration values for the physical XRP.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -4414,7 +4399,6 @@ ROBOT_CONFIG = RobotConfig(
 )
 
 # The supplied defaults use PD. Set ki = kd = 0 for a P-only comparison.
-# Steering limits and gains are read by LineFollower on each sample.
 LINE_FOLLOWER_SETTINGS = {
     "cruise_speed_mm_s": DEFAULT_CRUISE_SPEED_MM_S,
     "minimum_speed_mm_s": 45.0,
@@ -4426,16 +4410,15 @@ LINE_FOLLOWER_SETTINGS = {
     "turn_slowdown": 0.45,
 }
 
-# Apply changed Monitor values at the next measured control-loop boundary.
-# Input: active LineFollower; effect: update its mutable settings for this sample.
+# Copy the current slider settings into the line controller.
 def apply_line_controls(follower):
     follower.settings["cruise_speed_mm_s"] = CRUISE_SPEED.value
     follower.settings["kp_rad_s"] = P_GAIN.value
 
-# Physical values depend on the floor, tape, sensor height, and ambient light.
-LINE_VISIBLE_THRESHOLD = 0.12
-FINISH_THRESHOLD = 0.80
-FINISH_CONFIRM_SAMPLES = 4
+# Reflectance: 0 = light floor, 1 = dark tape. Tune thresholds using floor/tape readings.
+LINE_VISIBLE_THRESHOLD = 0.12  # Minimum reading at either sensor to detect the line.
+FINISH_THRESHOLD = 0.80  # Minimum reading at both sensors to detect the finish bar.
+FINISH_CONFIRM_SAMPLES = 4  # Consecutive finish-bar readings required.
 `,Gr=`# Student wheel measurements from encoder counts and sample time.
 
 from ucsb_xrp import Measurements
@@ -4498,8 +4481,7 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()
+WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose
 ROUTE = WORLD.waypoints()
 `,Jr=`# Test the Challenge 3 component classes without starting either robot.
@@ -4554,7 +4536,7 @@ USE_STUDENT_ODOMETRY = False
 USE_STUDENT_NAVIGATION_CONTROLLER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -4563,7 +4545,7 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
-# Route decisions use the independently selected navigation class.
+# Create the selected navigation controller.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
@@ -4597,7 +4579,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
-# Motion code reads the current .value when it applies these Monitor controls.
+# Create sliders in Monitor; .value reads each slider setting.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -4608,14 +4590,11 @@ TURN_RATE = live.number(
 )
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_goal_count(reached_count):
-    # Show the integer number of NavigationGoal targets accepted so far.
     live.watch("goals_reached", reached_count)
 
 
 def publish_heading(pose):
-    # Plot pose.heading_rad, the estimated arena-frame heading in radians.
     live.plot("heading_rad", pose.heading_rad, unit="rad", label="Estimated heading")
 `,Qr=`# Challenge 3: follow the ordered waypoint route.
 
@@ -4626,26 +4605,23 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_contr
 from route_progress import count_reached_goals
 
 
-# Keep robot sampling/odometry and route decisions in their selected components.
-robot = make_robot(ROBOT_CONFIG)
-navigation = make_navigation_controller(NAVIGATION_CONFIG)
+robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
+navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create the route controller.
 step_count = 0
 reached_count = 0
-try:
-    # The world pose initializes odometry; observed goal count starts there.
-    state = robot.start(INITIAL_POSE)
+try:  # Run this block, then stop the motors in finally.
+    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
     reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
-    navigation.start(ROUTE)
-    # One measured pose produces one navigation request and one robot sample.
-    while not navigation.is_complete():
+    navigation.start(ROUTE)  # Load the ordered waypoints and start at the first.
+    while not navigation.is_complete():  # Update motion until the controller finishes the route.
         publish_goal_count(reached_count)
         apply_navigation_controls(navigation)
-        state = robot.step(navigation.update(state.pose))
+        state = robot.step(navigation.update(state.pose))  # Calculate motion from pose; apply it and read new measurements.
         publish_heading(state.pose)
         step_count += 1
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
 
-    # Controller completion alone does not establish that each goal was observed.
+    # Confirm waypoint arrivals independently of controller completion.
     result = "complete" if reached_count == len(ROUTE) else "route_incomplete"
     print(
         "Challenge 3: result={} goals_reached={}/{} navigation_steps={} "
@@ -4655,8 +4631,8 @@ try:
     )
     if result != "complete":
         raise RuntimeError("Navigation finished before every waypoint was observed in order")
-finally:  # Stop the motors after normal completion or a Python exception.
-    robot.stop()
+finally:
+    robot.stop()  # Stop after route completion or an exception.
 `,$r=`# Receive NavigationGoal sequences and Pose samples, retain route progress,
 # and return one MotionCommand for each update.
 
@@ -4746,7 +4722,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Example motor settings; use measured calibration values for the physical XRP.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -4755,7 +4731,6 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -4766,17 +4741,16 @@ NAVIGATION_CONFIG = NavigationConfig(
     realign_heading_rad=0.25,
 )
 
-# Live controls are applied after each Robot sample, without resetting route progress.
-# Input: active NavigationController; effect: update changed motion settings.
+# Apply slider settings without restarting the route.
 def apply_navigation_controls(navigation):
     current = navigation.config
-    cruise_speed_mm_s = CRUISE_SPEED.value
-    turn_rate_rad_s = TURN_RATE.value
+    cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed slider.
+    turn_rate_rad_s = TURN_RATE.value  # Read the turn-rate slider.
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
         and current.turn_rate_rad_s == turn_rate_rad_s
     ):
-        return
+        return  # Neither slider changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=0.8 * cruise_speed_mm_s,
@@ -4807,9 +4781,8 @@ def goal_is_reached(pose, goal, config):
 # Input: estimated Pose, ordered goals, prior count, current configuration.
 # Return: updated observed-arrival count; does not read controller progress.
 def count_reached_goals(pose, route, reached_count, config):
-    # Advance only through goals observed at their assigned position in order.
     while reached_count < len(route) and goal_is_reached(pose, route[reached_count], config):
-        reached_count += 1
+        reached_count += 1  # Advance to the next waypoint after confirming this one.
     return reached_count
 `,ri=`# Student wheel measurements from encoder counts and sample time.
 
@@ -4873,19 +4846,15 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()
+WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose
 DESTINATION = WORLD.waypoint("destination")
 ARENA_MAP = WORLD.arena_map()
-# Grid resolution sets cell size in mm; clearance expands blocked regions.
-GRID_RESOLUTION_MM = 100.0
-# Obstacle expansion for robot size and path-following error.
-CLEARANCE_MM = 150.0
+GRID_RESOLUTION_MM = 100.0  # Width and height of each square grid cell.
+CLEARANCE_MM = 150.0  # Expand obstacles by the robot radius plus a tracking margin.
 
-# Motion selection and planner memory limit.
-EXECUTE_ROUTE = False
-MAXIMUM_GRID_CELLS = 1024
+EXECUTE_ROUTE = False  # False: print the path. True: also drive it.
+MAXIMUM_GRID_CELLS = 1024  # Limit grid memory use on the XRP.
 `,oi=`# Test the Challenge 4 component classes without starting either robot.
 # In the IDE, select Test functions. Each check names the class and method,
 # example input, required result, and observed result.
@@ -4943,7 +4912,7 @@ USE_STUDENT_NAVIGATION_CONTROLLER = False
 USE_STUDENT_GRID_PLANNER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -4952,14 +4921,14 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
-# Route decisions use the independently selected navigation class.
+# Create the selected navigation controller.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
-# Grid planning is selected independently of the moving robot.
+# Create the selected grid planner.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -4992,7 +4961,6 @@ from ucsb_xrp import GridCell
 
 
 def print_grid(grid, start, goal, path=None):
-    # Show clearance, endpoints, and any validated route in grid coordinates.
     start_label = None if start is None else (start.column, start.row)
     goal_label = None if goal is None else (goal.column, goal.row)
     print("Grid cells: {} mm".format(grid.resolution_mm))
@@ -5004,14 +4972,12 @@ def print_grid(grid, start, goal, path=None):
     print("S/G can cover #; see blocked states above")
     print("col tens " + "".join(str(col // 10) for col in range(grid.column_count)))
     print("col ones " + "".join(str(col % 10) for col in range(grid.column_count)))
-    # Print high rows first so positive arena y appears upward on the page.
     path_cells = path.cells if path is not None else ()
-    for row in range(grid.row_count - 1, -1, -1):
+    for row in range(grid.row_count - 1, -1, -1):  # Print from top to bottom (+y upward).
         symbols = []
         for column in range(grid.column_count):
             cell = GridCell(column, row)
-            # Endpoint symbols take precedence; blocked status is printed above.
-            if cell == start:
+            if cell == start:  # Draw endpoint symbols over blocked-cell or path symbols.
                 symbol = "S"
             elif cell == goal:
                 symbol = "G"
@@ -5053,7 +5019,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
-# Motion code reads the current .value when it applies these Monitor controls.
+# Create sliders in Monitor; .value reads each slider setting.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -5064,9 +5030,7 @@ TURN_RATE = live.number(
 )
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_navigation_steps(step_count):
-    # Show the number of Robot.step() calls completed so far.
     live.watch("navigation_steps", step_count)
 `,fi=`# Challenge 4: plan and follow a route around known obstacles.
 
@@ -5082,20 +5046,17 @@ from ucsb_xrp import OccupancyGrid
 
 
 print("World:", WORLD.label)
-# Convert arena geometry to clearance-aware cells before planning.
-grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
+grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)  # Mark cells blocked by expanded obstacles.
 if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
     raise ValueError("The map exceeds {} cells. Increase GRID_RESOLUTION_MM in challenge.py.".format(MAXIMUM_GRID_CELLS))
-# Planner endpoints are cells; the route execution later uses world coordinates.
-start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
+start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)  # Convert position to a grid column and row.
 goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
 path = make_grid_planner().plan(grid, start, goal)
 if path is None:
     print_grid(grid, start, goal)
     print("Challenge 4: result=no_path")
 else:
-    # Reject an unconnected, blocked, or misplaced path before motion is enabled.
-    invalid_reason = path_error(grid, start, goal, path)
+    invalid_reason = path_error(grid, start, goal, path)  # Check endpoints, free cells, and adjacency.
     if invalid_reason is not None:
         print_grid(grid, start, goal)
         print("Challenge 4: result=invalid_path reason={}".format(invalid_reason))
@@ -5106,9 +5067,8 @@ else:
         if not EXECUTE_ROUTE:
             print("Path checked. Set EXECUTE_ROUTE = True in challenge.py to drive the route.")
         else:
-            # Use cell centers along the route but the exact destination marker.
-            goals = list(path.to_goals(grid))
-            goals[-1] = DESTINATION
+            goals = list(path.to_goals(grid))  # Convert grid-cell centers to navigation goals.
+            goals[-1] = DESTINATION  # Replace the last cell center with the exact destination.
             robot = make_robot(ROBOT_CONFIG)
             navigation = make_navigation_controller(NAVIGATION_CONFIG)
             run_route(robot, navigation, INITIAL_POSE, goals, DESTINATION, len(path.cells))
@@ -5203,7 +5163,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Example motor settings; use measured calibration values for the physical XRP.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -5212,7 +5172,6 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -5223,17 +5182,16 @@ NAVIGATION_CONFIG = NavigationConfig(
     realign_heading_rad=0.25,
 )
 
-# Live controls are applied after each Robot sample, without resetting route progress.
-# Input: active NavigationController; effect: update changed motion settings.
+# Apply slider settings without restarting the route.
 def apply_navigation_controls(navigation):
     current = navigation.config
-    cruise_speed_mm_s = CRUISE_SPEED.value
-    turn_rate_rad_s = TURN_RATE.value
+    cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed slider.
+    turn_rate_rad_s = TURN_RATE.value  # Read the turn-rate slider.
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
         and current.turn_rate_rad_s == turn_rate_rad_s
     ):
-        return
+        return  # Neither slider changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=0.8 * cruise_speed_mm_s,
@@ -5257,17 +5215,15 @@ from route_validation import goal_is_reached
 def run_route(robot, navigation, initial_pose, goals, destination, path_cell_count):
     step_count = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
-        state = robot.start(initial_pose)
-        navigation.start(goals)
-        # Recompute the motion request from each new odometry pose.
-        while not navigation.is_complete():
+        state = robot.start(initial_pose)  # Initialize estimated pose; reset measurements.
+        navigation.start(goals)  # Load the route and select its first goal.
+        while not navigation.is_complete():  # Update motion until the controller finishes the route.
             publish_navigation_steps(step_count)
             apply_navigation_controls(navigation)
-            state = robot.step(navigation.update(state.pose))
+            state = robot.step(navigation.update(state.pose))  # Apply the pose-based motion request; read the next sample.
             step_count += 1
 
-        # Verify destination tolerance separately from controller status.
+        # Check final position and required heading against their tolerances.
         result = (
             "complete"
             if goal_is_reached(state.pose, destination, navigation.config)
@@ -5281,8 +5237,8 @@ def run_route(robot, navigation, initial_pose, goals, destination, path_cell_cou
         )
         if result != "complete":
             raise RuntimeError("Navigation finished before the destination was reached")
-    finally:  # Stop the motors whenever route execution exits.
-        robot.stop()
+    finally:
+        robot.stop()  # Stop after route completion or an exception.
 `,_i=`# Validate a planned grid route before constructing or moving the robot.
 # Also check the final estimated pose against the active navigation tolerances.
 
@@ -5375,27 +5331,24 @@ class WheelSpeedController(WheelSpeedControllerBase):
 from ucsb_xrp import load_world
 from robot_config import ROBOT_CONFIG
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()
+WORLD = load_world()  # Load the world selected in Monitor.
 INITIAL_POSE = WORLD.initial_pose
 OUTBOUND_ROUTE = tuple(WORLD.waypoint(name) for name in ("outbound_1", "outbound_2", "observation"))
 HOME = WORLD.waypoint("home")
 # Use one map definition in both virtual cases; never read the selected
 # world's obstacle list to infer the hidden gate state.
 MISSION_MAP = load_world(world_id="gate-blocked").arena_map()
-# Grid resolution sets cell size in mm; clearance expands blocked regions.
-GRID_RESOLUTION_MM = 100.0
-CLEARANCE_MM = 95.0
+GRID_RESOLUTION_MM = 100.0  # Width and height of each square grid cell.
+CLEARANCE_MM = 95.0  # Expand obstacles by the robot radius plus a tracking margin.
 RANGE_SAMPLE_COUNT = 7
 MINIMUM_USABLE_RANGE_COUNT = 4
 BLOCKED_RANGE_THRESHOLD_MM = 550.0
 GATE_FEATURE = "center_gate"
 
-# Stopped-wheel criteria and planner memory limit.
-STATIONARY_DURATION_S = 0.3
-STATIONARY_SPEED_MM_S = 5.0
-MAXIMUM_STOP_WAIT_S = 3.0
-MAXIMUM_GRID_CELLS = 1024
+STATIONARY_DURATION_S = 0.3  # Required continuous interval at low wheel speed.
+STATIONARY_SPEED_MM_S = 5.0  # Maximum absolute wheel speed counted as stationary.
+MAXIMUM_STOP_WAIT_S = 3.0  # Longest wait for the stationary check.
+MAXIMUM_GRID_CELLS = 1024  # Limit grid memory use on the XRP.
 # Allow each distinct ultrasound attempt two control periods plus two 70 ms
 # acquisition intervals; retain a 2 s minimum for scheduler variation.
 RANGE_COLLECTION_TIMEOUT_S = max(2.0, RANGE_SAMPLE_COUNT * (2 * ROBOT_CONFIG.sample_period_ms + 140) / 1000.0)
@@ -5457,7 +5410,7 @@ USE_STUDENT_NAVIGATION_CONTROLLER = False
 USE_STUDENT_GRID_PLANNER = False
 
 
-# Select project or supplied components before binding them to one Robot.
+# Create the robot and its sensing, drive, and odometry components.
 def make_robot(config):
     SensorModel = StudentSensorModel if USE_STUDENT_SENSOR_MODEL else SuppliedSensorModel
     WheelSpeedController = StudentWheelSpeedController if USE_STUDENT_WHEEL_SPEED_CONTROLLER else SuppliedWheelSpeedController
@@ -5466,14 +5419,14 @@ def make_robot(config):
     return Robot(config, XRPBot(config), SensorModel(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
 
 
-# Route decisions use the independently selected navigation class.
+# Create the selected navigation controller.
 def make_navigation_controller(config):
     if USE_STUDENT_NAVIGATION_CONTROLLER:
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
 
-# Grid planning is selected independently of the moving robot.
+# Create the selected grid planner.
 def make_grid_planner():
     if USE_STUDENT_GRID_PLANNER:
         return StudentGridPlanner()
@@ -5530,7 +5483,7 @@ from ucsb_xrp import live
 
 DEFAULT_CRUISE_SPEED_MM_S = 150.0
 DEFAULT_TURN_RATE_RAD_S = 0.8
-# Motion code reads the current .value when it applies these Monitor controls.
+# Create sliders in Monitor; .value reads each slider setting.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -5541,28 +5494,23 @@ TURN_RATE = live.number(
 )
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_phase(phase):
-    # Show the current mission phase label, such as outbound or return.
     live.watch("mission_phase", phase)
 
 
 def publish_result(result):
-    # Show the result label reported when the mission stops or finishes.
     live.watch("mission_result", result)
 
 
 def publish_goals_reached(count):
-    # Show how many ordered NavigationGoal targets were accepted.
     live.watch("goals_reached", count)
 
 
 def publish_return_path_cells(count):
-    # Show the number of GridCell entries in the planned return path.
     live.watch("return_path_cells", count)
 
 
-# Input: mission result text; show it in live telemetry and Program output.
+# Write the result to both Monitor and Program output.
 def report_result(result):
     publish_result(result)
     print("Out-and-Back: result=" + result)
@@ -5579,12 +5527,10 @@ from stationary_observation import wait_until_stationary
 from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import elapsed_time_s
 
-# The same selected sensing, navigation, and planning components serve both legs.
-robot = make_robot(ROBOT_CONFIG)
-navigation = make_navigation_controller(NAVIGATION_CONFIG)
-try:
-    # World pose initializes odometry; the outbound route is known in advance.
-    state = robot.start(INITIAL_POSE)
+robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
+navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create the route controller.
+try:  # Run this block, then stop the motors in finally.
+    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
     publish_phase("outbound")
     state, result = follow_route(robot, navigation, state, OUTBOUND_ROUTE)
     robot.stop()
@@ -5592,16 +5538,15 @@ try:
         report_result("outbound_" + result)
     else:
         publish_phase("stopping")
-        state, stationary = wait_until_stationary(robot, state)
+        state, stationary = wait_until_stationary(robot, state)  # Check that both wheel speeds remain near zero.
         if not stationary:
             report_result("failed_stationary_check")
         else:
             publish_phase("observe")
-            # Distinct range attempts are combined only after the robot stops.
             samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
-            state = robot.state
-            estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)
-            blocked = observed_gate(estimate_mm, BLOCKED_RANGE_THRESHOLD_MM)
+            state = robot.state  # Read the state updated during range collection.
+            estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)  # Combine usable readings into one distance.
+            blocked = observed_gate(estimate_mm, BLOCKED_RANGE_THRESHOLD_MM)  # Classify the gate as blocked, open, or unknown.
             print("stationary_range_samples_mm:", samples)
             print("range_estimate_mm:", estimate_mm)
             if blocked is None:
@@ -5609,7 +5554,6 @@ try:
             else:
                 publish_phase("plan_return")
                 robot.stop()
-                # The stopped pose and gate decision determine the return route.
                 goals, path_cell_count, path_error = plan_return(make_grid_planner(), state.pose, blocked)
                 if path_error is not None:
                     report_result(path_error)
@@ -5623,14 +5567,13 @@ try:
                     report_result("complete" if result == "arrived" else "return_" + result)
                     print("return_time_s:", elapsed_time_s(state.measurements.time_ms, return_start_ms))
                     print("estimated_final_pose:", state.pose)
-finally:  # Stop the motors on completion, a Python error, or cooperative Stop.
-    robot.stop()
+finally:
+    robot.stop()  # Stop after mission completion or an exception.
 `,Di=`# Inputs: estimated range and gate threshold in mm; estimate may be None.
 # Returns: True for a blocked gate, False for an open gate, None without range.
 def observed_gate(estimate_mm, threshold_mm):
-    # Missing range leaves the map decision unknown rather than declaring open.
     if estimate_mm is None:
-        return None
+        return None  # No distance estimate: gate state remains unknown.
     return estimate_mm <= threshold_mm
 `,Oi=`# Follow ordered route goals and count arrivals from estimated position.
 
@@ -5651,21 +5594,18 @@ def reached(pose, goal, config):
 # Inputs: started Robot, NavigationController, current RobotState, ordered goals.
 # Returns: latest RobotState and "arrived" or "failed_arrival"; publishes count.
 def follow_route(robot, navigation, state, goals):
-    navigation.start(goals)
+    navigation.start(goals)  # Load the route and select its first goal.
     reached_count = 0
-    # A measured pose advances the independent arrival count before the next
-    # navigation command; controller completion exits the loop.
-    while True:
+    while True:  # Check arrival and update motion at each measured pose.
         while reached_count < len(goals) and reached(
             state.pose, goals[reached_count], navigation.config,
         ):
-            reached_count += 1
+            reached_count += 1  # Count goals reached in route order.
         publish_goals_reached(reached_count)
-        # Compare observed arrivals with controller completion at the same pose.
         if navigation.is_complete():
             return state, "arrived" if reached_count == len(goals) else "failed_arrival"
         apply_navigation_controls(navigation)
-        state = robot.step(navigation.update(state.pose))
+        state = robot.step(navigation.update(state.pose))  # Apply motion and read the next sample.
 `,ki=`# Receive NavigationGoal sequences and Pose samples, retain route progress,
 # and return one MotionCommand for each update.
 
@@ -5761,15 +5701,13 @@ from ucsb_xrp import Pose
 
 point = OUTBOUND_ROUTE[-1]
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # The observation waypoint supplies the stationary sensor pose.
-    robot.start(Pose(point.x_mm, point.y_mm, point.heading_rad))
-    # Collect distinct ultrasound attempts, including missing echoes as None.
+try:  # Run this block, then stop the motors in finally.
+    robot.start(Pose(point.x_mm, point.y_mm, point.heading_rad))  # Initialize the estimated observation pose; reset measurements.
+    # Collect separate ultrasound readings; a missing echo is None.
     samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
     print(samples)
 finally:
-    # Range acquisition never requires nonzero wheel effort.
-    robot.stop()
+    robot.stop()  # Stop after range collection or an exception.
 `,Mi=`# Construct a return route using the measured gate decision and known map.
 
 from challenge import HOME, GATE_FEATURE, MISSION_MAP
@@ -5791,8 +5729,8 @@ def valid_path(grid, start, goal, path):
 # Returns: ordered goals, path cell count, and error text (None on success).
 # On failure, goals is None and the error is "no_route" or "invalid_path".
 def plan_return(planner, pose, blocked):
-    arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)
-    grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)
+    arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)  # Update the gate in a copy of the known map.
+    grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)  # Mark cells blocked by expanded obstacles.
     if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
         raise ValueError("Use at most {} cells for the return map".format(MAXIMUM_GRID_CELLS))
     start = grid.world_to_cell(pose.x_mm, pose.y_mm)
@@ -5802,7 +5740,7 @@ def plan_return(planner, pose, blocked):
         return None, 0, "no_route"
     if not valid_path(grid, start, goal, path):
         return None, 0, "invalid_path"
-    goals = list(path.to_goals(grid))
+    goals = list(path.to_goals(grid))  # Convert grid-cell centers to navigation goals.
     goals[-1] = HOME  # Finish at the exact home pose, not its grid-cell center.
     return goals, len(path.cells), None
 `,Ni=`# Robot and navigation settings shared by Challenge 5 programs.
@@ -5811,7 +5749,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Example motor settings; use measured calibration values for the physical XRP.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -5820,7 +5758,6 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -5831,17 +5768,16 @@ NAVIGATION_CONFIG = NavigationConfig(
     realign_heading_rad=0.25,
 )
 
-# Live controls are applied after each Robot sample, without resetting route progress.
-# Input: active NavigationController; effect: update changed motion settings.
+# Apply slider settings without restarting the route.
 def apply_navigation_controls(navigation):
     current = navigation.config
-    cruise_speed_mm_s = CRUISE_SPEED.value
-    turn_rate_rad_s = TURN_RATE.value
+    cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed slider.
+    turn_rate_rad_s = TURN_RATE.value  # Read the turn-rate slider.
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
         and current.turn_rate_rad_s == turn_rate_rad_s
     ):
-        return
+        return  # Neither slider changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=0.8 * cruise_speed_mm_s,
@@ -5900,11 +5836,11 @@ def wait_until_stationary(robot, state):
     start_ms = state.measurements.time_ms
     while stationary_s < STATIONARY_DURATION_S and elapsed_time_s(
         state.measurements.time_ms, start_ms
-    ) <= MAXIMUM_STOP_WAIT_S:  # Bound only the wait for already commanded stopping.
-        state = robot.step(STOP_COMMAND)
+    ) <= MAXIMUM_STOP_WAIT_S:  # Wait for low wheel speeds, up to the stop-wait limit.
+        state = robot.step(STOP_COMMAND)  # Request zero motion and read wheel speeds.
         speeds = state.measurements.wheel_speeds
         if max(abs(speeds.left_mm_s), abs(speeds.right_mm_s)) <= STATIONARY_SPEED_MM_S:
-            stationary_s += state.measurements.dt_s
+            stationary_s += state.measurements.dt_s  # Accumulate time with both wheel speeds at or below the threshold.
         else:
             stationary_s = 0.0  # The low-speed interval must be continuous.
     return state, stationary_s >= STATIONARY_DURATION_S
@@ -9684,7 +9620,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -9699,7 +9635,6 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number("manual_forward_mm_s", 0.0, -120.0, 120.0, 10.0, unit="mm/s", label="Forward speed")
 TURN_RATE = live.number("manual_turn_rad_s", 0.0, -1.0, 1.0, 0.1, unit="rad/s", label="Turn rate")
 `,pa=`# Drive with Monitor sliders. Each Run starts with both commands at zero.
@@ -9711,11 +9646,10 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
 
 
 WORLD = load_world()
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
+    # Apply an explicit zero command before reading the first slider values.
     state = robot.step(STOP_COMMAND)
     print("Manual driving ready. Set Forward speed or Turn rate in Monitor.")
 
@@ -9737,7 +9671,7 @@ finally:
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -9750,8 +9684,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import load_world
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()  # initial_pose and geometry come from world.json.
+WORLD = load_world()  # Match the arena and initial pose in the selected world.
 TURN_TOLERANCE_RAD = 0.06
 TURN_TIMEOUT_S = 8.0
 `,ga=`# Assemble the supplied components used by this demonstration.
@@ -9765,7 +9698,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -9780,7 +9713,6 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 CLOSE_RANGE_MM = live.number("close_range_mm", 400.0, minimum=200.0, maximum=900.0, step=25.0, unit="mm", label="Obstacle distance")
 FORWARD_SPEED_MM_S = live.number("forward_speed_mm_s", 150.0, minimum=40.0, maximum=180.0, step=10.0, unit="mm/s", label="Forward speed")
 TURN_RATE_RAD_S = live.number("turn_rate_rad_s", 1.3, minimum=0.4, maximum=1.8, step=0.1, unit="rad/s", label="Turn rate")
@@ -9788,7 +9720,6 @@ TURN_DIRECTION = live.choice("turn_direction", "left", options=("left", "right")
 SECOND_APPROACH = live.toggle("second_approach", True, label="Drive after turn")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_range(range_mm):
     live.watch("range_mm", range_mm if range_mm is not None else "No echo", unit="mm")
 
@@ -9799,7 +9730,7 @@ def publish_phase(phase):
 
 def publish_heading_error(error_rad):
     live.watch("heading_error_rad", error_rad, unit="rad")
-`,va=`# Drive to an obstacle, turn left, then drive to the next obstacle.
+`,va=`# Approach an obstacle, turn by a measured quarter-turn, and optionally approach again.
 
 from math import pi
 
@@ -9825,11 +9756,12 @@ def drive_until_close(robot, state):
 
 
 def turn_quarter_turn(robot, state):
+    # Positive heading is counterclockwise; the choice sets the target sign.
     direction = 1.0 if TURN_DIRECTION.value == "left" else -1.0
     target_heading = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
     started_ms = state.measurements.time_ms
     publish_phase("turning " + TURN_DIRECTION.value)
-    # Recheck estimated heading until the turn tolerance or timeout ends the phase.
+    # The signed wrapped error handles both crossing ±pi and overshooting the target.
     while True:
         error_rad = wrap_angle_rad(target_heading - state.pose.heading_rad)
         publish_heading_error(error_rad)
@@ -9843,11 +9775,9 @@ def turn_quarter_turn(robot, state):
         state = robot.step(MotionCommand(0.0, turn_rate))
 
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
-try:  # The finally block stops the motors when this sequence exits.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
     state = drive_until_close(robot, state)
     state = turn_quarter_turn(robot, state)
     if SECOND_APPROACH.value:
@@ -9855,14 +9785,14 @@ try:  # The finally block stops the motors when this sequence exits.
     publish_phase("complete")
     print("Obstacle-turn demo complete")
     print("final_pose:", state.pose)
-finally:  # Runs after normal completion, a Python error, or cooperative Stop.
+finally:
     robot.stop()
 `,ya=`# Measured robot and controller settings for the obstacle-turn demo.
 
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -9875,8 +9805,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import load_world
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()  # initial_pose and geometry come from world.json.
+WORLD = load_world()  # Match the arena and initial pose in the selected world.
 RANDOM_SEED = 0x5A17
 SEGMENT_COUNT = 12
 TURN_TOLERANCE_RAD = 0.05
@@ -9895,7 +9824,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -9910,12 +9839,10 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED_MM_S = live.number("snake_forward_speed_mm_s", 150.0, 60.0, 180.0, 10.0, unit="mm/s", label="Forward speed")
 TURN_RATE_RAD_S = live.number("snake_turn_rate_rad_s", 1.4, 0.5, 1.8, 0.1, unit="rad/s", label="Turn rate")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_segment(number):
     live.watch("segment", number)
 
@@ -9948,6 +9875,7 @@ class SeededRandom:
         self._state = int(seed) & 0xFFFFFFFF
 
     def unit(self):
+        # Keep the recurrence in 32 bits, then scale its unsigned state to [0, 1).
         self._state = (1664525 * self._state + 1013904223) & 0xFFFFFFFF
         return self._state / 4294967296.0
 
@@ -9961,15 +9889,14 @@ def body_travel_mm(state):
     return abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)
 
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # Run finally below when this block finishes or raises a Python error.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
     total_travel_mm = 0.0
 
     for segment_index in range(SEGMENT_COUNT):
+        # The seeded generator fixes each straight target and left/right turn.
         target_travel_mm = random.uniform(MINIMUM_SEGMENT_TRAVEL_MM, MAXIMUM_SEGMENT_TRAVEL_MM)
         segment_travel_mm = 0.0
         started_ms = state.measurements.time_ms
@@ -9988,7 +9915,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
         target_heading_rad = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
         started_ms = state.measurements.time_ms
         publish_phase("turn right" if direction < 0.0 else "turn left")
-        # Recheck heading after each turning sample, with a timeout for stalled progress.
+        # Wrapped error remains signed across ±pi and changes sign after overshoot.
         while True:
             error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
             if abs(error_rad) <= TURN_TOLERANCE_RAD:
@@ -9996,6 +9923,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
             if elapsed_time_s(state.measurements.time_ms, started_ms) >= TURN_TIMEOUT_S:
                 raise RuntimeError("Rotation did not finish within 8 s; check wheel motion and encoder readings")
             direction = -1.0 if error_rad < 0.0 else 1.0
+            # Scale down near the target while limiting yaw rate to the slider setting.
             turn_rate = direction * min(TURN_RATE_RAD_S.value, 3.0 * abs(error_rad))
             state = robot.step(MotionCommand(0.0, turn_rate))
             total_travel_mm += body_travel_mm(state)
@@ -10006,14 +9934,14 @@ try:  # Run finally below when this block finishes or raises a Python error.
     print("Random-snake route complete")
     print("seed:", RANDOM_SEED)
     print("final_pose:", state.pose)
-finally:  # Stop the motors after normal completion or a Python exception.
+finally:
     robot.stop()
 `,wa=`# Nominal robot settings shared by virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10026,8 +9954,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import load_world
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()  # initial_pose and geometry come from world.json.
+WORLD = load_world()  # Match the arena and initial pose in the selected world.
 RANDOM_SEED = 0xC0FFEE
 REVERSE_TIME_S = 0.4
 MINIMUM_TURN_ANGLE_DEG = 70.0
@@ -10045,7 +9972,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -10060,14 +9987,12 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 OBSTACLE_DISTANCE_MM = live.number("obstacle_distance_mm", 240.0, 150.0, 700.0, 10.0, unit="mm", label="Obstacle distance")
 FORWARD_SPEED_MM_S = live.number("roomba_forward_speed_mm_s", 150.0, 60.0, 180.0, 10.0, unit="mm/s", label="Forward speed")
 REVERSE_SPEED_MM_S = live.number("roomba_reverse_speed_mm_s", -120.0, -180.0, -60.0, 10.0, unit="mm/s", label="Reverse speed")
 TURN_RATE_RAD_S = live.number("roomba_turn_rate_rad_s", 1.4, 0.5, 1.8, 0.1, unit="rad/s", label="Turn rate")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_range(range_mm):
     live.watch("range_mm", range_mm if range_mm is not None else "No echo", unit="mm")
 
@@ -10100,23 +10025,22 @@ class SeededRandom:
         self._state = int(seed) & 0xFFFFFFFF
 
     def unit(self):
+        # Keep the recurrence in 32 bits, then scale its unsigned state to [0, 1).
         self._state = (1664525 * self._state + 1013904223) & 0xFFFFFFFF
         return self._state / 4294967296.0
 
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # Run finally below when this block finishes or raises a Python error.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
     state = robot.step(STOP_COMMAND, read_range=True)
     phase = "forward"
     phase_started_ms = state.measurements.time_ms
     target_heading_rad = state.pose.heading_rad
     avoidance_count = 0
 
-    # Alternate range-checked travel and bounded turning until Stop.
+    # In the forward phase, only a measured near obstacle initiates reversal.
     while True:  # Press Stop when you have observed enough of the route.
         range_mm = state.measurements.range_mm
         publish_range(range_mm)
@@ -10126,6 +10050,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
             phase = "reverse"
             phase_started_ms = state.measurements.time_ms
         elif phase == "reverse" and phase_time_s >= REVERSE_TIME_S:
+            # A seeded sign and angle make each avoidance turn reproducible.
             direction = 1.0 if random.unit() < 0.5 else -1.0
             angle_deg = MINIMUM_TURN_ANGLE_DEG + random.unit() * (MAXIMUM_TURN_ANGLE_DEG - MINIMUM_TURN_ANGLE_DEG)
             target_heading_rad = wrap_angle_rad(state.pose.heading_rad + direction * angle_deg * pi / 180.0)
@@ -10135,6 +10060,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
             publish_avoidance_count(avoidance_count)
 
         if phase == "turn":
+            # Wrap error across ±pi so correction follows the shorter direction.
             error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
             if abs(error_rad) <= TURN_TOLERANCE_RAD:
                 phase = "forward"
@@ -10144,6 +10070,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
             if elapsed_time_s(state.measurements.time_ms, phase_started_ms) >= TURN_TIMEOUT_S:
                 raise RuntimeError("Rotation did not finish within 8 s; check wheel motion and encoder readings")
             turn_direction = 1.0 if error_rad > 0.0 else -1.0
+            # Reduce yaw rate near the heading target to limit overshoot.
             command = MotionCommand(0.0, turn_direction * min(TURN_RATE_RAD_S.value, 3.0 * abs(error_rad)))
         elif phase == "reverse":
             command = MotionCommand(REVERSE_SPEED_MM_S.value, 0.0)
@@ -10153,14 +10080,14 @@ try:  # Run finally below when this block finishes or raises a Python error.
 
         publish_phase(phase)
         state = robot.step(command, read_range=True)
-finally:  # Runs after a return, Python error, or the IDE's cooperative Stop.
+finally:
     robot.stop()
 `,ka=`# Nominal robot settings shared by virtual and physical XRP targets.
 
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10175,9 +10102,9 @@ from ucsb_xrp import load_world
 
 try:
     import xrp_sim_bridge  # Available only in the browser's virtual XRP.
-    # Read selected-world markers and geometry from the same source as the simulator.
     WORLD = load_world()
 except ImportError:
+    # Physical runs use the bounded physical Snake arena when no browser bridge exists.
     WORLD = load_world(world_id="snake-physical")
 `,ja=`# Assemble the supplied components used by this demonstration.
 
@@ -10191,7 +10118,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -10214,12 +10141,10 @@ from snake_config import CONFIG
 
 growth = CONFIG["controls"]["growth_mm"]
 speed = CONFIG["controls"]["speed_mm_s"]
-# Motion code reads the current .value when it applies these Monitor controls.
 GROWTH_MM = live.number("snake_growth_mm", growth["default"], growth["minimum"], growth["maximum"], growth["step"], unit="mm", label="Tail growth per food")
 SPEED_MM_S = live.number("snake_speed_mm_s", speed["default"], speed["minimum"], speed["maximum"], speed["step"], unit="mm/s", label="Cruise speed")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_game(game):
     # Send the current score, food state, tail length, and stopping reason to Monitor.
     live.watch("snake_score", game.score, label="Score")
@@ -10253,15 +10178,13 @@ from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG, navigation_config_for_
 from snake_game import SnakeGame
 
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
 game = SnakeGame(WORLD)
 last_speed_mm_s = NAVIGATION_CONFIG.cruise_speed_mm_s
 
-try:
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
     publish_scene_config(WORLD)
     publish_game(game)
     # Choose the current food goal until a wall, obstacle, tail, or win ends play.
@@ -10271,9 +10194,11 @@ try:
         # Retarget only after this food is reached or a terminal condition occurs.
         while game.phase == "playing" and game.current_food() is goal:
             if SPEED_MM_S.value != last_speed_mm_s:
+                # Rebuild the navigation limits only when the cruise slider changes.
                 last_speed_mm_s = SPEED_MM_S.value
                 navigation.set_config(navigation_config_for_speed(last_speed_mm_s))
             state = robot.step(navigation.update(state.pose), read_range=True)
+            # Evaluate food, tail, and collision from estimated pose and measured range.
             if game.observe(state.pose, GROWTH_MM.value, state.measurements.range_mm):
                 publish_game(game)
 finally:
@@ -10286,7 +10211,7 @@ from ucsb_xrp import NavigationConfig, RobotConfig
 from snake_config import CONFIG
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(**CONFIG["robot"])
 
 
@@ -10501,8 +10426,7 @@ class SnakeGame:
 
 from ucsb_xrp import load_world
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()  # initial_pose and geometry come from world.json.
+WORLD = load_world()  # Match the arena and initial pose in the selected world.
 INITIAL_POSE = WORLD.initial_pose
 OBSTACLE_STOP_MM = 400.0  # Forward distance measured from the ultrasound sensor.
 SPIRAL_EXPANSION_MM = 8000.0  # Expand slowly enough to see several circuits inside the arena.
@@ -10517,7 +10441,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -10532,12 +10456,10 @@ def make_robot(config):
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number("forward_speed_mm_s", 110.0, minimum=60.0, maximum=160.0, step=10.0, unit="mm/s", label="Forward speed")
 WINDING_RATE = live.number("spiral_winding_turns_per_m", 0.7, minimum=0.3, maximum=1.4, step=0.1, unit="revolutions/m", label="Spiral winding rate")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_spiral_values(travel_mm, turn_rate_rad_s):
     live.plot("travel_mm", travel_mm, unit="mm", label="Travel")
     live.plot("turn_rate_rad_s", turn_rate_rad_s, unit="rad/s", label="Yaw rate")
@@ -10552,37 +10474,30 @@ from robot_config import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND
 
 
-# Continue until an obstacle is near or the operator presses Stop.
 robot = make_robot(ROBOT_CONFIG)
-try:  # Run the motion; the finally block below stops it when this block exits.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(INITIAL_POSE)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
 
-    # Check the range once before applying a moving command.
-    state = robot.step(STOP_COMMAND, read_range=True)
+    state = robot.step(STOP_COMMAND, read_range=True)  # Check range before motion.
     travel_mm = 0.0
 
-    # Continue the expanding path while the latest range permits motion.
-    while True:
+    while True:  # Update motion until an obstacle or Stop ends the run.
         range_mm = state.measurements.range_mm
-        # None means no usable echo; it does not mean an obstacle is close.
-        if range_mm is not None and range_mm <= OBSTACLE_STOP_MM:
+        if range_mm is not None and range_mm <= OBSTACLE_STOP_MM:  # Ignore missing echoes.
             result = "Obstacle detected; spiral stopped"
             break
 
         speed_mm_s = FORWARD_SPEED.value
-        revolutions_per_mm = WINDING_RATE.value / 1000.0
-        expansion = 1.0 + travel_mm / SPIRAL_EXPANSION_MM
-        # Convert revolutions per millimeter into yaw rate in radians per second.
-        turn_rate_rad_s = 2.0 * pi * speed_mm_s * revolutions_per_mm / expansion
+        revolutions_per_mm = WINDING_RATE.value / 1000.0  # Convert turns/m to turns/mm.
+        expansion = 1.0 + travel_mm / SPIRAL_EXPANSION_MM  # Reduce curvature as travel increases.
+        turn_rate_rad_s = 2.0 * pi * speed_mm_s * revolutions_per_mm / expansion  # rad/s
 
         publish_spiral_values(travel_mm, turn_rate_rad_s)
 
         state = robot.step(MotionCommand(speed_mm_s, turn_rate_rad_s), read_range=True)
-        # The mean signed wheel increment estimates travel of the axle center.
         measurements = state.measurements
-        travel_mm += abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)
-finally:  # Stop motors whenever this motion block exits.
+        travel_mm += abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)  # Axle-center travel.
+finally:
     robot.stop()
 print(result)
 print("final_pose:", state.pose)
@@ -10591,7 +10506,7 @@ print("final_pose:", state.pose)
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10604,8 +10519,7 @@ ROBOT_CONFIG = RobotConfig(
 
 from ucsb_xrp import live, load_world
 
-# Read selected-world markers and geometry from the same source as the simulator.
-WORLD = load_world()  # initial_pose and geometry come from world.json.
+WORLD = load_world()  # Match the arena and initial pose in the selected world.
 # ProjectWorld.waypoints() returns NavigationGoal values in marker-file order.
 ROUTE = WORLD.waypoints()
 `,Wa=`# Assemble the supplied components used by this demonstration.
@@ -10620,7 +10534,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -10640,7 +10554,6 @@ def make_navigation_controller(config):
 from ucsb_xrp import live
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_travel(travel_mm):
     live.watch("travel_mm", travel_mm, unit="mm")
 
@@ -10665,13 +10578,11 @@ def body_travel_mm(state):
 if not ROUTE:
     raise RuntimeError("world.json must define at least one waypoint")
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
-try:  # The finally block stops the robot whenever the route exits.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
-    navigation.start(ROUTE)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
+    navigation.start(ROUTE)  # Use marker-file waypoint order.
     total_travel_mm = 0.0
     # Recompute one motion request from each newly estimated pose.
     while not navigation.is_complete():
@@ -10683,14 +10594,14 @@ try:  # The finally block stops the robot whenever the route exits.
     print("UCSB logo complete")
     print("waypoints:", len(ROUTE))
     print("final_pose:", state.pose)
-finally:  # Stop the motors after normal completion or a Python exception.
+finally:
     robot.stop()
 `,qa=`# Nominal robot and navigation settings for the UCSB route.
 
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -10720,7 +10631,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -10742,7 +10653,6 @@ MAXIMUM_WHEEL_TRAVEL_MM = 1500.0
 from ucsb_xrp import live
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_motor_values(command, measurements):
     live.plot("effort", command, label="Motor effort")
     live.plot("left_speed_mm_s", measurements.wheel_speeds.left_mm_s, unit="mm/s", label="Left speed")
@@ -10760,11 +10670,13 @@ from live_variables import publish_motor_values
 from ucsb_xrp import DriveCommand, XRPBot, elapsed_time_s
 from ucsb_xrp_reference import SensorModel
 
+# Direct XRPBot commands bypass Robot's wheel-speed feedback.
 bot = XRPBot(ROBOT_CONFIG)
 model = SensorModel(ROBOT_CONFIG)
 bot.stop()
-try:
+try:  # Ensure finally stops motors on exit.
     bot.reset_encoders()
+    # Use the first raw reading after encoder reset as the measurement origin.
     measurements = model.reset(bot.read())
     # Repeat zero command, commanded effort, and zero command at each level.
     for effort in EFFORTS:
@@ -10781,20 +10693,18 @@ try:
             start_ms = measurements.time_ms
             bot.set_drive(DriveCommand(command, command))
             while elapsed_time_s(measurements.time_ms, start_ms) < duration_s:
-                # This program uses XRPBot directly, so it owns sampling;
-                # never add this delay to a Robot.step() loop.
-                sleep_ms(ROBOT_CONFIG.sample_period_ms)
+                sleep_ms(ROBOT_CONFIG.sample_period_ms)  # Robot.step would supply this delay.
                 measurements = model.update(bot.read())
                 wheel_travel_mm = max(
                     abs(measurements.left_position_mm),
                     abs(measurements.right_position_mm),
                 )
-                if wheel_travel_mm > MAXIMUM_WHEEL_TRAVEL_MM:
+                if wheel_travel_mm > MAXIMUM_WHEEL_TRAVEL_MM:  # Bound either wheel's travel.
                     raise RuntimeError("Characterization travel limit reached")
                 publish_motor_values(command, measurements)
             print("effort:", command, "wheel_speeds_mm_s:", measurements.wheel_speeds)
     print("Motor characterization complete")
-finally:  # Stop the motors after normal completion or a Python exception.
+finally:
     bot.stop()
 `,Qa=`# Supplied nominal calibration for the motor-characterization demo.
 # Replace these defaults with measurements from your robot before physical use.
@@ -10802,7 +10712,7 @@ finally:  # Stop the motors after normal completion or a Python exception.
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11021,7 +10931,7 @@ def wheel_speed_summary(
         "sample_count": sample_count,
         "mean_left_mm_s": mean_left_mm_s,
         "mean_right_mm_s": mean_right_mm_s,
-        "mean_difference_mm_s": mean_left_mm_s - mean_right_mm_s,
+        "mean_difference_mm_s": mean_left_mm_s - mean_right_mm_s,  # Positive: left faster.
     }
 `,no=`# Assemble the supplied course components used by this tutorial.
 
@@ -11034,7 +10944,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -11180,12 +11090,10 @@ segments = build_drawing(
     turn_rate_rad_s=TURN_RATE_RAD_S,
     turn_angle_rad=TURN_ANGLE_RAD,
 )
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(load_world().initial_pose)
-    # Each drawing segment ends from measured state, with a sample limit.
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
+    # Compare each side or turn with its own starting state; bound stalled segments.
     for segment in segments:
         segment_start = state
         for _ in range(MAXIMUM_SEGMENT_SAMPLES):
@@ -11193,8 +11101,9 @@ try:
                 break
             state = robot.step(segment.command())
         else:
+            # A for/else runs only if no measured completion triggered break.
             raise RuntimeError("No measured completion for " + segment.name)
-finally:  # Stop motors whenever this motion block exits.
+finally:
     robot.stop()
 print("Tutorial 2 drawing complete")
 print("final_pose:", state.pose)
@@ -11203,7 +11112,7 @@ print("final_pose:", state.pose)
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11237,6 +11146,7 @@ class DrawingSegment:
     def is_complete(self, start_state: RobotState, current_state: RobotState) -> bool:
         start = start_state.measurements
         current = current_state.measurements
+        # Subtract segment origins; the wheel positions themselves span the whole run.
         left_mm = current.left_position_mm - start.left_position_mm
         right_mm = current.right_position_mm - start.right_position_mm
         return (left_mm + right_mm) / 2.0 >= self.distance_mm
@@ -11261,6 +11171,7 @@ class TurnSegment:
         return MotionCommand(0.0, self.turn_rate_rad_s)
 
     def is_complete(self, start_state: RobotState, current_state: RobotState) -> bool:
+        # A wrapped difference measures the commanded left turn across ±pi.
         heading_change_rad = wrap_angle_rad(
             current_state.pose.heading_rad - start_state.pose.heading_rad
         )
@@ -11290,7 +11201,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -11511,7 +11422,7 @@ print("final_pose:", final_state.pose)
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11539,20 +11450,20 @@ def run_robot_program(
     forward_speed_mm_s: float,
     target_distance_mm: float,
 ) -> RobotState:
-    # Request forward_speed_mm_s until measured wheel travel reaches
-    # target_distance_mm. Return the final RobotState; always stop the robot.
+    # Stop from encoder travel, rather than from elapsed time or a pose estimate.
     if forward_speed_mm_s <= 0.0 or target_distance_mm <= 0.0:
         raise ValueError("speed and target distance must be positive")
-    try:
-        state = robot.start(load_world().initial_pose)
+    try:  # Ensure finally stops motors on exit.
+        state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         start_position_mm = mean_wheel_position_mm(state)
         command = MotionCommand(forward_speed_mm_s, 0.0)
         for _ in range(MAXIMUM_SAMPLES):
+            # Subtract the initial axle position so reruns use their own origin.
             if mean_wheel_position_mm(state) - start_position_mm >= target_distance_mm:
                 return state
             state = robot.step(command)
         raise RuntimeError("Measured wheel travel did not reach the target")
-    finally:  # Stop the motors after completion or a Python exception.
+    finally:
         robot.stop()
 `,po=`# Assemble the supplied course components used by this tutorial.
 
@@ -11565,7 +11476,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -11755,7 +11666,6 @@ if __name__ == "__main__":
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number(
     "tutorial_forward_speed_mm_s",
     110.0,
@@ -11822,11 +11732,9 @@ MAXIMUM_TURN_TIME_S = 5.0  # Fault stop if heading feedback does not progress.
 if not run_exercise_checks():
     print("Restore the runnable example before starting the robot")
 else:
-    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
-    try:
-        # Start establishes the initial pose and encoder/time measurement origins.
-        state = robot.start(load_world().initial_pose)
+    try:  # Ensure finally stops motors on exit.
+        state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         phase = APPROACH
         start_mean_mm = (
             state.measurements.left_position_mm + state.measurements.right_position_mm
@@ -11834,7 +11742,7 @@ else:
         turn_start_heading_rad = state.pose.heading_rad
         turn_start_ms = state.measurements.time_ms
         missing_range_samples = 0
-        # Use range during approach and estimated heading during the turn.
+        # Range selects the turn; estimated heading determines when it ends.
         while phase != DONE:
             if not RUN_BEHAVIOR.value:
                 phase = DONE
@@ -11848,10 +11756,12 @@ else:
                 turned_rad >= pi / 2.0,
             )
             if previous_phase != TURN and phase == TURN:
+                # Measure the quarter-turn from the pose at the phase transition.
                 turn_start_heading_rad = state.pose.heading_rad
                 turn_start_ms = state.measurements.time_ms
 
             if phase == APPROACH:
+                # Consecutive absent echoes and forward wheel travel bound the approach.
                 missing_range_samples = (
                     missing_range_samples + 1
                     if state.measurements.range_mm is None else 0
@@ -11875,7 +11785,7 @@ else:
             if phase == DONE:
                 break
             state = robot.step(command, read_range=phase == APPROACH)
-    finally:  # Stop motors after completion or a Python exception.
+    finally:
         robot.stop()
     print("Tutorial 4 behavior complete")
     print("final_pose:", state.pose)
@@ -11884,7 +11794,7 @@ else:
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -11916,6 +11826,7 @@ def next_phase(
     if stop_distance_mm <= 0.0:
         raise ValueError("stop distance must be positive")
     if phase == APPROACH:
+        # None is missing data, so it cannot satisfy the stop-distance test.
         if range_mm is not None and range_mm <= stop_distance_mm:
             return TURN
         return APPROACH
@@ -11941,6 +11852,7 @@ def command_for_phase(
     if phase == APPROACH:
         return MotionCommand(forward_speed_mm_s, 0.0)
     if phase == TURN:
+        # Left is positive yaw in the course coordinate convention.
         direction = 1.0 if turn_direction == "left" else -1.0
         return MotionCommand(0.0, direction * turn_rate_rad_s)
     return MotionCommand(0.0, 0.0)
@@ -11955,6 +11867,7 @@ def publish_telemetry(state: RobotState, phase: str) -> None:
     live.watch("phase", phase)
     live.watch("range_mm", range_value, unit="mm")
     mean_distance_mm = (
+        # Averaging signed wheel positions estimates axle-center travel.
         state.measurements.left_position_mm
         + state.measurements.right_position_mm
     ) / 2.0
@@ -11971,7 +11884,7 @@ from ucsb_xrp_reference import (
 )
 
 
-# Bind the hardware adapter and supplied components to the same robot settings.
+# Pass one config to hardware conversion, sensing, wheel control, and odometry.
 def make_robot(config):
     return Robot(
         config,
@@ -12135,23 +12048,22 @@ MOTION_SPEED_MM_S = 60.0
 def collect_stationary_samples(robot):
     # Robot.step maintains the sample schedule; no additional delay is needed.
     states = []
-    try:
-        # Start establishes the initial pose and encoder/time measurement origins.
-        state = robot.start(load_world().initial_pose)
+    try:  # Ensure finally stops motors on exit.
+        state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         states.append(state)
         # Collect repeated stopped samples to expose sensor noise and encoder drift.
         for _ in range(STATIONARY_SAMPLE_COUNT):
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
         return tuple(states)
-    finally:  # Stop the motors after normal completion or a Python exception.
+    finally:
         robot.stop()
 
 
 # Input: Robot; returns start and final RobotState after a short gated motion run.
 def run_short_motion(robot):
     # This fixed-sample motion checks motors and encoders; it is not distance control.
-    try:
+    try:  # Ensure finally stops motors on exit.
         initial_state = robot.start(load_world().initial_pose)
         state = initial_state
         command = MotionCommand(MOTION_SPEED_MM_S, 0.0)
@@ -12159,7 +12071,7 @@ def run_short_motion(robot):
         for _ in range(MOTION_SAMPLE_COUNT):
             state = robot.step(command)
         return initial_state, state
-    finally:  # Stop the motors after normal completion or a Python exception.
+    finally:
         robot.stop()
 
 
@@ -12175,7 +12087,6 @@ def run_preflight():
         print("Restore the runnable report example before running the XRP")
         return None
 
-    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     states = collect_stationary_samples(robot)
     report = preflight_report(states)
@@ -12190,11 +12101,12 @@ def run_preflight():
     ):
         print(name + ":", report[name])
 
-    if not ENABLE_SHORT_MOTION.value:
+    if not ENABLE_SHORT_MOTION.value:  # Require explicit permission for the motion segment.
         print("Short motion disabled; enable it explicitly and Run again")
         return report
 
     initial_state, final_state = run_short_motion(robot)
+    # Compare axle-center wheel position after a fresh start for the motion segment.
     wheel_travel_mm = mean_wheel_position_mm(final_state) - mean_wheel_position_mm(initial_state)
     print("Short motion check complete")
     print("motion_wheel_travel_mm:", wheel_travel_mm)
@@ -12208,7 +12120,7 @@ run_preflight()
 from ucsb_xrp import RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -12233,7 +12145,9 @@ def preflight_report(states: object) -> dict:
     button_was_pressed = False
     for state in states:
         measurements = state.measurements
+        # dt_s starts at zero on reset, so summing samples gives run duration.
         elapsed_time_s += measurements.dt_s
+        # Either wheel drifting from zero can fail a stationary preflight.
         maximum_abs_wheel_position_mm = max(
             maximum_abs_wheel_position_mm,
             abs(measurements.left_position_mm),

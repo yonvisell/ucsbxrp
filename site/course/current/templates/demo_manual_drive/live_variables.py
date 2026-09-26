@@ -3,6 +3,5 @@
 from ucsb_xrp import live
 
 
-# Motion code reads the current .value when it applies these Monitor controls.
 FORWARD_SPEED = live.number("manual_forward_mm_s", 0.0, -120.0, 120.0, 10.0, unit="mm/s", label="Forward speed")
 TURN_RATE = live.number("manual_turn_rad_s", 0.0, -1.0, 1.0, 0.1, unit="rad/s", label="Turn rate")

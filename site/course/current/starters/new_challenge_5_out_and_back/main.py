@@ -11,12 +11,10 @@ from stationary_observation import wait_until_stationary
 from robot_config import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import elapsed_time_s
 
-# The same selected sensing, navigation, and planning components serve both legs.
-robot = make_robot(ROBOT_CONFIG)
-navigation = make_navigation_controller(NAVIGATION_CONFIG)
-try:
-    # World pose initializes odometry; the outbound route is known in advance.
-    state = robot.start(INITIAL_POSE)
+robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
+navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create the route controller.
+try:  # Run this block, then stop the motors in finally.
+    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
     publish_phase("outbound")
     state, result = follow_route(robot, navigation, state, OUTBOUND_ROUTE)
     robot.stop()
@@ -24,16 +22,15 @@ try:
         report_result("outbound_" + result)
     else:
         publish_phase("stopping")
-        state, stationary = wait_until_stationary(robot, state)
+        state, stationary = wait_until_stationary(robot, state)  # Check that both wheel speeds remain near zero.
         if not stationary:
             report_result("failed_stationary_check")
         else:
             publish_phase("observe")
-            # Distinct range attempts are combined only after the robot stops.
             samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
-            state = robot.state
-            estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)
-            blocked = observed_gate(estimate_mm, BLOCKED_RANGE_THRESHOLD_MM)
+            state = robot.state  # Read the state updated during range collection.
+            estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)  # Combine usable readings into one distance.
+            blocked = observed_gate(estimate_mm, BLOCKED_RANGE_THRESHOLD_MM)  # Classify the gate as blocked, open, or unknown.
             print("stationary_range_samples_mm:", samples)
             print("range_estimate_mm:", estimate_mm)
             if blocked is None:
@@ -41,7 +38,6 @@ try:
             else:
                 publish_phase("plan_return")
                 robot.stop()
-                # The stopped pose and gate decision determine the return route.
                 goals, path_cell_count, path_error = plan_return(make_grid_planner(), state.pose, blocked)
                 if path_error is not None:
                     report_result(path_error)
@@ -55,5 +51,5 @@ try:
                     report_result("complete" if result == "arrived" else "return_" + result)
                     print("return_time_s:", elapsed_time_s(state.measurements.time_ms, return_start_ms))
                     print("estimated_final_pose:", state.pose)
-finally:  # Stop the motors on completion, a Python error, or cooperative Stop.
-    robot.stop()
+finally:
+    robot.stop()  # Stop after mission completion or an exception.

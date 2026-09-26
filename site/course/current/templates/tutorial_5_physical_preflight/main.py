@@ -16,23 +16,22 @@ MOTION_SPEED_MM_S = 60.0
 def collect_stationary_samples(robot):
     # Robot.step maintains the sample schedule; no additional delay is needed.
     states = []
-    try:
-        # Start establishes the initial pose and encoder/time measurement origins.
-        state = robot.start(load_world().initial_pose)
+    try:  # Ensure finally stops motors on exit.
+        state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         states.append(state)
         # Collect repeated stopped samples to expose sensor noise and encoder drift.
         for _ in range(STATIONARY_SAMPLE_COUNT):
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
         return tuple(states)
-    finally:  # Stop the motors after normal completion or a Python exception.
+    finally:
         robot.stop()
 
 
 # Input: Robot; returns start and final RobotState after a short gated motion run.
 def run_short_motion(robot):
     # This fixed-sample motion checks motors and encoders; it is not distance control.
-    try:
+    try:  # Ensure finally stops motors on exit.
         initial_state = robot.start(load_world().initial_pose)
         state = initial_state
         command = MotionCommand(MOTION_SPEED_MM_S, 0.0)
@@ -40,7 +39,7 @@ def run_short_motion(robot):
         for _ in range(MOTION_SAMPLE_COUNT):
             state = robot.step(command)
         return initial_state, state
-    finally:  # Stop the motors after normal completion or a Python exception.
+    finally:
         robot.stop()
 
 
@@ -56,7 +55,6 @@ def run_preflight():
         print("Restore the runnable report example before running the XRP")
         return None
 
-    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
     states = collect_stationary_samples(robot)
     report = preflight_report(states)
@@ -71,11 +69,12 @@ def run_preflight():
     ):
         print(name + ":", report[name])
 
-    if not ENABLE_SHORT_MOTION.value:
+    if not ENABLE_SHORT_MOTION.value:  # Require explicit permission for the motion segment.
         print("Short motion disabled; enable it explicitly and Run again")
         return report
 
     initial_state, final_state = run_short_motion(robot)
+    # Compare axle-center wheel position after a fresh start for the motion segment.
     wheel_travel_mm = mean_wheel_position_mm(final_state) - mean_wheel_position_mm(initial_state)
     print("Short motion check complete")
     print("motion_wheel_travel_mm:", wheel_travel_mm)

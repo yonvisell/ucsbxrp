@@ -55,7 +55,7 @@ def make_odometry(config):
     return SuppliedOdometry(config)
 
 
-# Select project or supplied components before binding them to one Robot.
+# Build Robot from the selected sensor, feedback, drive, and odometry classes.
 def make_robot(config):
     return Robot(
         config,

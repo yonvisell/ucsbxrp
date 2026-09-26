@@ -33,6 +33,7 @@ def build_pairwise_paths(grid):
         for finish_index in range(len(NODE_GOALS)):
             path = planner.plan(grid, cells[start_index], cells[finish_index])
             paths[(start_index, finish_index)] = path
+            # Count free-cell transitions; None keeps disconnected pairs unavailable.
             row.append(None if path is None else len(path.cells) - 1)
         costs.append(tuple(row))
     return tuple(costs), paths
@@ -62,7 +63,7 @@ def goal_is_reached(pose, goal):
 
 
 def run_challenge():
-    # Convert arena geometry to clearance-aware cells before planning.
+    # Block cells inside CLEARANCE_MM of arena obstacles before route costing.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     cost_table, paths = build_pairwise_paths(grid)
     order = make_visit_order_planner().plan(
@@ -76,24 +77,24 @@ def run_challenge():
         return None
     order = validate_order(order)
 
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     serviced = []
     planned_transitions = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         for start_index, finish_index in zip(order, order[1:]):
             path = paths[(start_index, finish_index)]
             if path is None:
                 raise RuntimeError("Selected order contains a disconnected segment")
             planned_transitions += len(path.cells) - 1
-            # Convert the checked cell path back to world-coordinate goals.
+            # Convert cells to arena goals, preserving this stop's final heading.
             goals = list(path.to_goals(grid))
             goals[-1] = NODE_GOALS[finish_index]
             navigation.start(goals)
-            # Recompute one motion request from each newly estimated pose.
+            # Choose each forward/turn request from the latest estimated pose.
             while not navigation.is_complete():
                 state = robot.step(navigation.update(state.pose))
 

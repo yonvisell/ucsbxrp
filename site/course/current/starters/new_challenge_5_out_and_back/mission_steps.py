@@ -17,18 +17,15 @@ def reached(pose, goal, config):
 # Inputs: started Robot, NavigationController, current RobotState, ordered goals.
 # Returns: latest RobotState and "arrived" or "failed_arrival"; publishes count.
 def follow_route(robot, navigation, state, goals):
-    navigation.start(goals)
+    navigation.start(goals)  # Load the route and select its first goal.
     reached_count = 0
-    # A measured pose advances the independent arrival count before the next
-    # navigation command; controller completion exits the loop.
-    while True:
+    while True:  # Check arrival and update motion at each measured pose.
         while reached_count < len(goals) and reached(
             state.pose, goals[reached_count], navigation.config,
         ):
-            reached_count += 1
+            reached_count += 1  # Count goals reached in route order.
         publish_goals_reached(reached_count)
-        # Compare observed arrivals with controller completion at the same pose.
         if navigation.is_complete():
             return state, "arrived" if reached_count == len(goals) else "failed_arrival"
         apply_navigation_controls(navigation)
-        state = robot.step(navigation.update(state.pose))
+        state = robot.step(navigation.update(state.pose))  # Apply motion and read the next sample.

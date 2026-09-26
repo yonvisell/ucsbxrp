@@ -13,7 +13,7 @@ from ucsb_xrp import GridPath, OccupancyGrid, distance_to_goal, wrap_angle_rad
 
 
 def path_error(grid, start, goal, path):
-    # Return a readable reason when a planned path is unsafe to execute.
+    # Require matching endpoints and free, side-adjacent cells before driving.
     if not isinstance(path, GridPath):
         return "GridPlanner must return a GridPath or None"
     if path.cells[0] != start or path.cells[-1] != goal:
@@ -37,9 +37,7 @@ def goal_is_reached(pose, goal):
 
 
 def run_challenge():
-    # Plan and follow the mapped route, or report that no route exists.
-    # The occupancy grid accounts for the robot clearance around each obstacle.
-    # Convert arena geometry to clearance-aware cells before planning.
+    # Mark cells within CLEARANCE_MM of obstacles as blocked before planning.
     grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)
     start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)
     goal = grid.world_to_cell(DESTINATION.x_mm, DESTINATION.y_mm)
@@ -52,19 +50,19 @@ def run_challenge():
         print("Challenge 4: result=invalid_path reason={}".format(invalid_reason))
         return None
 
-    # Convert the checked cell path back to world-coordinate goals.
+    # Convert free cells to arena goals, retaining the destination's heading.
     goals = list(path.to_goals(grid))
     goals[-1] = DESTINATION
 
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     step_count = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         navigation.start(goals)
-        # Recompute one motion request from each newly estimated pose.
+        # Choose each forward/turn request from the latest estimated pose.
         while not navigation.is_complete():
             state = robot.step(navigation.update(state.pose))
             step_count += 1

@@ -20,6 +20,7 @@ class SeededRandom:
         self._state = int(seed) & 0xFFFFFFFF
 
     def unit(self):
+        # Keep the recurrence in 32 bits, then scale its unsigned state to [0, 1).
         self._state = (1664525 * self._state + 1013904223) & 0xFFFFFFFF
         return self._state / 4294967296.0
 
@@ -33,15 +34,14 @@ def body_travel_mm(state):
     return abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)
 
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 random = SeededRandom(RANDOM_SEED)
-try:  # Run finally below when this block finishes or raises a Python error.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
     total_travel_mm = 0.0
 
     for segment_index in range(SEGMENT_COUNT):
+        # The seeded generator fixes each straight target and left/right turn.
         target_travel_mm = random.uniform(MINIMUM_SEGMENT_TRAVEL_MM, MAXIMUM_SEGMENT_TRAVEL_MM)
         segment_travel_mm = 0.0
         started_ms = state.measurements.time_ms
@@ -60,7 +60,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
         target_heading_rad = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
         started_ms = state.measurements.time_ms
         publish_phase("turn right" if direction < 0.0 else "turn left")
-        # Recheck heading after each turning sample, with a timeout for stalled progress.
+        # Wrapped error remains signed across ±pi and changes sign after overshoot.
         while True:
             error_rad = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
             if abs(error_rad) <= TURN_TOLERANCE_RAD:
@@ -68,6 +68,7 @@ try:  # Run finally below when this block finishes or raises a Python error.
             if elapsed_time_s(state.measurements.time_ms, started_ms) >= TURN_TIMEOUT_S:
                 raise RuntimeError("Rotation did not finish within 8 s; check wheel motion and encoder readings")
             direction = -1.0 if error_rad < 0.0 else 1.0
+            # Scale down near the target while limiting yaw rate to the slider setting.
             turn_rate = direction * min(TURN_RATE_RAD_S.value, 3.0 * abs(error_rad))
             state = robot.step(MotionCommand(0.0, turn_rate))
             total_travel_mm += body_travel_mm(state)
@@ -78,5 +79,5 @@ try:  # Run finally below when this block finishes or raises a Python error.
     print("Random-snake route complete")
     print("seed:", RANDOM_SEED)
     print("final_pose:", state.pose)
-finally:  # Stop the motors after normal completion or a Python exception.
+finally:
     robot.stop()

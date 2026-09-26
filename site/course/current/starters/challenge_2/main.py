@@ -21,12 +21,12 @@ def maximum_steps(duration_s):
 
 
 def drive_straight(robot, state, distance_mm, phase_name):
-    # Drive one measured distance and return the updated RobotState.
+    # Each phase starts its travel target from the current encoder positions.
     print("Phase started:", phase_name)
     controller = StraightLineController(NAVIGATION_CONFIG)
     controller.start(state.measurements, distance_mm)
     step_count = 0
-    # Continue until this phase reaches its measured travel target.
+    # Recompute motion from the measured travel after each robot step.
     while not controller.is_complete():
         if step_count >= maximum_steps(MAX_STRAIGHT_TIME_S):
             message = "Challenge 2 stopped: {} did not complete within {} s".format(
@@ -42,7 +42,7 @@ def drive_straight(robot, state, distance_mm, phase_name):
 
 
 def turn_to_heading(robot, state, target_heading_rad, phase_name):
-    # Turn in place toward one world heading and return the updated state.
+    # Wrap the target-minus-estimate angle to select the shorter turn.
     print("Phase started:", phase_name)
     heading_error = wrap_angle_rad(target_heading_rad - state.pose.heading_rad)
     step_count = 0
@@ -68,10 +68,10 @@ def turn_to_heading(robot, state, target_heading_rad, phase_name):
 
 
 def run_challenge():
-    # Run the out-turn-return sequence and return the final RobotState.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         state = drive_straight(robot, state, OUTBOUND_DISTANCE_MM, "outbound travel")
         state = turn_to_heading(robot, state, TURN_HEADING_RAD, "turnaround")

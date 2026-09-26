@@ -12,11 +12,11 @@ def wait_until_stationary(robot, state):
     start_ms = state.measurements.time_ms
     while stationary_s < STATIONARY_DURATION_S and elapsed_time_s(
         state.measurements.time_ms, start_ms
-    ) <= MAXIMUM_STOP_WAIT_S:  # Bound only the wait for already commanded stopping.
-        state = robot.step(STOP_COMMAND)
+    ) <= MAXIMUM_STOP_WAIT_S:  # Wait for low wheel speeds, up to the stop-wait limit.
+        state = robot.step(STOP_COMMAND)  # Request zero motion and read wheel speeds.
         speeds = state.measurements.wheel_speeds
         if max(abs(speeds.left_mm_s), abs(speeds.right_mm_s)) <= STATIONARY_SPEED_MM_S:
-            stationary_s += state.measurements.dt_s
+            stationary_s += state.measurements.dt_s  # Accumulate time with both wheel speeds at or below the threshold.
         else:
             stationary_s = 0.0  # The low-speed interval must be continuous.
     return state, stationary_s >= STATIONARY_DURATION_S

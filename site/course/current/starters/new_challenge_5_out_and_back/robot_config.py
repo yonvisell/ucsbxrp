@@ -4,7 +4,7 @@ from live_variables import CRUISE_SPEED, DEFAULT_CRUISE_SPEED_MM_S, DEFAULT_TURN
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Example motor settings; use measured calibration values for the physical XRP.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,
@@ -13,7 +13,6 @@ ROBOT_CONFIG = RobotConfig(
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )
-# Route speeds and goal tolerances use mm, mm/s, and radians.
 NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,
     approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,
@@ -24,17 +23,16 @@ NAVIGATION_CONFIG = NavigationConfig(
     realign_heading_rad=0.25,
 )
 
-# Live controls are applied after each Robot sample, without resetting route progress.
-# Input: active NavigationController; effect: update changed motion settings.
+# Apply slider settings without restarting the route.
 def apply_navigation_controls(navigation):
     current = navigation.config
-    cruise_speed_mm_s = CRUISE_SPEED.value
-    turn_rate_rad_s = TURN_RATE.value
+    cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed slider.
+    turn_rate_rad_s = TURN_RATE.value  # Read the turn-rate slider.
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
         and current.turn_rate_rad_s == turn_rate_rad_s
     ):
-        return
+        return  # Neither slider changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=0.8 * cruise_speed_mm_s,

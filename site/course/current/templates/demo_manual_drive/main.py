@@ -7,11 +7,10 @@ from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
 
 
 WORLD = load_world()
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
+    # Apply an explicit zero command before reading the first slider values.
     state = robot.step(STOP_COMMAND)
     print("Manual driving ready. Set Forward speed or Turn rate in Monitor.")
 

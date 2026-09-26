@@ -23,6 +23,7 @@ class DrawingSegment:
     def is_complete(self, start_state: RobotState, current_state: RobotState) -> bool:
         start = start_state.measurements
         current = current_state.measurements
+        # Subtract segment origins; the wheel positions themselves span the whole run.
         left_mm = current.left_position_mm - start.left_position_mm
         right_mm = current.right_position_mm - start.right_position_mm
         return (left_mm + right_mm) / 2.0 >= self.distance_mm
@@ -47,6 +48,7 @@ class TurnSegment:
         return MotionCommand(0.0, self.turn_rate_rad_s)
 
     def is_complete(self, start_state: RobotState, current_state: RobotState) -> bool:
+        # A wrapped difference measures the commanded left turn across ±pi.
         heading_change_rad = wrap_angle_rad(
             current_state.pose.heading_rad - start_state.pose.heading_rad
         )

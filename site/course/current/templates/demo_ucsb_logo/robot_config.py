@@ -3,7 +3,7 @@
 from ucsb_xrp import NavigationConfig, RobotConfig
 
 
-# Wheel geometry and motor-command calibration must describe this robot.
+# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
 ROBOT_CONFIG = RobotConfig(
     left_start_command=0.12,
     right_start_command=0.13,

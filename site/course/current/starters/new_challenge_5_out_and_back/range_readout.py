@@ -8,12 +8,10 @@ from ucsb_xrp import Pose
 
 point = OUTBOUND_ROUTE[-1]
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # The observation waypoint supplies the stationary sensor pose.
-    robot.start(Pose(point.x_mm, point.y_mm, point.heading_rad))
-    # Collect distinct ultrasound attempts, including missing echoes as None.
+try:  # Run this block, then stop the motors in finally.
+    robot.start(Pose(point.x_mm, point.y_mm, point.heading_rad))  # Initialize the estimated observation pose; reset measurements.
+    # Collect separate ultrasound readings; a missing echo is None.
     samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
     print(samples)
 finally:
-    # Range acquisition never requires nonzero wheel effort.
-    robot.stop()
+    robot.stop()  # Stop after range collection or an exception.

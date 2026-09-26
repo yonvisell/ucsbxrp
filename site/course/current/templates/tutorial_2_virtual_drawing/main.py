@@ -27,12 +27,10 @@ segments = build_drawing(
     turn_rate_rad_s=TURN_RATE_RAD_S,
     turn_angle_rad=TURN_ANGLE_RAD,
 )
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
-try:
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(load_world().initial_pose)
-    # Each drawing segment ends from measured state, with a sample limit.
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
+    # Compare each side or turn with its own starting state; bound stalled segments.
     for segment in segments:
         segment_start = state
         for _ in range(MAXIMUM_SEGMENT_SAMPLES):
@@ -40,8 +38,9 @@ try:
                 break
             state = robot.step(segment.command())
         else:
+            # A for/else runs only if no measured completion triggered break.
             raise RuntimeError("No measured completion for " + segment.name)
-finally:  # Stop motors whenever this motion block exits.
+finally:
     robot.stop()
 print("Tutorial 2 drawing complete")
 print("final_pose:", state.pose)

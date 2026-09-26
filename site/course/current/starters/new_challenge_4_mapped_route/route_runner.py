@@ -12,17 +12,15 @@ from route_validation import goal_is_reached
 def run_route(robot, navigation, initial_pose, goals, destination, path_cell_count):
     step_count = 0
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
-        state = robot.start(initial_pose)
-        navigation.start(goals)
-        # Recompute the motion request from each new odometry pose.
-        while not navigation.is_complete():
+        state = robot.start(initial_pose)  # Initialize estimated pose; reset measurements.
+        navigation.start(goals)  # Load the route and select its first goal.
+        while not navigation.is_complete():  # Update motion until the controller finishes the route.
             publish_navigation_steps(step_count)
             apply_navigation_controls(navigation)
-            state = robot.step(navigation.update(state.pose))
+            state = robot.step(navigation.update(state.pose))  # Apply the pose-based motion request; read the next sample.
             step_count += 1
 
-        # Verify destination tolerance separately from controller status.
+        # Check final position and required heading against their tolerances.
         result = (
             "complete"
             if goal_is_reached(state.pose, destination, navigation.config)
@@ -36,5 +34,5 @@ def run_route(robot, navigation, initial_pose, goals, destination, path_cell_cou
         )
         if result != "complete":
             raise RuntimeError("Navigation finished before the destination was reached")
-    finally:  # Stop the motors whenever route execution exits.
-        robot.stop()
+    finally:
+        robot.stop()  # Stop after route completion or an exception.

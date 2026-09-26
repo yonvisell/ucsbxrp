@@ -1,4 +1,3 @@
-# Count a lap only after passing the four marked checkpoints in order.
 from math import sqrt
 
 from challenge import CHECKPOINTS_MM, CHECKPOINT_TOLERANCE_MM
@@ -13,30 +12,24 @@ from challenge import CHECKPOINTS_MM, CHECKPOINT_TOLERANCE_MM
 class LapProgress:
     def __init__(self):
         self.checkpoints_reached = 0
-        self.left_start = False
-        self.finish_samples = 0
+        self.left_start = False  # Records whether an off-bar sample has occurred.
+        self.finish_samples = 0  # Consecutive readings on the finish bar.
         self.lost_line_s = 0.0
 
     def observe_line(self, readings, dt_s, visible_threshold):
-        # Return True when either normalized sensor reads above the threshold.
-        # Otherwise add dt_s (seconds) to retained lost_line_s.
-        visible = max(readings.left, readings.right) >= visible_threshold
-        self.lost_line_s = 0.0 if visible else self.lost_line_s + dt_s
+        visible = max(readings.left, readings.right) >= visible_threshold  # Either sensor detects the line.
+        self.lost_line_s = 0.0 if visible else self.lost_line_s + dt_s  # Accumulate only consecutive missing-line samples.
         return visible
 
     def update(self, pose, on_finish, confirm_samples):
-        # Return True after the estimated Pose visits each checkpoint in order
-        # and on_finish is observed for confirm_samples after leaving the start.
         if self.checkpoints_reached < len(CHECKPOINTS_MM):
-            x_mm, y_mm = CHECKPOINTS_MM[self.checkpoints_reached]
+            x_mm, y_mm = CHECKPOINTS_MM[self.checkpoints_reached]  # Next checkpoint in circuit order.
             distance_mm = sqrt((pose.x_mm - x_mm) ** 2 + (pose.y_mm - y_mm) ** 2)
             if distance_mm <= CHECKPOINT_TOLERANCE_MM:
                 self.checkpoints_reached += 1
-        # Finish detection requires leaving the bar, passing all checkpoints,
-        # and returning to the bar for consecutive confirmed readings.
         if not on_finish:
             self.left_start = True
-            self.finish_samples = 0
-        elif self.left_start and self.checkpoints_reached == len(CHECKPOINTS_MM):
-            self.finish_samples += 1
+            self.finish_samples = 0  # Restart the count when off the bar.
+        elif self.left_start and self.checkpoints_reached == len(CHECKPOINTS_MM):  # Count the finish only after an off-bar sample and all checkpoints.
+            self.finish_samples += 1  # Count finish readings only after all checkpoints.
         return self.finish_samples >= confirm_samples

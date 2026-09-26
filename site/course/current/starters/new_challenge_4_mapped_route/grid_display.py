@@ -4,7 +4,6 @@ from ucsb_xrp import GridCell
 
 
 def print_grid(grid, start, goal, path=None):
-    # Show clearance, endpoints, and any validated route in grid coordinates.
     start_label = None if start is None else (start.column, start.row)
     goal_label = None if goal is None else (goal.column, goal.row)
     print("Grid cells: {} mm".format(grid.resolution_mm))
@@ -16,14 +15,12 @@ def print_grid(grid, start, goal, path=None):
     print("S/G can cover #; see blocked states above")
     print("col tens " + "".join(str(col // 10) for col in range(grid.column_count)))
     print("col ones " + "".join(str(col % 10) for col in range(grid.column_count)))
-    # Print high rows first so positive arena y appears upward on the page.
     path_cells = path.cells if path is not None else ()
-    for row in range(grid.row_count - 1, -1, -1):
+    for row in range(grid.row_count - 1, -1, -1):  # Print from top to bottom (+y upward).
         symbols = []
         for column in range(grid.column_count):
             cell = GridCell(column, row)
-            # Endpoint symbols take precedence; blocked status is printed above.
-            if cell == start:
+            if cell == start:  # Draw endpoint symbols over blocked-cell or path symbols.
                 symbol = "S"
             elif cell == goal:
                 symbol = "G"

@@ -19,8 +19,8 @@ def valid_path(grid, start, goal, path):
 # Returns: ordered goals, path cell count, and error text (None on success).
 # On failure, goals is None and the error is "no_route" or "invalid_path".
 def plan_return(planner, pose, blocked):
-    arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)
-    grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)
+    arena = MISSION_MAP.with_feature_blocked(GATE_FEATURE, blocked)  # Update the gate in a copy of the known map.
+    grid = OccupancyGrid.from_arena(arena, GRID_RESOLUTION_MM, CLEARANCE_MM)  # Mark cells blocked by expanded obstacles.
     if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
         raise ValueError("Use at most {} cells for the return map".format(MAXIMUM_GRID_CELLS))
     start = grid.world_to_cell(pose.x_mm, pose.y_mm)
@@ -30,6 +30,6 @@ def plan_return(planner, pose, blocked):
         return None, 0, "no_route"
     if not valid_path(grid, start, goal, path):
         return None, 0, "invalid_path"
-    goals = list(path.to_goals(grid))
+    goals = list(path.to_goals(grid))  # Convert grid-cell centers to navigation goals.
     goals[-1] = HOME  # Finish at the exact home pose, not its grid-cell center.
     return goals, len(path.cells), None

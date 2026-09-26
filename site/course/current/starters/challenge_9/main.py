@@ -17,7 +17,7 @@ MAXIMUM_RUN_TIME_S = 100.0
 MAXIMUM_LOST_LINE_S = 0.4
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
     follower.reset()
@@ -25,7 +25,7 @@ def run_challenge():
     lost_line_s = 0.0
     result = "timeout"
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing; acquire reflectance now.
         state = robot.start(INITIAL_POSE, read_reflectance=True)
         start_ms = state.measurements.time_ms
         while elapsed_time_s(state.measurements.time_ms, start_ms) < MAXIMUM_RUN_TIME_S:
@@ -33,10 +33,12 @@ def run_challenge():
             if readings is None:
                 result = "reflectance_unavailable"
                 break
+            # Both sensors must see the dark finish bar in the same sample.
             on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
             if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
                 result = "complete"
                 break
+            # With neither sensor on the line, command zero and time the gap.
             if max(readings.left, readings.right) < LINE_VISIBLE_THRESHOLD:
                 command = MotionCommand(0.0, 0.0)
                 lost_line_s += state.measurements.dt_s
@@ -44,6 +46,7 @@ def run_challenge():
                     result = "line_lost"
                     break
             else:
+                # Update steering from this reflectance pair and sample interval.
                 command = follower.update(readings, state.measurements.dt_s)
                 lost_line_s = 0.0
             publish_line_values(readings, follower.line_error, lap.checkpoints_reached, lost_line_s > 0.0)

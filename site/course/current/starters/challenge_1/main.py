@@ -12,18 +12,18 @@ from ucsb_xrp import StraightLineController, elapsed_time_s, wrap_angle_rad
 
 
 def run_challenge():
-    # Run the measured straight-line task and return the final RobotState.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     straight = StraightLineController(STRAIGHT_CONFIG)
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at INITIAL_POSE.
         state = robot.start(INITIAL_POSE)
         start_time_ms = state.measurements.time_ms
         straight.start(state.measurements, TRAVEL_DISTANCE_MM)
         maximum_steps = max(1, int(MAX_RUN_TIME_S * 1000.0 / ROBOT_CONFIG.sample_period_ms))
         step_count = 0
 
-        # Continue from measured wheel travel until the distance controller completes.
+        # Feed each new encoder measurement back to the distance controller.
         while not straight.is_complete():
             if step_count >= maximum_steps:
                 message = (
@@ -36,6 +36,7 @@ def run_challenge():
             step_count += 1
 
         measured_elapsed_time_s = elapsed_time_s(state.measurements.time_ms, start_time_ms)
+        # The arithmetic mean of the two wheel positions estimates center travel.
         mean_wheel_travel_mm = (
             state.measurements.left_position_mm
             + state.measurements.right_position_mm

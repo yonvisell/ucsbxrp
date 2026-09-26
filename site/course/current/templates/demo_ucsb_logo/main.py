@@ -16,13 +16,11 @@ def body_travel_mm(state):
 if not ROUTE:
     raise RuntimeError("world.json must define at least one waypoint")
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
 navigation = make_navigation_controller(NAVIGATION_CONFIG)
-try:  # The finally block stops the robot whenever the route exits.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
-    navigation.start(ROUTE)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
+    navigation.start(ROUTE)  # Use marker-file waypoint order.
     total_travel_mm = 0.0
     # Recompute one motion request from each newly estimated pose.
     while not navigation.is_complete():
@@ -34,5 +32,5 @@ try:  # The finally block stops the robot whenever the route exits.
     print("UCSB logo complete")
     print("waypoints:", len(ROUTE))
     print("final_pose:", state.pose)
-finally:  # Stop the motors after normal completion or a Python exception.
+finally:
     robot.stop()

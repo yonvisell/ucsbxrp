@@ -6,12 +6,10 @@ from snake_config import CONFIG
 
 growth = CONFIG["controls"]["growth_mm"]
 speed = CONFIG["controls"]["speed_mm_s"]
-# Motion code reads the current .value when it applies these Monitor controls.
 GROWTH_MM = live.number("snake_growth_mm", growth["default"], growth["minimum"], growth["maximum"], growth["step"], unit="mm", label="Tail growth per food")
 SPEED_MM_S = live.number("snake_speed_mm_s", speed["default"], speed["minimum"], speed["maximum"], speed["step"], unit="mm/s", label="Cruise speed")
 
 
-# Publish observed values for inspection without changing the motion decision.
 def publish_game(game):
     # Send the current score, food state, tail length, and stopping reason to Monitor.
     live.watch("snake_score", game.score, label="Score")

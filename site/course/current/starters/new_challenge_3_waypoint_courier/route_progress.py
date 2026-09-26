@@ -19,7 +19,6 @@ def goal_is_reached(pose, goal, config):
 # Input: estimated Pose, ordered goals, prior count, current configuration.
 # Return: updated observed-arrival count; does not read controller progress.
 def count_reached_goals(pose, route, reached_count, config):
-    # Advance only through goals observed at their assigned position in order.
     while reached_count < len(route) and goal_is_reached(pose, route[reached_count], config):
-        reached_count += 1
+        reached_count += 1  # Advance to the next waypoint after confirming this one.
     return reached_count

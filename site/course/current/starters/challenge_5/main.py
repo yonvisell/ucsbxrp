@@ -7,12 +7,13 @@ from ucsb_xrp import DeliveryMission
 
 
 def run_challenge():
-    # DeliveryMission owns the observation, map update, route plan, and stop.
+    # The mission takes the selected navigation and grid-planning components.
     mission = DeliveryMission(
         DELIVERY_TASK,
         make_navigation_controller(NAVIGATION_CONFIG),
         make_grid_planner(),
     )
+    # Construct Robot; mission.run resets it, samples range, drives, and stops it.
     state = mission.run(make_robot(ROBOT_CONFIG))
     path_cells = (
         None

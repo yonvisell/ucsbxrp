@@ -14,43 +14,38 @@ from robot_config import (
 from ucsb_xrp import STOP_COMMAND, elapsed_time_s
 
 
-# Assemble selected wheel and sensing components separately from local steering.
-robot = make_robot(ROBOT_CONFIG)
-follower = make_line_follower(LINE_FOLLOWER_SETTINGS)
-follower.reset()
-lap = LapProgress()  # Track ordered checkpoints and return to the finish bar.
-try:
-    # Establish encoder/time origins and request floor readings on every step.
-    state = robot.start(INITIAL_POSE, read_reflectance=True)
-    start_ms = state.measurements.time_ms
-    while True:  # Read sensors and request motion until lap completion or line loss.
-        apply_line_controls(follower)
+robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
+follower = make_line_follower(LINE_FOLLOWER_SETTINGS)  # Create the line controller.
+follower.reset()  # Clear previous error and integral values.
+lap = LapProgress()  # Initialize checkpoint and finish-bar counters.
+try:  # Run the loop; finally stops the motors when this block exits.
+    state = robot.start(INITIAL_POSE, read_reflectance=True)  # Initialize estimated pose; reset measurements; read floor sensors.
+    start_ms = state.measurements.time_ms  # Save the run start timestamp.
+    while True:  # Update steering each sample until the lap ends or the line is lost.
+        apply_line_controls(follower)  # Copy current slider values into the controller.
         readings = state.measurements.reflectance
         if readings is None:
             result = "reflectance_unavailable"
             break
-        # Both sensors must see the wide bar; pose supplies ordered checkpoints.
-        on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
+        on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD  # Both sensors detect dark tape.
         if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
             result = "complete"
             break
-        # An unseen line requests zero motion while the loss duration accumulates.
         if not lap.observe_line(readings, state.measurements.dt_s, LINE_VISIBLE_THRESHOLD):
-            command = STOP_COMMAND
+            command = STOP_COMMAND  # Stop while neither sensor detects the line.
             if lap.lost_line_s >= MAXIMUM_LOST_LINE_S:
                 result = "line_lost"
                 break
         else:
-            command = follower.update(readings, state.measurements.dt_s)
-        # Publish the decision made from this sample before acquiring the next.
+            command = follower.update(readings, state.measurements.dt_s)  # Calculate forward speed and turn rate.
         publish_line_values(
             readings, command, follower.line_error, lap.checkpoints_reached,
             "line_lost_stopping" if lap.lost_line_s else "following",
         )
-        state = robot.step(command, read_reflectance=True)
+        state = robot.step(command, read_reflectance=True)  # Apply motion and read the next sample.
     print("Line circuit: result={} checkpoints={}/{} elapsed_s={}".format(
         result, lap.checkpoints_reached, len(CHECKPOINTS_MM),
         elapsed_time_s(state.measurements.time_ms, start_ms),
     ))
-finally:  # Stop the motors when the loop finishes or raises an error.
-    robot.stop()
+finally:
+    robot.stop()  # Stop after completion, a break, or an exception.

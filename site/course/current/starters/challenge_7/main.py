@@ -68,6 +68,7 @@ def settle(robot, state):
 
 
 def destination_is_reached(corrected_pose, raw_pose):
+    # Wall offsets correct position; heading remains the odometry estimate.
     if (
         distance_to_goal(corrected_pose, DESTINATION)
         > NAVIGATION_CONFIG.position_tolerance_mm
@@ -80,17 +81,18 @@ def destination_is_reached(corrected_pose, raw_pose):
 
 
 def run_challenge():
-    # Construct the robot from this project's configured components.
+    # Construct Robot with the drive components selected in course_setup.
     robot = make_robot(ROBOT_CONFIG)
     corrector = make_pose_corrector(SENSOR_FORWARD_OFFSET_MM)
     navigation = make_navigation_controller(NAVIGATION_CONFIG)
     try:
-        # Start establishes the initial pose and encoder/time measurement origins.
+        # Reset measurements, pose, and sample timing at ODOMETRY_INITIAL_POSE.
         state = robot.start(ODOMETRY_INITIAL_POSE)
         corrector.reset(state.pose)
 
         state = turn_to_heading(robot, state, X_SCAN_HEADING_RAD)
         state = settle(robot, state)
+        # Reject motion or off-axis heading before using range as an x constraint.
         state, x_range_mm = collect_stationary_range(robot, state, X_SCAN_HEADING_RAD)
         if x_range_mm is None:
             raise RuntimeError("No usable x-wall range observation")
@@ -98,13 +100,14 @@ def run_challenge():
 
         state = turn_to_heading(robot, state, Y_SCAN_HEADING_RAD)
         state = settle(robot, state)
+        # A second cardinal observation determines the retained y offset.
         state, y_range_mm = collect_stationary_range(robot, state, Y_SCAN_HEADING_RAD)
         if y_range_mm is None:
             raise RuntimeError("No usable y-wall range observation")
         corrector.observe_y(state.pose, y_range_mm, Y_WALL_MM, Y_WALL_IS_POSITIVE)
 
         navigation.start((DESTINATION,))
-        # Recompute one motion request from each newly estimated pose.
+        # Apply retained wall offsets before computing each navigation command.
         while not navigation.is_complete():
             corrected = corrector.corrected_pose(state.pose)
             state = robot.step(navigation.update(corrected))

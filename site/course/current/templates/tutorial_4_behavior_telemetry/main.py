@@ -30,11 +30,9 @@ MAXIMUM_TURN_TIME_S = 5.0  # Fault stop if heading feedback does not progress.
 if not run_exercise_checks():
     print("Restore the runnable example before starting the robot")
 else:
-    # Construct the robot from this project's configured components.
     robot = make_robot(ROBOT_CONFIG)
-    try:
-        # Start establishes the initial pose and encoder/time measurement origins.
-        state = robot.start(load_world().initial_pose)
+    try:  # Ensure finally stops motors on exit.
+        state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         phase = APPROACH
         start_mean_mm = (
             state.measurements.left_position_mm + state.measurements.right_position_mm
@@ -42,7 +40,7 @@ else:
         turn_start_heading_rad = state.pose.heading_rad
         turn_start_ms = state.measurements.time_ms
         missing_range_samples = 0
-        # Use range during approach and estimated heading during the turn.
+        # Range selects the turn; estimated heading determines when it ends.
         while phase != DONE:
             if not RUN_BEHAVIOR.value:
                 phase = DONE
@@ -56,10 +54,12 @@ else:
                 turned_rad >= pi / 2.0,
             )
             if previous_phase != TURN and phase == TURN:
+                # Measure the quarter-turn from the pose at the phase transition.
                 turn_start_heading_rad = state.pose.heading_rad
                 turn_start_ms = state.measurements.time_ms
 
             if phase == APPROACH:
+                # Consecutive absent echoes and forward wheel travel bound the approach.
                 missing_range_samples = (
                     missing_range_samples + 1
                     if state.measurements.range_mm is None else 0
@@ -83,7 +83,7 @@ else:
             if phase == DONE:
                 break
             state = robot.step(command, read_range=phase == APPROACH)
-    finally:  # Stop motors after completion or a Python exception.
+    finally:
         robot.stop()
     print("Tutorial 4 behavior complete")
     print("final_pose:", state.pose)

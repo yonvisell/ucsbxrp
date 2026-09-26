@@ -21,6 +21,7 @@ def next_phase(
     if stop_distance_mm <= 0.0:
         raise ValueError("stop distance must be positive")
     if phase == APPROACH:
+        # None is missing data, so it cannot satisfy the stop-distance test.
         if range_mm is not None and range_mm <= stop_distance_mm:
             return TURN
         return APPROACH
@@ -46,6 +47,7 @@ def command_for_phase(
     if phase == APPROACH:
         return MotionCommand(forward_speed_mm_s, 0.0)
     if phase == TURN:
+        # Left is positive yaw in the course coordinate convention.
         direction = 1.0 if turn_direction == "left" else -1.0
         return MotionCommand(0.0, direction * turn_rate_rad_s)
     return MotionCommand(0.0, 0.0)
@@ -60,6 +62,7 @@ def publish_telemetry(state: RobotState, phase: str) -> None:
     live.watch("phase", phase)
     live.watch("range_mm", range_value, unit="mm")
     mean_distance_mm = (
+        # Averaging signed wheel positions estimates axle-center travel.
         state.measurements.left_position_mm
         + state.measurements.right_position_mm
     ) / 2.0

@@ -1,4 +1,4 @@
-# Drive to an obstacle, turn left, then drive to the next obstacle.
+# Approach an obstacle, turn by a measured quarter-turn, and optionally approach again.
 
 from math import pi
 
@@ -24,11 +24,12 @@ def drive_until_close(robot, state):
 
 
 def turn_quarter_turn(robot, state):
+    # Positive heading is counterclockwise; the choice sets the target sign.
     direction = 1.0 if TURN_DIRECTION.value == "left" else -1.0
     target_heading = wrap_angle_rad(state.pose.heading_rad + direction * pi / 2.0)
     started_ms = state.measurements.time_ms
     publish_phase("turning " + TURN_DIRECTION.value)
-    # Recheck estimated heading until the turn tolerance or timeout ends the phase.
+    # The signed wrapped error handles both crossing ±pi and overshooting the target.
     while True:
         error_rad = wrap_angle_rad(target_heading - state.pose.heading_rad)
         publish_heading_error(error_rad)
@@ -42,11 +43,9 @@ def turn_quarter_turn(robot, state):
         state = robot.step(MotionCommand(0.0, turn_rate))
 
 
-# Construct the robot from this project's configured components.
 robot = make_robot(ROBOT_CONFIG)
-try:  # The finally block stops the motors when this sequence exits.
-    # Start establishes the initial pose and encoder/time measurement origins.
-    state = robot.start(WORLD.initial_pose)
+try:  # Ensure finally stops motors on exit.
+    state = robot.start(WORLD.initial_pose)  # Initialize estimated pose; reset measurements.
     state = drive_until_close(robot, state)
     state = turn_quarter_turn(robot, state)
     if SECOND_APPROACH.value:
@@ -54,5 +53,5 @@ try:  # The finally block stops the motors when this sequence exits.
     publish_phase("complete")
     print("Obstacle-turn demo complete")
     print("final_pose:", state.pose)
-finally:  # Runs after normal completion, a Python error, or cooperative Stop.
+finally:
     robot.stop()

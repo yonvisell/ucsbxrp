@@ -11,11 +11,13 @@ from live_variables import publish_motor_values
 from ucsb_xrp import DriveCommand, XRPBot, elapsed_time_s
 from ucsb_xrp_reference import SensorModel
 
+# Direct XRPBot commands bypass Robot's wheel-speed feedback.
 bot = XRPBot(ROBOT_CONFIG)
 model = SensorModel(ROBOT_CONFIG)
 bot.stop()
-try:
+try:  # Ensure finally stops motors on exit.
     bot.reset_encoders()
+    # Use the first raw reading after encoder reset as the measurement origin.
     measurements = model.reset(bot.read())
     # Repeat zero command, commanded effort, and zero command at each level.
     for effort in EFFORTS:
@@ -32,18 +34,16 @@ try:
             start_ms = measurements.time_ms
             bot.set_drive(DriveCommand(command, command))
             while elapsed_time_s(measurements.time_ms, start_ms) < duration_s:
-                # This program uses XRPBot directly, so it owns sampling;
-                # never add this delay to a Robot.step() loop.
-                sleep_ms(ROBOT_CONFIG.sample_period_ms)
+                sleep_ms(ROBOT_CONFIG.sample_period_ms)  # Robot.step would supply this delay.
                 measurements = model.update(bot.read())
                 wheel_travel_mm = max(
                     abs(measurements.left_position_mm),
                     abs(measurements.right_position_mm),
                 )
-                if wheel_travel_mm > MAXIMUM_WHEEL_TRAVEL_MM:
+                if wheel_travel_mm > MAXIMUM_WHEEL_TRAVEL_MM:  # Bound either wheel's travel.
                     raise RuntimeError("Characterization travel limit reached")
                 publish_motor_values(command, measurements)
             print("effort:", command, "wheel_speeds_mm_s:", measurements.wheel_speeds)
     print("Motor characterization complete")
-finally:  # Stop the motors after normal completion or a Python exception.
+finally:
     bot.stop()
