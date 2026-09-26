@@ -10,7 +10,7 @@
     "challenge_7": false,
     "challenge_8": false,
     "challenge_9": false,
-    "demo_obstacle_turn": true,
+    "demo_obstacle_turn": false,
     "demo_spiral": true,
     "demo_random_snake": false,
     "demo_snake_game": true,
