@@ -893,7 +893,7 @@ input[type="range"]:disabled {
     height: auto;
     min-height: var(--app-header-height);
     grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-rows: minmax(22px, auto) 22px 25px;
+    grid-template-rows: minmax(22px, auto) minmax(22px, auto) 25px;
     align-items: center;
     gap: 0 4px;
     overflow: visible;
@@ -914,9 +914,10 @@ input[type="range"]:disabled {
 
   .app-navigation {
     width: 100%;
+    min-width: 0;
     grid-column: 1 / -1;
     grid-row: 2;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: space-between;
     overflow: hidden;
   }
@@ -1017,6 +1018,17 @@ input[type="range"]:disabled {
     width: 100%;
     flex-basis: 100%;
     justify-content: space-between;
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --course-header-height: 70px;
+  }
+
+  .course-header .app-navigation {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 

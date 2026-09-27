@@ -55,7 +55,7 @@ motion.
 
 ## Run on a physical XRP
 
-1. For an uncommissioned XRP, use **First robot setup**: switch its power off,
+1. For an uncommissioned XRP, use **Robot Setup**: switch its power off,
    connect USB-C, then switch it on. For an already configured XRP, use
    **Wi-Fi setup → Test Wi-Fi**. The computer and robot normally use class Wi-Fi.
 2. Keep this project open and select **Physical XRP**. The computer and XRP must
