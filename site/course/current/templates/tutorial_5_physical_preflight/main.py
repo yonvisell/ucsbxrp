@@ -2,12 +2,13 @@
 
 from robot_setup import make_robot
 from exercise_checks import run_exercise_checks
-from live_variables import ENABLE_SHORT_MOTION
 from robot_setup import ROBOT_CONFIG
 from student_work import preflight_report
 from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
 
 
+# Set True before Run for the short motion check; restore False afterward.
+ENABLE_SHORT_MOTION = False
 STATIONARY_SAMPLE_COUNT = 50
 MOTION_SAMPLE_COUNT = 25
 MOTION_SPEED_MM_S = 60.0
@@ -69,8 +70,8 @@ def run_preflight():
     ):
         print(name + ":", report[name])
 
-    if not ENABLE_SHORT_MOTION.value:  # Require explicit permission for the motion segment.
-        print("Short motion disabled; enable it explicitly and Run again")
+    if not ENABLE_SHORT_MOTION:
+        print("Short motion disabled. Set ENABLE_SHORT_MOTION = True in main.py before Run; restore False afterward.")
         return report
 
     initial_state, final_state = run_short_motion(robot)

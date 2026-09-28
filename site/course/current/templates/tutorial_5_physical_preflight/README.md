@@ -7,9 +7,11 @@ project transfer, execution, telemetry, sensors, motors, encoders, and stopping
 without solving a course challenge.
 
 The supplied project is immediately runnable. Rehearse it on the Virtual XRP
-before editing `student_work.py` or selecting the physical target. The
-**Enable short motion** toggle in `live_variables.py` defaults off; no motor motion follows the
-stationary report until you explicitly enable it for a later Run.
+before editing `student_work.py` or selecting the physical target. Near the top
+of `main.py`, `ENABLE_SHORT_MOTION = False` selects stationary measurements only.
+Set this constant to `True` before Run to add the short motion check. This is a
+saved program setting: every Run includes motion while it remains `True`.
+Restore `False` afterward and before changing targets.
 
 ## Walkthrough: summarize a sequence of robot states
 
@@ -42,16 +44,18 @@ motion.
 ## Rehearse on the Virtual XRP
 
 1. Select **Virtual XRP**, open Monitor, and select **Compile**.
-2. Select **Run** with **Enable short motion** off. The program collects samples
+2. Leave `ENABLE_SHORT_MOTION = False` in `main.py` and select **Run**. The program collects samples
    with `STOP_COMMAND`, prints the stationary report, and exits without motion.
-3. Set **Enable short motion** on, Reset, and select **Run** again. After the
+3. In `main.py`, change the setting to `ENABLE_SHORT_MOTION = True`, select
+   **Reset**, and select **Run** again. After the
    stationary report, the program requests 60 mm/s for 25 samples
    (approximately 0.5 seconds), then stops.
 4. Press and release the virtual USER button during the stopped portion if you
    want to verify that field.
 5. Confirm the stationary report and `motion_wheel_travel_mm` in **Program
    output**. Confirm a short straight path and final zero command in Monitor.
-6. Set **Enable short motion** off before changing targets.
+6. Restore `ENABLE_SHORT_MOTION = False` in `main.py`. Run once more and confirm
+   the stationary report without a motion result before changing targets.
 
 ## Run on a physical XRP
 
@@ -60,16 +64,16 @@ motion.
    **Wi-Fi setup → Test Wi-Fi**. The computer and robot normally use class Wi-Fi.
 2. Keep this project open and select **Physical XRP**. The computer and XRP must
    use the network selected during setup.
-3. Open Monitor and confirm that the physical XRP is connected and **Enable
-   short motion** is off. Select **Run** once to collect only the stationary
-   report.
-4. Place the robot where a short straight motion is possible. Set **Enable short
-   motion** on, then select **Run** deliberately.
+3. Open Monitor, confirm that the physical XRP is connected, and check that
+   `main.py` contains `ENABLE_SHORT_MOTION = False`. Select **Run** once to
+   collect only the stationary report.
+4. Place the robot where a short straight motion is possible. In `main.py`, set
+   `ENABLE_SHORT_MOTION = True`, then select **Run**.
 5. Confirm changing encoder and wheel-position values, positive
    `motion_wheel_travel_mm`, telemetry in Monitor, and a final zero command.
-6. Set **Enable short motion** off after the test. A later repetition does not
-   require another setup operation, but it does require deliberately enabling
-   motion again.
+6. Restore `ENABLE_SHORT_MOTION = False` in `main.py` after the test. A later
+   repetition does not require another setup operation; set the constant to
+   `True` only when you intend another motion run.
 
 If connection fails, use the current System log message. A Virtual XRP pass
 checks the Python project; it does not verify the physical network or hardware.
