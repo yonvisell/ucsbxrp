@@ -1,12 +1,17 @@
 var e;function t(){return e??=n()}async function n(){try{return typeof navigator>`u`||!navigator.storage?.persist?!1:await navigator.storage.persisted?.()?!0:await navigator.storage.persist()}catch{return!1}}var r=`UCSB_XRP_Autosaves`,i=`ucsb-xrp-working-folder-changed`,a=`ucsb-xrp-working-folder`;function o(e=`changed`){typeof window<`u`&&window.dispatchEvent(new CustomEvent(i,{detail:e}));try{if(typeof BroadcastChannel<`u`){let t=new BroadcastChannel(a);t.postMessage(e),t.close()}}catch{}}function s(e){let t=t=>e(t.detail??`changed`);window.addEventListener(i,t);let n=null;try{typeof BroadcastChannel<`u`&&(n=new BroadcastChannel(a))}catch{}return n&&(n.onmessage=t=>e(t.data===`verified-setup`?`verified-setup`:`changed`)),()=>{window.removeEventListener(i,t),n?.close()}}var c=`course-folders`,l=`workspace-folder-capability-v1`,u=`workspace-parent-capability-v1`,d=[`workspace-folder-v1`,`active-project-folder-v2`],f=`.ucsbxrp.json`,p=`Open UCSBXRP.html`,m=`.ucsb-xrp-project.json`,h=class extends Error{name=`WorkspaceManifestError`},g=`UCSB XRP automatic copies
 
 The browser creates these files after a project folder has been selected.
-Generation 1 is newest; generation 4 is oldest.
+Project recovery copies use four generations: 1 is newest, 4 is oldest.
+New run recordings are retained separately and are not rotated.
 
+- runs/<run-id>/manifest.json: recording identity, saved part count, completion and notes
+- runs/<run-id>/chunk-N.json: an immutable recording part, saved during the run
 - project-N.json: complete project state before a source overwrite
-- run-N.txt: program and service output from a monitored run
-- telemetry-N.csv: unit-labeled telemetry from the same run
-- run-N.json: target, project, time, and completion metadata
+- run-N.txt, telemetry-N.csv, run-N.json: legacy four-generation run archives
+
+Open saved run in Monitor to inspect recordings. Export run data as CSV creates
+one complete, unit-labeled table in the Project's exports folder. Plots display
+bounded sections of long recordings. Keep the manifest and all its chunks together.
 
 Explicit CSV downloads are separate and are never rotated here.
 The cumulative UCSBXRP_diagnostic.log file is in the Working folder itself.

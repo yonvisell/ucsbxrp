@@ -75,10 +75,10 @@
       "sha256": "f77acab6f7592a54f446921de77a39876e3e1ff3697b8b971d2b39f747d40450"
     },
     {
-      "path": "assets/author-gApGg2-D.js",
-      "url": "/ucsbxrp/assets/author-gApGg2-D.js",
+      "path": "assets/author-DTM9Zm9B.js",
+      "url": "/ucsbxrp/assets/author-DTM9Zm9B.js",
       "bytes": 77069,
-      "sha256": "0d0af28834a15636b83bddc350ec0fe5d621ca21a2001e36c2a68b9ff3ba80b2"
+      "sha256": "e91777d31de033ab47ca0d87c1b71b2d541516bf4b272bdd425440ac9dc597a5"
     },
     {
       "path": "assets/catalog-visibility-CzYDXTNk.js",
@@ -87,10 +87,10 @@
       "sha256": "e0a02a95f7c97f1c4c028ed920ebf799043322b18122e40a400e96415c177db7"
     },
     {
-      "path": "assets/class-wifi-profile-Dw0nKM9d.js",
-      "url": "/ucsbxrp/assets/class-wifi-profile-Dw0nKM9d.js",
-      "bytes": 13121,
-      "sha256": "2fa5401af71cdbc46e0f3aed114b78e53ba4532b86760bfbb7dfbf2fdd1decb1"
+      "path": "assets/class-wifi-profile-BKynlyH3.js",
+      "url": "/ucsbxrp/assets/class-wifi-profile-BKynlyH3.js",
+      "bytes": 13520,
+      "sha256": "6db71887d9728108fb208c1ebbd859d7d59eddbf6966f7da6dc604e35da21e92"
     },
     {
       "path": "assets/codicon-Brq4_Ui5.ttf",
@@ -99,16 +99,16 @@
       "sha256": "cc2472e239e17062e7760af87f8f5997720cc0d94aa014a615c418baaf6333a8"
     },
     {
-      "path": "assets/commission-1YS6p7e5.js",
-      "url": "/ucsbxrp/assets/commission-1YS6p7e5.js",
-      "bytes": 102079,
-      "sha256": "e84a90d77d1ec13b237dd73f3a9d6ae7d43331588efe2ab5a4feee09695fc3a7"
-    },
-    {
       "path": "assets/commission-Bd-y_COM.css",
       "url": "/ucsbxrp/assets/commission-Bd-y_COM.css",
       "bytes": 10477,
       "sha256": "a0706a07a1a708e7394b955a47f9a197540594f0e708c5913dcd494618d43f76"
+    },
+    {
+      "path": "assets/commission-CpORv7WF.js",
+      "url": "/ucsbxrp/assets/commission-CpORv7WF.js",
+      "bytes": 102079,
+      "sha256": "5aa83eabb77dbf26d18d80fad42bf8a5d9bdf6ff57fb496abadfb78905405b87"
     },
     {
       "path": "assets/editor-BJ215w34.css",
@@ -135,10 +135,10 @@
       "sha256": "7cb08c390f143b21afb84e4774a9754d27fde5ddcace11658df9010e42c639c7"
     },
     {
-      "path": "assets/guide-BTXWnvh-.js",
-      "url": "/ucsbxrp/assets/guide-BTXWnvh-.js",
-      "bytes": 95299,
-      "sha256": "55fe92e70cd45f6175f116ed11f237d1075c2b49fe00f8e39e26f93cb4908ee5"
+      "path": "assets/guide-D7rcKj26.js",
+      "url": "/ucsbxrp/assets/guide-D7rcKj26.js",
+      "bytes": 95625,
+      "sha256": "f14d3700aec16d9fe6cd8259947fefa8f2a383c2f20330b719534481ba79258f"
     },
     {
       "path": "assets/guide-bHgBJGj2.css",
@@ -147,22 +147,22 @@
       "sha256": "55f9826910501111fa8d62b2ec436cca3c5e350bd6315b43da2faa30a633f005"
     },
     {
-      "path": "assets/home-gBbuSYlm.js",
-      "url": "/ucsbxrp/assets/home-gBbuSYlm.js",
+      "path": "assets/home-Di8R03Ym.js",
+      "url": "/ucsbxrp/assets/home-Di8R03Ym.js",
       "bytes": 3544,
-      "sha256": "2fb8d0917aad162c7528e270ec768a75ac3b52dc83122310d0f8022de217b140"
-    },
-    {
-      "path": "assets/ide-BOpvM6CP.js",
-      "url": "/ucsbxrp/assets/ide-BOpvM6CP.js",
-      "bytes": 964060,
-      "sha256": "e9c6f4d829379196a012239f04129fe482dc6724e5c644b84f400c2c35aaefac"
+      "sha256": "fe01125bb78cdfb8a33d6b5eb1324b2b242f831cfd8cfe9634af45072a563d79"
     },
     {
       "path": "assets/ide-D2RgBNdi.css",
       "url": "/ucsbxrp/assets/ide-D2RgBNdi.css",
       "bytes": 86624,
       "sha256": "8de47931e8d8ab21171a80db0323e51442719a099b92f35d2518f80fdc67175c"
+    },
+    {
+      "path": "assets/ide-D5tzzByB.js",
+      "url": "/ucsbxrp/assets/ide-D5tzzByB.js",
+      "bytes": 966388,
+      "sha256": "0ce79dfb0318e9b355cb3ab69b38ad09e2eb6e315aba5096ee99c455da271ddb"
     },
     {
       "path": "assets/instructor-C3CTcc6j.css",
@@ -189,16 +189,16 @@
       "sha256": "834820d7bf9afb66906824fd474b4b8b92c9004b2d27d075829f8f2a8ba54be5"
     },
     {
-      "path": "assets/jsonMode-CMI87C9l.js",
-      "url": "/ucsbxrp/assets/jsonMode-CMI87C9l.js",
-      "bytes": 447120,
-      "sha256": "ffe2595fbd92ebc891f057d30db36600083dd9680ec6d350837c4f53c618703a"
-    },
-    {
       "path": "assets/jsonMode-DbpeL5iC.css",
       "url": "/ucsbxrp/assets/jsonMode-DbpeL5iC.css",
       "bytes": 22501,
       "sha256": "a5cbfec8d657a9e5d7e1265fa3055f77c4f79bcac0eb6c8973a8bd477546bcb1"
+    },
+    {
+      "path": "assets/jsonMode-VtL_tl_l.js",
+      "url": "/ucsbxrp/assets/jsonMode-VtL_tl_l.js",
+      "bytes": 447120,
+      "sha256": "0f1a54cc59ca68eda54ceb1ef1aae29b110725a28da6974390d51f5f669bca2c"
     },
     {
       "path": "assets/jsx-runtime-DE3RlOCf.js",
@@ -231,10 +231,10 @@
       "sha256": "f401902601337d27880c6efc87be86ad8a4f5ebc55ac906c125627b990764ed7"
     },
     {
-      "path": "assets/monitor-C-3fjzuj.js",
-      "url": "/ucsbxrp/assets/monitor-C-3fjzuj.js",
-      "bytes": 1255567,
-      "sha256": "78fdc9f6641b15b93b5da9a5385ea936b5ad9534e6ce3c89db73ccb59a1c0408"
+      "path": "assets/monitor-B5JkTWnU.js",
+      "url": "/ucsbxrp/assets/monitor-B5JkTWnU.js",
+      "bytes": 1266196,
+      "sha256": "660844357e1347c4086f00840fe2d25ad3ddc5311be09941282194a7433efd8c"
     },
     {
       "path": "assets/monitor-CfGk8GOU.css",
@@ -243,10 +243,10 @@
       "sha256": "7c29d0e306f50073d6a618ea0db74af9ba31a97987a048059fae26e6ed813df8"
     },
     {
-      "path": "assets/monitor-export-DK20Yi2y.js",
-      "url": "/ucsbxrp/assets/monitor-export-DK20Yi2y.js",
+      "path": "assets/monitor-export-uaodazdM.js",
+      "url": "/ucsbxrp/assets/monitor-export-uaodazdM.js",
       "bytes": 14852,
-      "sha256": "30b66f100d9abe1add93b8d0df6e58fc535982e3ecafda9a29aabcff5ec4c500"
+      "sha256": "317b22afb5abe1ff35188d735ee800742cc39f25fbd787153f550b6bcfeccf94"
     },
     {
       "path": "assets/offline-shell-2BZ3rP7Q.js",
@@ -279,16 +279,16 @@
       "sha256": "f7832cc5b5fc0e9d459181beaa4cc63dd24c520c1cf588b8862abaf221d2008f"
     },
     {
-      "path": "assets/project-files-n7mjZ3PG.js",
-      "url": "/ucsbxrp/assets/project-files-n7mjZ3PG.js",
+      "path": "assets/project-files-rcUTwbQl.js",
+      "url": "/ucsbxrp/assets/project-files-rcUTwbQl.js",
       "bytes": 34248,
-      "sha256": "c31776c5eb2fa88f5cd57853f3340e224efb24f03dbd63782ce0950afd202db8"
+      "sha256": "9130d959360dddfc0b78e8501eda140021f2220f22c2a3fa2b0224b46a8ab73c"
     },
     {
-      "path": "assets/project-folder-reader-DrndYg0x.js",
-      "url": "/ucsbxrp/assets/project-folder-reader-DrndYg0x.js",
-      "bytes": 28829,
-      "sha256": "d725064f0efb987604b7bb58a4d7911590298a8f129de4cf154b9d1f70a225f4"
+      "path": "assets/project-folder-reader-D7P66vsZ.js",
+      "url": "/ucsbxrp/assets/project-folder-reader-D7P66vsZ.js",
+      "bytes": 49866,
+      "sha256": "510a9fc5e6ef2cba40c592e5dea0696ee1885a74317fb8ec3810f2332bbd5577"
     },
     {
       "path": "assets/project_catalog-DdBMrceQ.js",
@@ -327,10 +327,10 @@
       "sha256": "580ad8c58061a4dde99bde0a56905e382f0568516ee2f5b84dbfb52085709021"
     },
     {
-      "path": "assets/shared-challenge-package-VOx0aVbP.js",
-      "url": "/ucsbxrp/assets/shared-challenge-package-VOx0aVbP.js",
+      "path": "assets/shared-challenge-package-BgTPPR0s.js",
+      "url": "/ucsbxrp/assets/shared-challenge-package-BgTPPR0s.js",
       "bytes": 3110,
-      "sha256": "0570f296b03acda8b5ce2d71beafde28003b03ebcef1e4180a0f0c5b5f421fd4"
+      "sha256": "51cd41b6561508ed07df963b63190c80bd61c351480088c8fd2378722ae11c5d"
     },
     {
       "path": "assets/src-Ctp5kBXv.js",
@@ -351,10 +351,10 @@
       "sha256": "acb28c150c72079a109f0102662f5b04a4f67fc8b71d63c1a2daf88fdaba2998"
     },
     {
-      "path": "assets/ultrasound-range-BwGTeOkM.js",
-      "url": "/ucsbxrp/assets/ultrasound-range-BwGTeOkM.js",
-      "bytes": 18321,
-      "sha256": "78de635c0828715a41fa404b7585abb1caba48665204660a1fd888f7dae65730"
+      "path": "assets/ultrasound-range-0wOB7I4k.js",
+      "url": "/ucsbxrp/assets/ultrasound-range-0wOB7I4k.js",
+      "bytes": 18342,
+      "sha256": "53fd288c57a5d8badb0cabe7c85690a03ef904e679eae1fbf17ec4999b833348"
     },
     {
       "path": "assets/useHashTarget-41-70X4C.js",
@@ -387,10 +387,10 @@
       "sha256": "3f82f599de32c07e78c2c8ae40de6ee605fe6e2fefd94925d3a18e24ca6fbac2"
     },
     {
-      "path": "assets/workspace-target-preference-Tx9Bzx3I.js",
-      "url": "/ucsbxrp/assets/workspace-target-preference-Tx9Bzx3I.js",
+      "path": "assets/workspace-target-preference-hx565PWU.js",
+      "url": "/ucsbxrp/assets/workspace-target-preference-hx565PWU.js",
       "bytes": 11888,
-      "sha256": "ea031695aa8a3e74a7fe84c2de1bcec1ced0e0b8a5f8ab6a6fa2c2536c53bd0c"
+      "sha256": "047ea9d322893a9c488ec59d533ec123c5608f86d79fa681e53b3f24fa8f5076"
     },
     {
       "path": "assets/workspace-visibility-DagFo_5o.js",
@@ -402,13 +402,13 @@
       "path": "author/index.html",
       "url": "/ucsbxrp/author/index.html",
       "bytes": 2036,
-      "sha256": "1037e61a78dbf5604887cae87aa7a85210f298fe4297d715f5cbb59a7bd26784"
+      "sha256": "69eb21093798e9273907ecc41ad77176c0ae1cdc2b3359f2887cb2dddf6ee7fc"
     },
     {
       "path": "commission/index.html",
       "url": "/ucsbxrp/commission/index.html",
       "bytes": 1844,
-      "sha256": "952f126b6d612fe791fec2e86d0c5a2998ea053ac5d7e693462ad61be72ead4f"
+      "sha256": "918fed3a44b6aff4c85ef8ca9a5d61747be50af374c23d32d134ae08f159cfe5"
     },
     {
       "path": "course/commissioning/releases/57/files/bootstrap/course_boot.py",
@@ -2850,7 +2850,7 @@
       "path": "guide/index.html",
       "url": "/ucsbxrp/guide/index.html",
       "bytes": 2015,
-      "sha256": "4e7ba7c66d2c9bf698510076e99919ad680edfeab9df5e8770000aa5e35fd6a6"
+      "sha256": "03384913a20ba6f061c80350c7e88954d2c9e1effd55eebb5c6cebbebb11389e"
     },
     {
       "path": "guide-figures/01-create-project.png",
@@ -2952,13 +2952,13 @@
       "path": "ide/index.html",
       "url": "/ucsbxrp/ide/index.html",
       "bytes": 2941,
-      "sha256": "7b9ada890aa3e43eaa35acdf011eb7ee486576b155a6a0535dad2bfe8a6d7546"
+      "sha256": "fb474a1eaf496bb9a287f3f8bdf2a86177a7b0732eeacbe021a7e76373471803"
     },
     {
       "path": "index.html",
       "url": "/ucsbxrp/index.html",
       "bytes": 4006,
-      "sha256": "15f24e2d16fde66ebd8b19a9707207c82c72d93545b50ee294ce0452cbdac7bd"
+      "sha256": "69d5fff95267758f40e21c5954c739cf196617211e5e62918a3a0b734d6a193c"
     },
     {
       "path": "instructor/index.html",
@@ -2970,7 +2970,7 @@
       "path": "instructor/package.enc.json",
       "url": "/ucsbxrp/instructor/package.enc.json",
       "bytes": 1610067,
-      "sha256": "f753a9bb93d88d9b7cadb17c79a628ffbac5c0f94252a96ea122adcb2e2d1b69"
+      "sha256": "ce8ca2b8a452ee338f7caa1f6ef142b97ab179259b47a71c9d4d56830d9b3267"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling-activity.html",
@@ -3492,7 +3492,7 @@
       "path": "monitor/index.html",
       "url": "/ucsbxrp/monitor/index.html",
       "bytes": 2427,
-      "sha256": "c3d8cd9a0fe1935fd34ab0e97a9fe60aab06fbf0eff91af655e8df28752fbc14"
+      "sha256": "d14c263b353f783a9ffbf904b33d97f9a31c45732c9acd8f748fce62ec2265c0"
     },
     {
       "path": "overview/index.html",
@@ -3759,6 +3759,6 @@
       "sha256": "d61c31bda49d50d9d57c7a1afe6f063f3d3d5a338409b61bd706867516c02478"
     }
   ],
-  "version": "1dac0b2977645a4f1b62",
-  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-1dac0b2977645a4f1b62"
+  "version": "ad5d1388191dc95df613",
+  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-ad5d1388191dc95df613"
 }
