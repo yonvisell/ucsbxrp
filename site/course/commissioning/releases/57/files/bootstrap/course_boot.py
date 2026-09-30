@@ -35,6 +35,8 @@ MANAGED_MODULE_PREFIXES = (
     "ucsb_xrp_service",
     "ucsb_xrp",
     "ucsb_xrp_reference",
+    "XRPLib",
+    "phew",
 )
 _active_context = None
 

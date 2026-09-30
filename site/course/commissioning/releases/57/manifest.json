@@ -1,9 +1,9 @@
 {
   "bootstrapFiles": [
     {
-      "bytes": 13500,
+      "bytes": 13526,
       "destination": "/course_boot.py",
-      "sha256": "e903e7a97157a3297b5de6f395fa906be7638287a40b984c6c286188c8c09ab9",
+      "sha256": "b36f74b5e3415cb77cdc75154199bc6ed9e1078141e21fbb7a39c445f7fa7f63",
       "source": "device_service/course_boot.py",
       "url": "files/bootstrap/course_boot.py"
     },

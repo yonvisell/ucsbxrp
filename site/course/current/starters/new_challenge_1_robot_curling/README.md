@@ -2,7 +2,7 @@
 
 ## Task
 
-Drive 1000 mm along the lane and stop the front center of the robot as close
+Drive 2286 mm along the lane and stop the front center of the robot as close
 to the target as possible, in the least time. Align that same point with the
 start mark. Develop wheel measurements, wheel-speed feedback, and a
 stopping rule based on measured distance. Complete the measurements and
@@ -10,6 +10,13 @@ method checks before target trials. The supplied `main.py` shows the sample
 loop, calls your stopping rule with measured remaining distance, requests the
 returned straight speed, and stops after confirming wheel rest. Your rule
 chooses when to slow and request zero speed.
+
+The default arena is 3048 × 1219.2 mm (10 × 4 ft). Along its long axis, the
+start is one-eighth of the way across and the finish is seven-eighths:
+`x = -1143 mm` to `x = +1143 mm`, both at `y = 0`. Start facing `+x`.
+Each mark is 381 mm from its nearer end. Use the same mark separation on the
+floor. `challenge.py` derives the 2286 mm travel from `world.json`; moving
+the start or finish changes that distance without editing the control loop.
 
 ## 1. Measure the wheels
 

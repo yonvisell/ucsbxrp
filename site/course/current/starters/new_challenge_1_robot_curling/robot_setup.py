@@ -3,7 +3,7 @@
 from ucsb_xrp import RobotConfig, Robot, XRPBot
 
 # Robot calibration and controller settings.
-# Example motor settings; calibrate these on the physical XRP.
+# Example settings for the virtual motor response; calibrate these on the physical XRP.
 # Measure wheel diameter and track width in mm; use specified encoder counts.
 ROBOT_CONFIG = RobotConfig(
     wheel_diameter_mm=60.0,
@@ -11,8 +11,8 @@ ROBOT_CONFIG = RobotConfig(
     track_width_mm=155.0,
     left_start_command=0.12,
     right_start_command=0.13,
-    left_speed_command_gain=0.0031,
-    right_speed_command_gain=0.00315,
+    left_speed_command_gain=0.003112,
+    right_speed_command_gain=0.003172,
     wheel_speed_kp=0.001,
     max_drive_command=0.55,
 )

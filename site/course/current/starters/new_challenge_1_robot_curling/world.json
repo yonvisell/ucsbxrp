@@ -11,7 +11,7 @@
         "maximum_y_mm": 609.6
       },
       "initial_pose": {
-        "x_mm": -1224,
+        "x_mm": -1143,
         "y_mm": 0,
         "heading_rad": 0
       },
@@ -19,16 +19,16 @@
       "markers": [
         {
           "type": "start_line",
-          "x1_mm": -1224,
+          "x1_mm": -1143,
           "y1_mm": -150,
-          "x2_mm": -1224,
+          "x2_mm": -1143,
           "y2_mm": 150,
           "label": "Start"
         },
         {
           "type": "waypoint",
           "name": "finish",
-          "x_mm": -224,
+          "x_mm": 1143,
           "y_mm": 0,
           "label": "Finish"
         }

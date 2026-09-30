@@ -495,7 +495,7 @@
     "source": "starters/new_challenge_1_robot_curling",
     "label": "1 \u00b7 Robot Curling",
     "short_label": "1 \u00b7 Robot Curling",
-    "summary": "Travel 1000 mm and stop close to the target as quickly as possible. Develop sensing, wheel-speed feedback, and stopping control.",
+    "summary": "Travel 2286 mm along the arena and stop close to the target as quickly as possible. Develop sensing, wheel-speed feedback, and stopping control.",
     "entrypoint": "main.py",
     "components": [
       {

@@ -1,4 +1,4 @@
-# Robot Curling target in the selected world.
+# Robot Curling target in the selected world (2286 mm in the default arena).
 
 from ucsb_xrp import distance_to_goal, load_world
 
