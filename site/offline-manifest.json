@@ -147,10 +147,10 @@
       "sha256": "55f9826910501111fa8d62b2ec436cca3c5e350bd6315b43da2faa30a633f005"
     },
     {
-      "path": "assets/home-g9MtLcVz.js",
-      "url": "/ucsbxrp/assets/home-g9MtLcVz.js",
+      "path": "assets/home-CThZzpm5.js",
+      "url": "/ucsbxrp/assets/home-CThZzpm5.js",
       "bytes": 3544,
-      "sha256": "369757d9d939d15ac2bd36e87175a96f1f923c64d16158aa71c06ea521942cbb"
+      "sha256": "65714955d7bfcb130fb3008788d8cde052a16cd1bfdcb86a4ed4d5b0facde41e"
     },
     {
       "path": "assets/ide-BFTUx43m.css",
@@ -3168,7 +3168,7 @@
       "path": "index.html",
       "url": "/ucsbxrp/index.html",
       "bytes": 4006,
-      "sha256": "61c814ec1830d26052824473c58e9c24a6b0004db79c18fc73890dff1dcf138e"
+      "sha256": "9b377b8fda37b2668c26e1c9e92a0cd3bbf002d63c92c52d5a9928bdd0d85daa"
     },
     {
       "path": "instructor/index.html",
@@ -3969,6 +3969,6 @@
       "sha256": "4bf4e83689ceb749ae35a315f9b611e3d01c6b6566f8208b051a673a9e97416f"
     }
   ],
-  "version": "c37a50b27915a3483a6f",
-  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-c37a50b27915a3483a6f"
+  "version": "92b764a2308ff1fee818",
+  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-92b764a2308ff1fee818"
 }
