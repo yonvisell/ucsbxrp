@@ -122,13 +122,58 @@
         max-width: 100%;
         width: 100%;
         height: auto;
-        border: 1px solid #b8c5cf;
+        border: 1px solid black;
       }
       figcaption {
         margin-top: 8px;
         font-size: 14px;
         line-height: 1.4;
         color: #536571;
+      }
+      .side-topic {
+        border: 1px solid black;
+        background: #f5f8fa;
+        padding: 16px 18px;
+        margin: 20px 0 24px;
+      }
+      .side-topic h3 {
+        display: block;
+        margin: 0 0 10px;
+      }
+      .side-topic ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .side-topic li {
+        margin-bottom: 6px;
+      }
+      pre {
+        font-size: 15px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 14px 0;
+      }
+      .footnote {
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .appendix-entry {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        gap: 6px;
+        margin-bottom: 20px;
+      }
+      .appendix-number {
+        color: #167083;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .appendix-entry ol {
+        margin: 7px 0 0;
+        padding-left: 22px;
+      }
+      .appendix-entry li {
+        margin-bottom: 6px;
       }
       .reading-columns {
         display: grid;
@@ -188,7 +233,9 @@
           display: none;
         }
         .note-entry,
-        figure {
+        figure,
+        .side-topic,
+        .appendix-entry {
           break-inside: avoid;
         }
         .lecture-section + .lecture-section {
@@ -210,24 +257,20 @@
       <p class="version-link"><a href="text.html">Text-only version</a></p>
       <p class="course-title">ME179: Wheeled Mobile Robotics</p>
       <section class="lecture-section">
-        <h1>Programming and testing the XRP</h1>
+        <h1>Programming and testing the XRP Robot</h1>
         <ol class="note-entry" start="1">
           <li>
             <h3>Robot behavior</h3>
             <ul>
               <li>
-                <b>UCSBXRP</b>: web app for programming Virtual XRP and Physical
-                XRP robots; observing movement and sensor readings; improving
-                behavior through experiments
+                <b>UCSBXRP</b>: web app for programming XRP robots, observing
+                movement and sensor readings, and developing robot behavior
+                through experiments
               </li>
               <li>
-                <b>Motion, sensing, and decisions</b> combined in Python:
-                driving forward, turning, stopping near an obstacle, following a
-                line, reaching a destination
-              </li>
-              <li>
-                Programmed motion compared with observed motion; measurements
-                used to explain the difference and improve the next trial
+                <b>Motion, sensing, and planning</b> combined in Python:
+                driving, turning, stopping near an obstacle, following a line,
+                and finding a route to a destination
               </li>
             </ul>
           </li>
@@ -237,44 +280,30 @@
             <h3>Home, IDE, and Monitor</h3>
             <ul>
               <li>
-                <b>Home</b>: starting page, with access to robot programming,
-                measurements, setup, and help
+                <b>Home</b>: starting page for programming, robot setup, and
+                course resources
               </li>
               <li>
-                <b>IDE</b>: writing and running Python robot programs;
-                <b>Monitor</b>: watching robot movement and examining
-                measurements
+                <b>IDE</b>: writing and running robot programs; <b>Monitor</b>:
+                viewing robot movement, measurements, and recorded runs
               </li>
               <li>
-                <b>Side by side</b>: program alongside robot path, readings, and
-                plots; connection between a motion command and the resulting
-                movement
+                <b>Side by side</b>: program and Monitor together; direct
+                connection between code, motion, and measurements
               </li>
             </ul>
           </li>
         </ol>
         <figure style="max-width: 696px">
           <img
-            src="figures/home-navigation.png"
-            alt="Home navigation: IDE, Monitor, User Guide, Robot Setup, Wi-Fi setup, and UCSBXRP API"
-            width="516"
-            height="28"
+            src="figures-v2/home.png"
+            alt="Home titlebar and opening prompt"
+            width="1500"
+            height="300"
           />
           <figcaption>
-            Figure 1. Home navigation: programming and measurement workspaces;
-            robot setup and help.
-          </figcaption>
-        </figure>
-        <figure style="max-width: 666.7px">
-          <img
-            src="figures/home-start.png"
-            alt="Home starting prompt: Program and explore the XRP robot; Open the IDE to begin"
-            width="560"
-            height="81"
-          />
-          <figcaption>
-            Figure 2. Home starting prompt, leading to the robot programming
-            workspace.
+            Figure 1. Home: IDE and Monitor entry points, robot setup, and
+            course resources.
           </figcaption>
         </figure>
         <ol class="note-entry" start="3">
@@ -282,179 +311,224 @@
             <h3>Virtual and physical XRP</h3>
             <ul>
               <li>
-                <b>Virtual XRP</b>: simulated motors and wheels responding to
-                the program; encoders measuring wheel rotation; range sensor
-                responding to obstacles; floor sensors responding to lines
+                <b>Run on</b>: choice of <b>Virtual XRP</b> or
+                <b>Physical XRP</b> for the current program
               </li>
               <li>
-                <b>Physical XRP</b>: same program driving the robot&#x27;s
-                motors and reading its sensors
-              </li>
-              <li>
-                Virtual trials for developing and comparing robot behaviors;
-                physical trials for examining wheel slip, motor differences,
-                surfaces, and battery condition
+                Virtual trials for developing and inspecting behavior; physical
+                trials for testing that behavior with motors, wheels, and
+                sensors
               </li>
             </ul>
           </li>
         </ol>
+        <aside class="side-topic">
+          <h3>Virtual and physical: shared program, different robot</h3>
+          <ul>
+            <li>
+              <b>Shared</b>: Python project, course library, motion commands,
+              sensor interfaces, and Monitor tools
+            </li>
+            <li>
+              <b>Virtual XRP</b>: program running on the computer; simulated
+              wheel motion and sensor readings; arena lines and obstacles
+              defined by the Project; <b>Reset</b> for a repeatable starting
+              point
+            </li>
+            <li>
+              <b>Physical XRP</b>: program running on the XRP; real motor and
+              sensor response; Wi-Fi carrying commands and measurements between
+              computer and robot
+            </li>
+            <li>
+              <b>Experimental differences</b>: wheel slip, surface reflectance,
+              motor variation, and battery condition affecting physical trials;
+              virtual results as a starting point for physical testing
+            </li>
+          </ul>
+        </aside>
       </section>
       <section class="lecture-section">
-        <h2>Programming motion</h2>
-        <div class="reading-columns">
-          <div>
-            <ol class="note-entry" start="4">
+        <h2>IDE: Programming Motion</h2>
+        <ol class="note-entry" start="4">
+          <li>
+            <h3>Robot programs and projects</h3>
+            <ul>
               <li>
-                <h3>Robot programs and projects</h3>
-                <ul>
-                  <li>
-                    <b>Project</b>: program and arena for one robot experiment;
-                    <b>Working folder</b>: local location for Projects and
-                    recorded runs
-                  </li>
-                  <li>
-                    IDE <b>editor</b>: wheel commands, sensor-based decisions,
-                    and repeated control adjustments
-                  </li>
-                  <li>
-                    Project file list: assigned code and <b>README.md</b>,
-                    describing the robot task and work to complete
-                  </li>
-                  <li>
-                    <b>Program output</b>: printed observations, task results,
-                    and execution errors
-                  </li>
-                </ul>
+                <b>Project</b>: files for one robot task, including its program
+                and arena; <b>Working folder</b>: local location for Projects,
+                recorded runs, and XRP settings
               </li>
-            </ol>
-            <figure style="max-width: 440px">
-              <img
-                src="figures/robot-toolbar.png"
-                alt="IDE toolbar with Virtual XRP, Compile, Run, Stop, and Reset"
-                width="260"
-                height="28"
-              />
-              <figcaption>
-                Figure 3. Robot target and experiment commands; triangle for
-                Run, square for Stop, circular arrow for Reset.
-              </figcaption>
-            </figure>
-            <ol class="note-entry" start="5">
               <li>
-                <h3>Compile, Run, Stop, Reset</h3>
-                <ul>
-                  <li>
-                    <b>Compile</b>: checking Python files before an experiment;
-                    errors identifying code needing correction
-                  </li>
-                  <li>
-                    <b>Run</b>: executing the program on the selected XRP; wheel
-                    motion and sensor readings developing during execution
-                  </li>
-                  <li>
-                    <b>Stop</b>: ending the program and stopping robot motion
-                  </li>
-                  <li>
-                    <b>Reset</b>: returning Virtual XRP to its initial position
-                    and heading for another trial
-                  </li>
-                </ul>
+                <b>Editor</b>: Python code for wheel commands, sensor-based
+                responses, and control calculations
               </li>
-            </ol>
-          </div>
-          <div class="figure-column">
-            <figure style="max-width: 240px">
-              <img
-                src="figures/project-panel.png"
-                alt="IDE Project panel with files, README.md, New project, and Working folder"
-                width="200"
-                height="446"
-              />
-              <figcaption>
-                Figure 4. Project files and task description, with Working
-                folder below.
-              </figcaption>
-            </figure>
-          </div>
-        </div>
+              <li>
+                <b>Project</b> file list: assigned code and <b>README.md</b>,
+                describing the task and work to complete
+              </li>
+              <li>
+                <b>Program output</b>: printed observations, task results, and
+                execution errors
+              </li>
+            </ul>
+          </li>
+        </ol>
+        <figure style="max-width: 626.7px">
+          <img
+            src="figures-v2/ide-toolbar-detail.png"
+            alt="IDE workspace with an expanded view of the robot target and run toolbar"
+            width="960"
+            height="465"
+          />
+          <figcaption>
+            Figure 2. IDE: Project files and editor; expanded toolbar for
+            selecting and running the robot.
+          </figcaption>
+        </figure>
+        <ol class="note-entry" start="5">
+          <li>
+            <h3>Compile, Run, Stop, Reset</h3>
+            <ul>
+              <li>
+                <b>Compile</b>: checking Python files; reported errors
+                identifying code needing correction
+              </li>
+              <li>
+                <b>Run</b>: executing the program on the selected XRP;
+                <b>Stop</b>: ending the run
+              </li>
+              <li>
+                <b>Reset</b>: returning Virtual XRP to its initial position and
+                heading for another trial
+              </li>
+            </ul>
+          </li>
+        </ol>
+        <aside class="side-topic">
+          <h3>MicroPython and Python</h3>
+          <ul>
+            <li>
+              <b>MicroPython</b>: compact implementation of Python for
+              controllers such as the XRP; familiar indentation, loops,
+              functions, and classes
+            </li>
+            <li>
+              <b>Both XRP modes</b>: programs executed by MicroPython;
+              <b>ucsb_xrp</b> providing course sensing, control, and navigation
+              interfaces
+            </li>
+            <li>
+              Smaller library collection than desktop Python; package and
+              feature support checked against MicroPython documentation
+            </li>
+          </ul>
+        </aside>
+      </section>
+      <section class="lecture-section">
+        <h2>IDE: Projects and Demonstrations</h2>
         <ol class="note-entry" start="6">
           <li>
-            <h3>Demonstrations</h3>
+            <h3>Creating a Project</h3>
             <ul>
               <li>
-                <b>New project…</b>: separate Project from a demonstration,
-                tutorial, or assigned challenge
+                <b>New project…</b>: starting a named Project from a
+                demonstration, tutorial, or assigned challenge
               </li>
               <li>
-                <b>Expanding spiral</b>: forward motion combined with gradually
-                decreasing turn rate; increasingly broad curved path
+                Project files in the <b>Working folder</b>; switching Projects
+                to work on a different robot task
               </li>
               <li>
-                <b>Obstacle turn</b>: forward travel, range-based obstacle
-                detection, and a turn; sensor reading connected to a change in
-                movement
-              </li>
-              <li>
-                Example program, predicted behavior, and observed path as
-                starting points for a revised experiment
+                <b>README.md</b> first: intended behavior, relevant files, and
+                experiment instructions
               </li>
             </ul>
           </li>
         </ol>
+        <figure style="max-width: 653.3px">
+          <img
+            src="figures-v2/project-views.png"
+            alt="First Project creation dialog beside the IDE Project file panel"
+            width="690"
+            height="506"
+          />
+          <figcaption>
+            Figure 3. Project creation and the resulting file panel; program,
+            task description, and Working folder in one workflow.
+          </figcaption>
+        </figure>
+        <aside class="side-topic">
+          <h3>Starting with a demonstration</h3>
+          <ul>
+            <li>
+              <b>Expanding spiral</b>: forward motion with a gradually
+              decreasing turn rate; increasingly broad curved path
+            </li>
+            <li>
+              <b>Obstacle turn</b>: forward travel, range-based obstacle
+              detection, and a turn
+            </li>
+            <li>
+              Example code connected to visible behavior: predict the movement,
+              run the program, inspect the result, then revise a relevant
+              command or calculation
+            </li>
+          </ul>
+        </aside>
       </section>
       <section class="lecture-section">
-        <h2>Robot and arena</h2>
+        <h2>Monitor: World Space and Telemetry</h2>
         <ol class="note-entry" start="7">
           <li>
-            <h3>World view</h3>
+            <h3>World space</h3>
             <ul>
               <li>
-                <b>Virtual XRP</b>, Monitor <b>World</b>: robot moving among
-                floor lines, obstacles, and destination markers; path showing
-                where the robot has travelled
+                <b>World</b>: spatial view of robot movement within the
+                Project&#x27;s arena; floor lines, obstacles, and destination
+                markers as context for the task
               </li>
               <li>
-                Path compared with intended motion: drift during straight
-                travel, an overshot turn, arrival at a destination, or collision
-                with an obstacle
+                Robot path and heading during a run; <b>Fit arena</b>, zoom, and
+                <b>Center XRP</b> for examining movement
               </li>
               <li>
-                Arena and obstacle choices for testing behavior under different
-                conditions; zoom and <b>Fit arena</b> for examining the path
+                World and obstacle selections for testing a program in different
+                arrangements; visible range indication for relating obstacle
+                readings to the robot&#x27;s surroundings
               </li>
             </ul>
           </li>
         </ol>
         <figure style="max-width: 696px">
           <img
-            src="figures/robot-world.png"
-            alt="Monitor World view showing the XRP on a curved path from Start"
-            width="597"
-            height="300"
+            src="figures-v2/world-detail.png"
+            alt="Monitor within the workspace, with an expanded World view"
+            width="1240"
+            height="445"
           />
           <figcaption>
-            Figure 5. Curved travel from Start; robot direction, recorded path,
-            and forward ultrasound range together.
+            Figure 4. Monitor at right of the workspace; expanded World view
+            showing robot, path, arena, and forward range.
           </figcaption>
         </figure>
         <ol class="note-entry" start="8">
           <li>
-            <h3>Robot measurements</h3>
+            <h3>Telemetry</h3>
             <ul>
               <li>
-                <b>Live telemetry</b>: current readings during a run; wheel
-                speeds alongside visible movement; forward range during obstacle
-                approach
+                <b>Live telemetry</b>: readings received from the robot during
+                execution; wheel motion and sensor response displayed
+                numerically
               </li>
               <li>
-                <b>Encoders</b>: wheel rotation used to estimate travel and
-                speed; <b>floor reflectance</b>: light/dark readings used to
-                detect a line
+                Wheel speeds and accumulated wheel travel for inspecting driving
+                and turning; forward range for obstacle approach; floor
+                reflectance for line detection
               </li>
               <li>
-                Measurements connected to decisions in the program: maintaining
-                wheel speed, correcting line tracking, or slowing near an
-                obstacle
+                Program-reported measurements alongside robot readings; evidence
+                of the sensing and control calculations used by the program
               </li>
             </ul>
           </li>
@@ -462,72 +536,65 @@
         <figure style="max-width: 696px">
           <img
             src="figures/wheel-telemetry.png"
-            alt="Live telemetry rows for wheel speeds and wheel distance"
+            alt="Monitor wheel speed and wheel travel readings"
             width="597"
             height="39"
           />
           <figcaption>
-            Figure 6. Current wheel speeds and accumulated wheel travel during a
-            turn.
+            Figure 5. Live telemetry: current wheel speeds and accumulated
+            travel.
           </figcaption>
         </figure>
       </section>
       <section class="lecture-section">
-        <h2>Wheel response</h2>
+        <h2>Monitor: Plots and Live Controls</h2>
         <ol class="note-entry" start="9">
           <li>
-            <h3>Motion plots</h3>
+            <h3>Plots</h3>
             <ul>
               <li>
-                <b>Plots</b>: measurements over time, connecting motion commands
-                to robot response
+                Measurements over time: acceleration, sustained motion, turns,
+                and stopping visible across a run
               </li>
               <li>
-                Requested and measured wheel speeds together (<b
-                  >Show target values</b
-                >): speed buildup, sustained error, or repeated fluctuations
+                <b>Show target values</b>: requested and measured wheel speeds
+                together; controller response, sustained error, and fluctuations
                 around the request
               </li>
               <li>
-                Similar left/right wheel-speed requests for straight travel;
-                different requests for turning; measured speeds showing
-                controller response
-              </li>
-              <li>
-                Range alongside motion for examining obstacle approach, onset of
-                slowing, and stopping; selected interval for closer examination
-                of a turn or stop
+                Selected time interval for closer inspection; plot markers and
+                <b>Notes</b> for relating changes in readings to observed events
               </li>
             </ul>
           </li>
         </ol>
         <figure style="max-width: 696px">
           <img
-            src="figures/wheel-plot.png"
-            alt="Wheel-speed plot with initial acceleration and different sustained left and right speeds"
-            width="592"
-            height="163"
+            src="figures-v2/wheel-plot.png"
+            alt="Wheel-speed plot showing acceleration followed by different sustained speeds"
+            width="597"
+            height="150"
           />
           <figcaption>
-            Figure 7. Initial speed buildup followed by different sustained
-            wheel speeds; response consistent with the curved path in Figure 5.
+            Figure 6. Wheel speeds over time; different sustained speeds
+            corresponding to curved travel.
           </figcaption>
         </figure>
         <ol class="note-entry" start="10">
           <li>
-            <h3>Adjusting robot behavior</h3>
+            <h3>Live controls</h3>
             <ul>
               <li>
-                <b>Live controls</b>: settings exposed by the running program;
-                adjustments while watching robot movement and measurements
+                Settings supplied by the running program; changes applied while
+                watching motion and measurements
               </li>
               <li>
-                Response before and after a change: effects on speed, turning,
-                line tracking, or stopping
+                Path and plots showing the response to an adjustment, such as
+                faster travel or a tighter turn
               </li>
               <li>
-                One change at a time, with an expected effect; path and plots as
-                evidence of the resulting response
+                One setting changed at a time for a clear connection between the
+                adjustment and observed response
               </li>
             </ul>
           </li>
@@ -535,72 +602,70 @@
         <figure style="max-width: 696px">
           <img
             src="figures/live-controls.png"
-            alt="Live controls supplied by the running Expanding spiral program"
+            alt="Live controls supplied by the Expanding spiral program"
             width="597"
             height="94"
           />
           <figcaption>
-            Figure 8. Live settings for changing robot motion while observing
-            path and plots.
+            Figure 7. Live controls appearing for the current program; motion
+            adjustments alongside the robot&#x27;s response.
           </figcaption>
         </figure>
       </section>
       <section class="lecture-section">
-        <h2>Robot experiments</h2>
-        <div class="reading-columns">
+        <h2>Recording and Reviewing Experiments</h2>
+        <div
+          class="reading-columns"
+          style="grid-template-columns: minmax(0, 330fr) minmax(0, 180fr)"
+        >
           <div>
             <ol class="note-entry" start="11">
               <li>
-                <h3>Recording and comparing trials</h3>
+                <h3>Recording and reviewing trials</h3>
                 <ul>
                   <li>
-                    Automatic recording of measurements during each run;
-                    completed trials available after the robot stops
+                    Automatic recording during each run; path, measurements, and
+                    program output available afterward
                   </li>
                   <li>
                     <b>Notes</b>: observations attached to moments in the run,
-                    such as beginning a turn or reaching an obstacle
+                    such as a turn or obstacle approach
                   </li>
                   <li>
-                    <b>Open saved run…</b>: earlier trajectory and plots for
-                    comparison with another trial
-                  </li>
-                  <li>
-                    Comparison under similar starting conditions: changed
-                    behavior, stopping location, wheel-speed response, or route
-                    tracking
+                    <b>Open saved run…</b>: reviewing one earlier trial in
+                    Monitor
                   </li>
                 </ul>
               </li>
             </ol>
-            <figure style="max-width: 440px">
+            <figure style="max-width: 266.7px">
               <img
                 src="figures/run-note.png"
-                alt="Add note dialog for a time-linked observation about wheel speeds"
+                alt="Adding an observation to a recorded run"
                 width="410"
                 height="249"
               />
               <figcaption>
-                Figure 9. Observation attached to a particular moment in the
-                robot experiment.
+                Figure 8. Time-linked note for interpreting an event in the
+                experiment.
               </figcaption>
             </figure>
             <ol class="note-entry" start="12">
               <li>
-                <h3>Using recorded data</h3>
+                <h3>Exporting measurements</h3>
                 <ul>
                   <li>
-                    Saved path and plots for examining what happened during the
-                    experiment
+                    <b>Export run data as CSV</b>: measurements and notes for
+                    numerical analysis and comparison across trials
                   </li>
                   <li>
                     <b>Export run data (ZIP)</b>: measurements, program output,
-                    and run summary for analysis; <b>Include code in ZIP</b> for
-                    the program used in that trial
+                    and run summary; <b>Include code in ZIP</b> for the program
+                    used in that trial
                   </li>
                   <li>
-                    CSV data for quantitative comparisons; plot images and world
-                    animation for presenting observed robot behavior
+                    Plot images and world animation for presenting observed
+                    robot behavior
                   </li>
                 </ul>
               </li>
@@ -610,20 +675,38 @@
             <figure style="max-width: 240px">
               <img
                 src="figures/run-data.png"
-                alt="Monitor Run data, Notes, and Export controls"
+                alt="Monitor controls for saved runs, notes, and exports"
                 width="176"
                 height="412"
               />
               <figcaption>
-                Figure 10. Saved trials, time-linked observations, and
-                experiment exports.
+                Figure 9. Run data, Notes, and Export in Monitor controls.
               </figcaption>
             </figure>
           </div>
         </div>
+        <aside class="side-topic">
+          <h3>Loading a CSV in MATLAB</h3>
+          <ul>
+            <li>
+              Export using <b>Export run data as CSV</b>; in MATLAB, select the
+              exported file and load its columns as a table
+            </li>
+          </ul>
+          <pre><code>[file, folder] = uigetfile(&#x27;*.csv&#x27;);
+T = readtable(fullfile(folder, file), ...
+    &#x27;VariableNamingRule&#x27;, &#x27;preserve&#x27;);
+head(T)</code></pre>
+          <ul>
+            <li>
+              <code>head(T)</code>: first rows and column headings; separate
+              tables for comparing exported trials
+            </li>
+          </ul>
+        </aside>
       </section>
       <section class="lecture-section">
-        <h2>Sensing and navigation</h2>
+        <h2>Sensing, Control, and Navigation</h2>
         <ol class="note-entry" start="13">
           <li>
             <h3>Robot code</h3>
@@ -658,8 +741,8 @@
             <h3>Testing robot behavior</h3>
             <ul>
               <li>
-                Project <b>README.md</b>: task, assigned sensing or control
-                code, and checks
+                Project <b>README.md</b>: assigned sensing or control code and
+                checks
               </li>
               <li>
                 <b>Test functions</b>: calculations checked against known cases;
@@ -670,22 +753,22 @@
                 readings, and plots afterward
               </li>
               <li>
-                Revised code followed by another trial; comparison of stopping,
-                wheel-speed stability, or route tracking
+                Revised code followed by another trial; stopping, wheel-speed
+                stability, or route tracking as evidence of improvement
               </li>
             </ul>
           </li>
         </ol>
-        <figure style="max-width: 573.3px">
+        <figure style="max-width: 626.7px">
           <img
             src="figures/check-results.png"
-            alt="Component check summary showing passed, not implemented, and failed results"
+            alt="Component-check summary in Program output"
             width="413"
             height="20"
           />
           <figcaption>
-            Figure 11. Check summary in Program output; unfinished calculations
-            identified before robot trials.
+            Figure 10. Check results identifying unfinished or incorrect
+            calculations before robot trials.
           </figcaption>
         </figure>
         <ol class="note-entry" start="15">
@@ -693,13 +776,13 @@
             <h3>Programming help</h3>
             <ul>
               <li>
-                <b>User Guide</b>: explanations of robot programming,
-                experiments, recordings, and setup
+                <b>User Guide</b>: robot programming, experiments, recordings,
+                and setup
               </li>
               <li>
-                <b>UCSBXRP API</b>: Python classes and functions for wheel
-                control, sensing, navigation, and planning; reference for
-                assigned robot code
+                <b>UCSBXRP API</b>: course classes and functions for sensing,
+                wheel control, navigation, and planning; reference for assigned
+                code
               </li>
             </ul>
           </li>
@@ -709,13 +792,12 @@
             <h3>Challenges</h3>
             <ul>
               <li>
-                Assigned robot tasks combining sensing, motor control, and
-                navigation in a working solution
+                Assigned robot tasks combining sensing, control, and navigation
+                in a working solution
               </li>
               <li>
-                Robot movement and recorded measurements compared with task
-                requirements; working sensing and control code reused in later
-                tasks
+                Robot movement and recorded measurements evaluated against task
+                requirements; sensing and control code reused in later tasks
               </li>
             </ul>
           </li>
@@ -723,167 +805,235 @@
       </section>
       <section class="lecture-section">
         <hr class="appendix-rule" />
-        <h2>Appendix: Physical XRP setup</h2>
-        <ol class="note-entry" start="1">
-          <li>
-            <h3>Working folder</h3>
-            <ul>
+        <h2>Appendix A: Physical XRP Setup</h2>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.1</span>
+          <div>
+            <h3>Open setup</h3>
+            <ol>
+              <li>From <b>Home</b>, open <b>Robot Setup</b></li>
+            </ol>
+          </div>
+        </div>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.2</span>
+          <div>
+            <h3>Choose the Working folder</h3>
+            <ol>
               <li>
-                Open <b>Robot Setup</b>; choose
-                <b>Open existing Working folder…</b> for current class work, or
-                <b>Set up fresh Working folder</b> for first use
-              </li>
-            </ul>
-          </li>
-        </ol>
-        <ol class="note-entry" start="2">
-          <li>
-            <h3>Connect the XRP</h3>
-            <ul>
-              <li>
-                Keep wheels raised during setup; switch XRP off, connect USB-C
-                data cable, then switch XRP on
+                Choose <b>Open existing Working folder…</b> for current course
+                work, or <b>Set up fresh Working folder</b> for first use
               </li>
               <li>
-                <b>Choose connected XRP</b>; select intended controller in
-                device picker, possibly listed as <b>Board in FS mode</b>;
-                <b>Connect this XRP</b> for a recognized controller
+                For fresh work, choose a master folder on the computer when
+                prompted; new <b>xrp-working-NN</b> folder created inside it
               </li>
-            </ul>
-          </li>
-        </ol>
+              <li>
+                If shown, choose <b>Use [folder name]</b>;
+                <b>Set up or repair an XRP by USB</b> for an existing configured
+                folder
+              </li>
+            </ol>
+          </div>
+        </div>
+        <figure style="max-width: 653.3px">
+          <img
+            src="figures-v2/working-folder.png"
+            alt="Robot Setup Working folder stage and folder choices"
+            width="850"
+            height="373"
+          />
+          <figcaption>
+            Figure A.1. Working folder selection at the start of Robot Setup.
+          </figcaption>
+        </figure>
+      </section>
+      <section class="lecture-section">
+        <h2>Appendix A: USB and Course Software</h2>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.3</span>
+          <div>
+            <h3>Connect USB-C</h3>
+            <ol>
+              <li>Switch XRP off; connect USB-C data cable; switch XRP on</li>
+            </ol>
+          </div>
+        </div>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.4</span>
+          <div>
+            <h3>Select the XRP</h3>
+            <ol>
+              <li>
+                Choose <b>Connect this XRP</b> for a recognized controller;
+                otherwise <b>Choose connected XRP</b> and select XRP controller
+                in the device picker, possibly listed as <b>Board in FS mode</b>
+              </li>
+            </ol>
+          </div>
+        </div>
         <figure style="max-width: 586.7px">
           <img
             src="figures/usb-setup.png"
-            alt="Robot Setup at Connect the XRP by USB-C with Choose connected XRP"
+            alt="USB connection stage in Robot Setup"
             width="670"
             height="280"
           />
           <figcaption>
-            Figure 12. Robot Setup connection stage; powered XRP selected
-            through USB-C.
+            Figure A.2. USB connection and controller selection.
           </figcaption>
         </figure>
-        <ol class="note-entry" start="3">
-          <li>
-            <h3>Prepare the robot and firmware</h3>
-            <ul>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.5</span>
+          <div>
+            <h3>Complete firmware installation if requested</h3>
+            <ol>
               <li>
-                Follow wizard; <b>Install course firmware</b>, if requested:
-                select temporary <b>RP2350</b> drive&#x27;s top level,
-                containing <b>INFO_UF2.TXT</b>; wait for copy completion and
-                drive disappearance; <b>Select restarted XRP</b>
+                Follow <b>Install course firmware</b> when shown; continue with
+                <b>Select restarted XRP</b> [1]
+              </li>
+            </ol>
+          </div>
+        </div>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.6</span>
+          <div>
+            <h3>Prepare the robot</h3>
+            <ol>
+              <li>
+                Under <b>Choose robot Wi-Fi</b>, select <b>Class Wi-Fi</b>;
+                retain <b>Keep [network]</b> when updating an XRP already on
+                that network
               </li>
               <li>
-                Continue to <b>Class Wi-Fi</b> and <b>Prepare XRP</b>; keep USB
-                connected and setup page open through completion
+                Choose <b>Prepare XRP</b>; keep USB connected and setup page
+                open through software installation and robot restart
               </li>
-            </ul>
-          </li>
-        </ol>
-        <ol class="note-entry" start="4">
-          <li>
-            <h3>Verify wireless operation</h3>
-            <ul>
-              <li>
-                Battery power on; unplug USB-C; join computer to network named
-                on setup page; allow local-network access if requested
-              </li>
-              <li>
-                <b>Check wireless connection</b>; wait for
-                <b>Robot setup is complete</b>; choose <b>Open IDE</b>
-              </li>
-            </ul>
-          </li>
-        </ol>
+            </ol>
+          </div>
+        </div>
+        <p class="footnote">
+          [1] <b>Firmware drive, if requested:</b> select the temporary
+          <b>RP2350</b> drive&#x27;s top level containing <b>INFO_UF2.TXT</b>;
+          wait for copy completion and drive disappearance, then
+          <b>Select restarted XRP</b>.
+        </p>
       </section>
       <section class="lecture-section">
-        <h2>Appendix: Spiral on the XRP</h2>
-        <ol class="note-entry" start="5">
-          <li>
-            <h3>Open the spiral Project</h3>
-            <ul>
+        <h2>Appendix A: Wireless Connection</h2>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.7</span>
+          <div>
+            <h3>Check wireless connection</h3>
+            <ol>
               <li>
-                Open existing <b>Expanding spiral</b> Project, or
-                <b>New project…</b>, select <b>Expanding spiral</b>, enter name,
-                and <b>Create</b>
+                At <b>Verify the robot connection</b>, turn on battery power and
+                unplug USB-C
               </li>
-            </ul>
-          </li>
-        </ol>
-        <ol class="note-entry" start="6">
-          <li>
-            <h3>Prepare the program</h3>
-            <ul>
+              <li>Connect computer to the network shown on the setup page</li>
               <li>
-                Select <b>Physical XRP</b> in <b>Run on</b>; choose
-                <b>Compile</b>; correct reported errors
+                Choose <b>Check wireless connection</b>; choose <b>Allow</b> if
+                the browser requests local-network access
               </li>
-            </ul>
-          </li>
-        </ol>
-        <ol class="note-entry" start="7">
-          <li>
-            <h3>Prepare a brief floor trial</h3>
-            <ul>
+            </ol>
+          </div>
+        </div>
+        <div class="appendix-entry">
+          <span class="appendix-number">A.8</span>
+          <div>
+            <h3>Finish setup</h3>
+            <ol>
               <li>
-                Instructor approval; starting position and heading from Project
-                <b>README.md</b> and <b>world.json</b>; clear floor and room for
-                curved travel
+                Wait for <b>XRP ready</b> and <b>Robot setup is complete</b>
               </li>
-              <li>
-                Wheels stationary before <b>Run</b>; keep
-                <b>Ignore obstacles at start</b> unchecked; plan a five-second
-                trial with <b>Stop</b> immediately accessible
-              </li>
-            </ul>
-          </li>
-        </ol>
-        <figure style="max-width: 320px">
+              <li>Choose <b>Open IDE</b></li>
+            </ol>
+          </div>
+        </div>
+        <figure style="max-width: 400px">
           <img
-            src="figures/spiral-run-setting.png"
-            alt="Expanding spiral Run settings with Ignore obstacles at start unchecked"
-            width="200"
-            height="81"
+            src="figures-v2/wireless-check.png"
+            alt="Wireless verification stage with Check wireless connection"
+            width="355"
+            height="429"
           />
           <figcaption>
-            Figure 13. Obstacle stopping enabled for the floor trial.
+            Figure A.3. Wireless check after USB installation; network name
+            determined by class setup.
           </figcaption>
         </figure>
-        <ol class="note-entry" start="8">
-          <li>
-            <h3>Run and stop</h3>
-            <ul>
+      </section>
+      <section class="lecture-section">
+        <hr class="appendix-rule" />
+        <h2>Appendix B: Later Sessions and a Demo</h2>
+        <div class="appendix-entry">
+          <span class="appendix-number">B.1</span>
+          <div>
+            <h3>Reconnect for a lab session</h3>
+            <ol>
+              <li>Power on XRP; connect computer to class Wi-Fi</li>
               <li>
-                Choose <b>Run</b>; watch physical movement and Monitor wheel
-                speeds; choose <b>Stop</b> after five seconds, or earlier as
-                needed; confirm wheels stopped
+                Open the same <b>Working folder</b> used during setup; restore
+                folder access if prompted
               </li>
-              <li>Wheels continuing after <b>Stop</b>: switch XRP power off</li>
+              <li>Open <b>Wi-Fi setup</b>; choose <b>Test Wi-Fi</b></li>
               <li>
-                Obstacle stopping dependent on a usable ultrasound echo; manual
-                <b>Stop</b> available throughout the trial
+                Wait for confirmation that the robot responded and its saved
+                address is current; choose <b>Return to IDE</b>, or
+                <b>Done</b> when Wi-Fi setup is open inside IDE
               </li>
-            </ul>
-          </li>
-        </ol>
-        <ol class="note-entry" start="9">
-          <li>
-            <h3>Review the trial</h3>
-            <ul>
+            </ol>
+          </div>
+        </div>
+        <figure style="max-width: 560px">
+          <img
+            src="figures-v2/later-wifi.png"
+            alt="Wi-Fi setup with saved robot connection and Test Wi-Fi"
+            width="604"
+            height="311"
+          />
+          <figcaption>
+            Figure B.1. Test Wi-Fi using the connection saved in the Working
+            folder.
+          </figcaption>
+        </figure>
+        <div class="appendix-entry">
+          <span class="appendix-number">B.2</span>
+          <div>
+            <h3>Open Expanding spiral</h3>
+            <ol>
               <li>
-                Inspect wheel-estimated path, wheel-speed plots, and
-                <b>Program output</b>; add <b>Notes</b> for observations;
-                compare with the virtual spiral
+                Open existing <b>Expanding spiral</b> Project, or choose
+                <b>New project…</b>, select <b>Expanding spiral</b>, enter a
+                name, and choose <b>Create</b>
               </li>
-            </ul>
-          </li>
-        </ol>
-        <p>
-          <b>Later sessions</b>: XRP power on; computer on class Wi-Fi; same
-          Working folder open;
-          <b>Wi-Fi setup → Test Wi-Fi → Return to IDE</b> before running.
-        </p>
+            </ol>
+          </div>
+        </div>
+        <div class="appendix-entry">
+          <span class="appendix-number">B.3</span>
+          <div>
+            <h3>Run the demo</h3>
+            <ol>
+              <li>
+                Select <b>Physical XRP</b> in <b>Run on</b>; choose
+                <b>Compile</b>
+              </li>
+              <li>
+                Place XRP at the Project&#x27;s starting position and heading;
+                choose <b>Run</b>
+              </li>
+              <li>
+                Observe robot movement, telemetry, and plots; <b>Stop</b> to end
+                the run
+              </li>
+              <li>
+                Review recorded measurements and <b>Program output</b>; add
+                <b>Notes</b> for observations
+              </li>
+            </ol>
+          </div>
+        </div>
       </section>
     </main>
   </body>
