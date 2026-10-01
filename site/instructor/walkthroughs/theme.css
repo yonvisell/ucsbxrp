@@ -1014,6 +1014,21 @@ input[type="range"]:disabled {
   font-size: var(--font-xs);
 }
 
+.landing-header .landing-orientation-link {
+  flex: 0 0 auto;
+  margin-left: auto;
+  border-color: #00588a;
+  background: #00588a;
+  color: #fff;
+}
+
+.landing-header .landing-orientation-link:hover,
+.landing-header .landing-orientation-link:focus-visible {
+  border-color: #003f63;
+  background: #003f63;
+  color: #fff;
+}
+
 @media (max-width: 430px) {
   :root {
     --course-header-height: 48px;
@@ -1027,6 +1042,10 @@ input[type="range"]:disabled {
     width: 100%;
     flex-basis: 100%;
     justify-content: space-between;
+  }
+
+  .landing-header .app-navigation {
+    order: 1;
   }
 }
 
