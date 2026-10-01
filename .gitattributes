@@ -1,0 +1,3 @@
+site/** -text
+site/course/commissioning/**/firmware-source/scripts/firmware/gcsync-port.patch -whitespace
+site/course/commissioning/**/firmware-source/vendor/licenses/** -whitespace

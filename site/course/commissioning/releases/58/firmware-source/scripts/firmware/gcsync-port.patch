@@ -1,0 +1,604 @@
+diff --git a/ports/rp2/boards/SPARKFUN_XRP_CONTROLLER/mpconfigboard.h b/ports/rp2/boards/SPARKFUN_XRP_CONTROLLER/mpconfigboard.h
+--- a/ports/rp2/boards/SPARKFUN_XRP_CONTROLLER/mpconfigboard.h
++++ b/ports/rp2/boards/SPARKFUN_XRP_CONTROLLER/mpconfigboard.h
+@@ -46,3 +46,9 @@
+ #define MICROPY_HW_UART1_RX (9)
+ #define MICROPY_HW_UART1_CTS (10)
+ #define MICROPY_HW_UART1_RTS (11)
++
++// Isolated UCSBXRP RP2350 cooperative-GC qualification candidate.
++// Preserve the upstream RP2 thread defaults, including pending-callback yield.
++#define MICROPY_RP2_GCSYNC (1)
++#define MICROPY_RP2_GCSYNC_TIMEOUT_US (250000u)
++#define MICROPY_RP2_GCSYNC_START_TIMEOUT_US (250000u)
+diff --git a/ports/rp2/main.c b/ports/rp2/main.c
+--- a/ports/rp2/main.c
++++ b/ports/rp2/main.c
+@@ -312,12 +312,27 @@
+ }
+ 
+ void gc_collect(void) {
++    #if MICROPY_RP2_GCSYNC
++    // Serialize collectors before requesting the other core.  This outer
++    // recursive acquisition also protects the resume-before-sweep interval.
++    mp_thread_recursive_mutex_lock(&MP_STATE_MEM(gc_mutex), 1);
++    if (!mp_thread_gcsync_begin(true)) {
++        // No root/mark/ATB operation has occurred on a failed rendezvous.
++        mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
++        return;
++    }
++    #endif
+     gc_collect_start();
+     gc_helper_collect_regs_and_stack();
+     #if MICROPY_PY_THREAD
+     mp_thread_gc_others();
+     #endif
+     gc_collect_end();
++    #if MICROPY_RP2_GCSYNC
++    // Normally already resumed by the post-mark hook; deliberately idempotent.
++    mp_thread_gcsync_resume();
++    mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
++    #endif
+ }
+ 
+ void nlr_jump_fail(void *val) {
+diff --git a/ports/rp2/modrp2.c b/ports/rp2/modrp2.c
+--- a/ports/rp2/modrp2.c
++++ b/ports/rp2/modrp2.c
+@@ -89,6 +89,11 @@
+ MP_DEFINE_CONST_FUN_OBJ_0(rp2_bootsel_button_obj, rp2_bootsel_button);
+ 
+ 
++#if MICROPY_RP2_GCSYNC
++mp_obj_t mp_thread_gcsync_stats(void);
++static MP_DEFINE_CONST_FUN_OBJ_0(rp2_gcsync_stats_obj, mp_thread_gcsync_stats);
++#endif
++
+ static const mp_rom_map_elem_t rp2_module_globals_table[] = {
+     { MP_ROM_QSTR(MP_QSTR___name__),            MP_ROM_QSTR(MP_QSTR_rp2) },
+     { MP_ROM_QSTR(MP_QSTR_Flash),               MP_ROM_PTR(&rp2_flash_type) },
+@@ -97,6 +102,9 @@
+     { MP_ROM_QSTR(MP_QSTR_DMA),                 MP_ROM_PTR(&rp2_dma_type) },
+     { MP_ROM_QSTR(MP_QSTR_DMATimer),            MP_ROM_PTR(&rp2_dma_timer_type) },
+     { MP_ROM_QSTR(MP_QSTR_bootsel_button),      MP_ROM_PTR(&rp2_bootsel_button_obj) },
++    #if MICROPY_RP2_GCSYNC
++    { MP_ROM_QSTR(MP_QSTR__gcsync_stats),        MP_ROM_PTR(&rp2_gcsync_stats_obj) },
++    #endif
+ 
+     #if MICROPY_PY_NETWORK_CYW43
+     // Deprecated (use network.country instead).
+diff --git a/ports/rp2/mpconfigport.h b/ports/rp2/mpconfigport.h
+--- a/ports/rp2/mpconfigport.h
++++ b/ports/rp2/mpconfigport.h
+@@ -141,6 +141,16 @@
+ #define MICROPY_PY_THREAD                       (1)
+ #define MICROPY_PY_THREAD_GIL                   (0)
+ #define MICROPY_THREAD_YIELD()                  mp_handle_pending(MP_HANDLE_PENDING_CALLBACKS_AND_EXCEPTIONS)
++#endif
++
++// Optional RP2350 cooperative GC; ordinary interpreter execution has no GIL.
++#ifndef MICROPY_RP2_GCSYNC
++#define MICROPY_RP2_GCSYNC (0)
++#endif
++#if MICROPY_RP2_GCSYNC
++#define MICROPY_VM_HOOK_LOOP mp_thread_gcsync_poll();
++#define MICROPY_VM_HOOK_RETURN mp_thread_gcsync_poll();
++#define MICROPY_GC_HOOK_POST_MARK mp_thread_gcsync_resume();
+ #endif
+ 
+ // Extended modules
+diff --git a/ports/rp2/mphalport.h b/ports/rp2/mphalport.h
+--- a/ports/rp2/mphalport.h
++++ b/ports/rp2/mphalport.h
+@@ -53,17 +53,25 @@
+ #define MICROPY_PY_LWIP_EXIT    lwip_lock_release();
+ #define MICROPY_PY_LWIP_POLL_HOOK lwip_poll_hook();
+ 
++#if MICROPY_RP2_GCSYNC
++#define MICROPY_RP2_GCSYNC_WFE_POLL() mp_thread_gcsync_poll()
++#else
++#define MICROPY_RP2_GCSYNC_WFE_POLL() ((void)0)
++#endif
++
+ // Port level Wait-for-Event macro
+ //
+ // Do not use this macro directly, include py/runtime.h and
+ // call mp_event_wait_indefinite() or mp_event_wait_ms(timeout)
+ #define MICROPY_INTERNAL_WFE(TIMEOUT_MS) \
+     do {                                 \
++        MICROPY_RP2_GCSYNC_WFE_POLL(); \
+         if ((TIMEOUT_MS) < 0) { \
+             __wfe(); \
+         } else { \
+             mp_wfe_or_timeout(TIMEOUT_MS); \
+         } \
++        MICROPY_RP2_GCSYNC_WFE_POLL(); \
+     } while (0)
+ 
+ extern int mp_interrupt_char;
+diff --git a/ports/rp2/mpthreadport.c b/ports/rp2/mpthreadport.c
+--- a/ports/rp2/mpthreadport.c
++++ b/ports/rp2/mpthreadport.c
+@@ -32,6 +32,19 @@
+ #include "pico/multicore.h"
+ #include "mutex_extra.h"
+ 
++#if MICROPY_RP2_GCSYNC
++#include "py/mperrno.h"
++#include "shared/runtime/gchelper.h"
++#include "pendsv.h"
++#include "hardware/watchdog.h"
++
++#if !PICO_RP2350 || !PICO_ARM || !MICROPY_PY_THREAD || MICROPY_PY_THREAD_GIL || MICROPY_PY_WEAKREF
++#error GCSYNC qualification requires RP2350 ARM, no GIL, and no weakrefs.
++#endif
++_Static_assert(sizeof(gc_helper_regs_t) == 10 * sizeof(uintptr_t), "ARM GC register ABI changed");
++extern uintptr_t gc_helper_get_regs_and_sp(uintptr_t *regs);
++#endif
++
+ #if MICROPY_PY_THREAD
+ 
+ extern uint8_t __StackTop, __StackBottom;
+@@ -47,6 +60,173 @@
+ 
+ // Thread mutex.
+ static recursive_mutex_t atomic_mutex;
++
++#if MICROPY_RP2_GCSYNC
++// These snapshots live in SRAM, never in the GC heap.  A matching ACK is
++// published only after the helper has spilled r4-r11/r12/SP and IRQs are off.
++typedef struct {
++    gc_helper_regs_t regs;
++    uintptr_t sp;
++    uint32_t ack;
++} gcsync_snapshot_t;
++static gcsync_snapshot_t gcsync_snapshot[2];
++uint32_t mp_thread_gcsync_request;
++static uint32_t gcsync_owner;
++static uint32_t gcsync_generation;
++static uint32_t gcsync_started[2];
++static uint32_t gcsync_ack_count[2];
++static bool gcsync_mark_active;
++static bool gcsync_is_collection;
++static uint32_t gcsync_mark_start;
++static uint32_t gcsync_attempts, gcsync_completed, gcsync_timeouts;
++static uint32_t gcsync_wait_last, gcsync_wait_max, gcsync_wait_total;
++static uint32_t gcsync_mark_last, gcsync_mark_max, gcsync_mark_total;
++static uint32_t gcsync_first_failure, gcsync_first_failure_attempt;
++
++static bool gcsync_thread_context(void) {
++    uint32_t primask, ipsr;
++    __asm volatile ("mrs %0, primask\n mrs %1, ipsr" : "=r" (primask), "=r" (ipsr));
++    return primask == 0 && ipsr == 0 && !pendsv_is_locked_by_current_core();
++}
++
++bool mp_thread_gcsync_other_core_running(void) {
++    return __atomic_load_n(&gcsync_started[1 - get_core_num()], __ATOMIC_ACQUIRE) != 0;
++}
++
++void mp_thread_gcsync_poll_wait(void) {
++    uint32_t core = get_core_num();
++    uint32_t request = __atomic_load_n(&mp_thread_gcsync_request, __ATOMIC_ACQUIRE);
++    if (!request || __atomic_load_n(&gcsync_owner, __ATOMIC_RELAXED) == core || !gcsync_thread_context()) {
++        return;
++    }
++    uint32_t irq_state = save_and_disable_interrupts();
++    // The caller ABI has already preserved caller-saved live values.  This
++    // exact assembly helper adds every callee-saved register to the snapshot.
++    gcsync_snapshot[core].sp = gc_helper_get_regs_and_sp(gcsync_snapshot[core].regs);
++    __atomic_fetch_add(&gcsync_ack_count[core], 1, __ATOMIC_RELAXED);
++    __atomic_store_n(&gcsync_snapshot[core].ack, request, __ATOMIC_RELEASE);
++    __sev();
++    while (__atomic_load_n(&mp_thread_gcsync_request, __ATOMIC_ACQUIRE) == request) {
++        // Do not dispatch callbacks, allocate, acquire locks, or time out
++        // independently after ACK: roots must stay frozen until mark ends.
++        __wfe();
++    }
++    __atomic_store_n(&gcsync_snapshot[core].ack, 0, __ATOMIC_RELEASE);
++    restore_interrupts(irq_state);
++}
++
++static void gcsync_record_failure(uint32_t code) {
++    ++gcsync_timeouts;
++    if (!gcsync_first_failure) {
++        gcsync_first_failure = code;
++        gcsync_first_failure_attempt = gcsync_attempts;
++    }
++}
++
++bool mp_thread_gcsync_begin(bool collection) {
++    // The caller already owns gc_mutex; two collectors cannot publish at once.
++    uint32_t start = time_us_32();
++    if (collection) {
++        ++gcsync_attempts;
++    }
++    if (!gcsync_thread_context()) {
++        gcsync_record_failure(1); // Unsafe collector context, no marks made.
++        return false;
++    }
++    uint32_t core = get_core_num();
++    uint32_t other = 1 - core;
++    if (__atomic_load_n(&gcsync_started[other], __ATOMIC_ACQUIRE)) {
++        uint32_t request = ++gcsync_generation;
++        if (!request) {
++            request = ++gcsync_generation;
++        }
++        __atomic_store_n(&gcsync_owner, core, __ATOMIC_RELAXED);
++        __atomic_store_n(&mp_thread_gcsync_request, request, __ATOMIC_RELEASE);
++        __sev();
++        while (__atomic_load_n(&gcsync_snapshot[other].ack, __ATOMIC_ACQUIRE) != request) {
++            if ((uint32_t)(time_us_32() - start) >= MICROPY_RP2_GCSYNC_TIMEOUT_US) {
++                __atomic_store_n(&mp_thread_gcsync_request, 0, __ATOMIC_RELEASE);
++                __sev();
++                gcsync_record_failure(2); // Native blocker failed to acknowledge.
++                gcsync_wait_last = time_us_32() - start;
++                if (gcsync_wait_last > gcsync_wait_max) {
++                    gcsync_wait_max = gcsync_wait_last;
++                }
++                gcsync_wait_total += gcsync_wait_last;
++                return false;
++            }
++            tight_loop_contents();
++        }
++    }
++    gcsync_wait_last = time_us_32() - start;
++    if (gcsync_wait_last > gcsync_wait_max) {
++        gcsync_wait_max = gcsync_wait_last;
++    }
++    gcsync_wait_total += gcsync_wait_last;
++    gcsync_is_collection = collection;
++    gcsync_mark_active = true;
++    gcsync_mark_start = time_us_32();
++    return true;
++}
++
++void mp_thread_gcsync_resume(void) {
++    if (gcsync_mark_active) {
++        if (gcsync_is_collection) {
++            gcsync_mark_last = time_us_32() - gcsync_mark_start;
++            gcsync_mark_total += gcsync_mark_last;
++            if (gcsync_mark_last > gcsync_mark_max) {
++                gcsync_mark_max = gcsync_mark_last;
++            }
++            ++gcsync_completed;
++        }
++        gcsync_mark_active = false;
++        __atomic_store_n(&mp_thread_gcsync_request, 0, __ATOMIC_RELEASE);
++        __sev();
++    }
++}
++
++// Private qualification-only tuple; copy counters before creating Python
++// objects so recording stats cannot change the snapshot being returned.
++mp_obj_t mp_thread_gcsync_stats(void) {
++    uint32_t values[16];
++    mp_thread_recursive_mutex_lock(&MP_STATE_MEM(gc_mutex), 1);
++    values[0] = 1;
++    values[1] = gcsync_attempts;
++    values[2] = gcsync_completed;
++    values[3] = gcsync_timeouts;
++    values[4] = gcsync_first_failure;
++    values[5] = gcsync_first_failure_attempt;
++    values[6] = gcsync_wait_last;
++    values[7] = gcsync_wait_max;
++    values[8] = gcsync_wait_total;
++    values[9] = gcsync_mark_last;
++    values[10] = gcsync_mark_max;
++    values[11] = gcsync_mark_total;
++    values[12] = __atomic_load_n(&gcsync_ack_count[0], __ATOMIC_RELAXED);
++    values[13] = __atomic_load_n(&gcsync_ack_count[1], __ATOMIC_RELAXED);
++    values[14] = __atomic_load_n(&gcsync_started[0], __ATOMIC_ACQUIRE);
++    values[15] = __atomic_load_n(&gcsync_started[1], __ATOMIC_ACQUIRE);
++    mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
++    mp_obj_t items[MP_ARRAY_SIZE(values)];
++    for (size_t i = 0; i < MP_ARRAY_SIZE(values); ++i) {
++        items[i] = mp_obj_new_int_from_uint(values[i]);
++    }
++    return mp_obj_new_tuple(MP_ARRAY_SIZE(items), items);
++}
++
++static void gcsync_retire_core1(void) {
++    // Called with gc_mutex held and, if started, core1 cooperatively parked.
++    multicore_reset_core1();
++    __atomic_store_n(&gcsync_started[1], 0, __ATOMIC_RELEASE);
++    __atomic_store_n(&gcsync_snapshot[1].ack, 0, __ATOMIC_RELEASE);
++    __atomic_store_n(&core1_entry, NULL, __ATOMIC_RELEASE);
++    core_state[1] = NULL;
++    core1_arg = NULL;
++    core1_stack = NULL;
++    core1_stack_num_words = 0;
++    mp_thread_gcsync_resume();
++}
++#endif
+ 
+ uint32_t mp_thread_begin_atomic_section(void) {
+     if (core1_entry) {
+@@ -77,6 +257,20 @@
+ 
+     mp_thread_set_state(&mp_state_ctx.thread);
+     core1_entry = NULL;
++    #if MICROPY_RP2_GCSYNC
++    // Previous soft reset has physically retired core1 before mp_init.
++    __atomic_store_n(&mp_thread_gcsync_request, 0, __ATOMIC_RELEASE);
++    memset(gcsync_snapshot, 0, sizeof(gcsync_snapshot));
++    gcsync_started[0] = 1;
++    gcsync_started[1] = 0;
++    gcsync_generation = 0;
++    gcsync_mark_active = false;
++    gcsync_ack_count[0] = gcsync_ack_count[1] = 0;
++    gcsync_attempts = gcsync_completed = gcsync_timeouts = 0;
++    gcsync_wait_last = gcsync_wait_max = gcsync_wait_total = 0;
++    gcsync_mark_last = gcsync_mark_max = gcsync_mark_total = 0;
++    gcsync_first_failure = gcsync_first_failure_attempt = 0;
++    #endif
+ }
+ 
+ // Shutdown threading support -- stops the second thread.
+@@ -85,13 +279,35 @@
+     // Must ensure that core1 is not currently holding the GC lock, otherwise
+     // it will be terminated while holding the lock.
+     mp_thread_recursive_mutex_lock(&MP_STATE_MEM(gc_mutex), 1);
++    #if MICROPY_RP2_GCSYNC
++    if (!mp_thread_gcsync_begin(false)) {
++        // A failed cooperative retirement cannot safely abandon a native
++        // lock owner.  Reboot all native state rather than clearing its locks.
++        watchdog_reboot(0, 0, 1);
++        for (;;) {
++            tight_loop_contents();
++        }
++    }
++    gcsync_retire_core1();
++    #else
+     multicore_reset_core1();
+     core1_entry = NULL;
++    #endif
+     mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
+ }
+ 
+ void mp_thread_gc_others(void) {
++    #if MICROPY_RP2_GCSYNC
++    uint32_t other = 1 - get_core_num();
++    if (__atomic_load_n(&mp_thread_gcsync_request, __ATOMIC_ACQUIRE)) {
++        gc_collect_root((void **)gcsync_snapshot[other].regs, MP_ARRAY_SIZE(gcsync_snapshot[other].regs));
++    }
++    // Root a finished worker's hardware stack until actual reset; it still
++    // executes a native idle loop and services native interrupts.
++    if (core1_stack != NULL) {
++    #else
+     if (core1_entry != NULL) {
++    #endif
+         // Collect core1's stack if it is active.
+         gc_collect_root((void **)&core1_stack, 1);
+         gc_collect_root((void **)&core1_arg, 1);
+@@ -109,11 +325,27 @@
+     // Set PendSV interrupt priority correctly for CPU1
+     pendsv_init();
+ 
++    #if MICROPY_RP2_GCSYNC
++    // Actual entry handshake, after the FIFO victim and PendSV are ready.
++    __atomic_store_n(&gcsync_started[1], 1, __ATOMIC_RELEASE);
++    mp_thread_gcsync_poll();
++    core_entry_func_t entry = __atomic_load_n(&core1_entry, __ATOMIC_ACQUIRE);
++    if (entry) {
++        entry(core1_arg);
++    }
++    __atomic_store_n(&core1_entry, NULL, __ATOMIC_RELEASE);
++    for (;;) {
++        // Do not return to SDK's opaque WFI loop: subsequent GC needs ACKs.
++        mp_thread_gcsync_poll();
++        __wfe();
++    }
++    #else
+     if (core1_entry) {
+         core1_entry(core1_arg);
+     }
+ 
+     core1_entry = NULL;
++    #endif
+     // returning from here will loop the core forever (WFI)
+ }
+ 
+@@ -129,8 +361,10 @@
+         mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("core1 in use"));
+     }
+ 
++    #if !MICROPY_RP2_GCSYNC
+     core1_entry = entry;
+     core1_arg = arg;
++    #endif
+ 
+     if (*stack_size == 0) {
+         *stack_size = 4096; // default stack size
+@@ -139,15 +373,48 @@
+     }
+ 
+     // Round stack size to a multiple of the word size.
++    size_t stack_num_words = *stack_size / sizeof(uint32_t);
++    *stack_size = stack_num_words * sizeof(uint32_t);
++    #if !MICROPY_RP2_GCSYNC
++    core1_stack_num_words = stack_num_words;
++    #endif
++
++    #if MICROPY_RP2_GCSYNC
++    // Allocate before publishing; allocation failure must not advertise a
++    // phantom running worker or overwrite the old, still-live idle stack.
++    uint32_t *new_stack = m_new(uint32_t, *stack_size / sizeof(uint32_t));
++    mp_thread_recursive_mutex_lock(&MP_STATE_MEM(gc_mutex), 1);
++    if (!mp_thread_gcsync_begin(false)) {
++        mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
++        mp_raise_OSError(MP_ETIMEDOUT);
++    }
++    gcsync_retire_core1();
++    core1_stack = new_stack;
+     core1_stack_num_words = *stack_size / sizeof(uint32_t);
+-    *stack_size = core1_stack_num_words * sizeof(uint32_t);
+-
++    core1_arg = arg;
++    __atomic_store_n(&core1_entry, entry, __ATOMIC_RELEASE);
++    multicore_launch_core1_with_stack(core1_entry_wrapper, core1_stack, *stack_size);
++    uint32_t start = time_us_32();
++    while (!__atomic_load_n(&gcsync_started[1], __ATOMIC_ACQUIRE)) {
++        if ((uint32_t)(time_us_32() - start) >= MICROPY_RP2_GCSYNC_START_TIMEOUT_US) {
++            // Bootstrap performs no Python allocation before started=1, so
++            // retiring this not-yet-started core cannot abandon gc_mutex.
++            gcsync_record_failure(3);
++            gcsync_retire_core1();
++            mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
++            mp_raise_OSError(MP_ETIMEDOUT);
++        }
++        tight_loop_contents();
++    }
++    mp_thread_recursive_mutex_unlock(&MP_STATE_MEM(gc_mutex));
++    #else
+     // Allocate stack.
+     core1_stack = m_new(uint32_t, core1_stack_num_words);
+ 
+     // Create thread on core1.
+     multicore_reset_core1();
+     multicore_launch_core1_with_stack(core1_entry_wrapper, core1_stack, *stack_size);
++    #endif
+ 
+     // Adjust stack_size to provide room to recover from hitting the limit.
+     *stack_size -= 512;
+@@ -156,6 +423,9 @@
+ }
+ 
+ void mp_thread_start(void) {
++    #if MICROPY_RP2_GCSYNC
++    mp_thread_gcsync_poll();
++    #endif
+ }
+ 
+ void mp_thread_finish(void) {
+diff --git a/ports/rp2/mpthreadport.h b/ports/rp2/mpthreadport.h
+--- a/ports/rp2/mpthreadport.h
++++ b/ports/rp2/mpthreadport.h
+@@ -41,6 +41,22 @@
+ void mp_thread_deinit(void);
+ void mp_thread_gc_others(void);
+ 
++#if MICROPY_RP2_GCSYNC
++extern uint32_t mp_thread_gcsync_request;
++void mp_thread_gcsync_poll_wait(void);
++bool mp_thread_gcsync_begin(bool collection);
++void mp_thread_gcsync_resume(void);
++bool mp_thread_gcsync_other_core_running(void);
++
++// One load and a normally untaken branch in the common VM path.  The
++// out-of-line path checks ownership/context and captures all live registers.
++static inline void mp_thread_gcsync_poll(void) {
++    if (__atomic_load_n(&mp_thread_gcsync_request, __ATOMIC_ACQUIRE) != 0) {
++        mp_thread_gcsync_poll_wait();
++    }
++}
++#endif
++
+ static inline void mp_thread_set_state(struct _mp_state_thread_t *state) {
+     core_state[get_core_num()] = state;
+ }
+@@ -55,7 +71,15 @@
+ 
+ static inline int mp_thread_mutex_lock(mp_thread_mutex_t *m, int wait) {
+     if (wait) {
++        #if MICROPY_RP2_GCSYNC
++        while (!mutex_try_enter(m, NULL)) {
++            // Native only: do not execute Python/pending callbacks here.
++            mp_thread_gcsync_poll();
++            tight_loop_contents();
++        }
++        #else
+         mutex_enter_blocking(m);
++        #endif
+         return 1;
+     } else {
+         return mutex_try_enter(m, NULL);
+@@ -72,7 +96,16 @@
+ 
+ static inline int mp_thread_recursive_mutex_lock(mp_thread_recursive_mutex_t *m, int wait) {
+     if (wait) {
++        #if MICROPY_RP2_GCSYNC
++        while (!recursive_mutex_nowait_try_enter(m, NULL)) {
++            // Includes the GC mutex: an allocating waiter must acknowledge
++            // before retrying, rather than blocking the collector forever.
++            mp_thread_gcsync_poll();
++            tight_loop_contents();
++        }
++        #else
+         recursive_mutex_nowait_enter_blocking(m);
++        #endif
+         return 1;
+     } else {
+         return recursive_mutex_nowait_try_enter(m, NULL);
+diff --git a/ports/rp2/pendsv.c b/ports/rp2/pendsv.c
+--- a/ports/rp2/pendsv.c
++++ b/ports/rp2/pendsv.c
+@@ -73,6 +73,14 @@
+     // same time), and that no PendSV handler will run.
+     mp_thread_recursive_mutex_lock(&pendsv_mutex, 1);
+ }
++
++#if MICROPY_RP2_GCSYNC
++bool pendsv_is_locked_by_current_core(void) {
++    // Called only on the uncommon GC rendezvous path.  Parking a native
++    // network-lock owner would obstruct socket finalizers after early resume.
++    return __atomic_load_n(&pendsv_mutex.mutex.owner, __ATOMIC_RELAXED) == lock_get_caller_owner_id();
++}
++#endif
+ 
+ void pendsv_resume(void) {
+     mp_thread_recursive_mutex_unlock(&pendsv_mutex);
+diff --git a/ports/rp2/pendsv.h b/ports/rp2/pendsv.h
+--- a/ports/rp2/pendsv.h
++++ b/ports/rp2/pendsv.h
+@@ -46,6 +46,9 @@
+ 
+ void pendsv_init(void);
+ void pendsv_suspend(void);
++#if MICROPY_RP2_GCSYNC
++bool pendsv_is_locked_by_current_core(void);
++#endif
+ void pendsv_resume(void);
+ void pendsv_schedule_dispatch(size_t slot, pendsv_dispatch_t f);
+ bool pendsv_is_pending(size_t slot);
+diff --git a/ports/rp2/rp2_flash.c b/ports/rp2/rp2_flash.c
+--- a/ports/rp2/rp2_flash.c
++++ b/ports/rp2/rp2_flash.c
+@@ -119,7 +119,11 @@
+ static bool use_multicore_lockout(void) {
+     return multicore_lockout_victim_is_initialized(1 - get_core_num())
+            #if MICROPY_PY_THREAD
++           #if MICROPY_RP2_GCSYNC
++           && mp_thread_gcsync_other_core_running()
++           #else
+            && core1_entry != NULL
++           #endif
+            #endif
+     ;
+ }
+diff --git a/py/gc.c b/py/gc.c
+--- a/py/gc.c
++++ b/py/gc.c
+@@ -603,6 +603,7 @@
+ 
+ void gc_collect_end(void) {
+     gc_deal_with_stack_overflow();
++    MICROPY_GC_HOOK_POST_MARK
+     gc_sweep_run_finalisers();
+     gc_sweep_free_blocks();
+     #if MICROPY_GC_SPLIT_HEAP
+diff --git a/py/mpconfig.h b/py/mpconfig.h
+--- a/py/mpconfig.h
++++ b/py/mpconfig.h
+@@ -784,6 +784,12 @@
+ // *i* is the loop index variable (e.g. can be used to run every x loops)
+ #ifndef MICROPY_GC_HOOK_LOOP
+ #define MICROPY_GC_HOOK_LOOP(i)
++#endif
++
++// A port may resume stopped mutators after all marking/overflow rescans,
++// while the GC mutex still excludes allocation/free until sweeping completes.
++#ifndef MICROPY_GC_HOOK_POST_MARK
++#define MICROPY_GC_HOOK_POST_MARK
+ #endif
+ 
+ // Whether to provide m_tracked_calloc, m_tracked_free functions

@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "board": "SPARKFUN_XRP_CONTROLLER",
+  "micropython_commit": "0fd6c573ea815774668bbb16b8e197c8822368b2",
+  "micropython_tag": "v1.29.0",
+  "source_date_epoch": 1787579045,
+  "compiler_banner": "arm-none-eabi-gcc (Arm GNU Toolchain 15.3.Rel1 (Build arm-15.149)) 15.3.1 20260627",
+  "cmake_version": "3.28.3",
+  "picotool_commit": "6f6458d792b93685a11423b244a585eaa99eafcf",
+  "submodules": {
+    "lib/btstack": "77e752abd6a0992334047a48038a5a3960e5c6bc",
+    "lib/cyw43-driver": "055d64274b014dd7b1c2fc94d26e8a18face7124",
+    "lib/lwip": "77dcd25a72509eb83f72b033d219b1d40cd8eb95",
+    "lib/mbedtls": "0bebf8b8c7f07abe3571ded48a11aa907a1ffb20",
+    "lib/micropython-lib": "ee4bb8ff139e24c42b739935fbd8ec7c4d061e02",
+    "lib/pico-sdk": "98a542c1a62fb549ffb5d66a3e5892b06276b670",
+    "lib/tinyusb": "b549ac1d84cbbe550c9590951e2290098b3fb16c",
+    "lib/mbedtls/framework": "dff9da04438d712f7647fd995bc90fadd0c0e2ce"
+  },
+  "owned_sources": {
+    "ports/rp2/boards/SPARKFUN_XRP_CONTROLLER/mpconfigboard.h": {
+      "stock": "7effd9406106b04c3609831c30c47a00810521ff0bf438ca77e4871f40cca4a7",
+      "gcsync": "428ad42d7e97f30fb3da52e6af750015bc44e92b79204b9378cf5e949d8ac5f8"
+    },
+    "ports/rp2/main.c": {
+      "stock": "680c9b77012e76d00c86b74eeb4871e6392ccd0ddc748f9bc5011a477750bc6e",
+      "gcsync": "1ff27c0bbfc06f979a1082e05432a3b87d0365d73c05c6e6cf4b1ac1cf2b701c"
+    },
+    "ports/rp2/modrp2.c": {
+      "stock": "f4cf0c6844b72653545c2aadac53e2fbfec584a06c27bf576e77d7b0dd737ef1",
+      "gcsync": "dd855c2d187015a534bde6451253089020e987d5b0d605bf7ff7e8c0a3b4714c"
+    },
+    "ports/rp2/mpconfigport.h": {
+      "stock": "14dadcf3b47b022196d1c71cb0d9ef391d799c2b31b2f775c7d2ae584273b9ef",
+      "gcsync": "e6be01b8adcccf6f7f8dd097e0ad6215cb590864b816ea78bc09f89b4ea58503"
+    },
+    "ports/rp2/mphalport.h": {
+      "stock": "42c32308b5a38cb8ae817582099c442ff14975982fe6edb95f1ddab4c2692d63",
+      "gcsync": "dd4eddc1e9bbd517279110d231d38292e793998dee4691aa014e6ab56eff5767"
+    },
+    "ports/rp2/mpthreadport.c": {
+      "stock": "e6fbfeb8e3acadb5feacb2da14bffddc6c4eed16dcef86a160c3ac9f540cfc75",
+      "gcsync": "27cc237728b9223349cdcf9a5179b94285c6f6bd8a20755c5177cc99048faf26"
+    },
+    "ports/rp2/mpthreadport.h": {
+      "stock": "dfcb942b5e3007647b198ce4a352d2d8b6e33b3e5e8c3f2d2ce6bd20cf460d75",
+      "gcsync": "00440586241dd0b3992afde8231ef743ee90a1dcb5fe21e664f18c4a848566fe"
+    },
+    "ports/rp2/pendsv.c": {
+      "stock": "a80d7d066bdcdc397c0a3a4ab4608b633032d8f1a92d06d49d821cf9dbdcb74b",
+      "gcsync": "d8dc12b5d1ce16d913eaf7fc544979810411c16cd14ca83dc36faebae52b6d85"
+    },
+    "ports/rp2/pendsv.h": {
+      "stock": "ef4853988f4e483a4b634903dd43751640c42119eb12dbb651051390f42b07aa",
+      "gcsync": "b7768c2830fa9c3a5e8809cac51381fe82840f95eec38e00494875c1aec9c646"
+    },
+    "ports/rp2/rp2_flash.c": {
+      "stock": "2917f2ee9f5eb29f87780fd7f80965d5e5c2fac82bcff89d43e7084de842e8eb",
+      "gcsync": "ddf7010e3488653dfc585e4218828a08074e7cd9d22de875ad7db932214fce6a"
+    },
+    "py/gc.c": {
+      "stock": "70d904812bdbf217e191855601481eace79c07b8bb32ba74161b5a5bfe96466a",
+      "gcsync": "d71e5bd1df5aa7db3c57bea16b316e7523ef4616c2a61d46019f131fa714f245"
+    },
+    "py/mpconfig.h": {
+      "stock": "fd17ec20cf25977127a18d1536e3dec2244d3cdc1bf2d39738355425b03a797e",
+      "gcsync": "9db610749da8eaee00c0b5838ec424c9a11599c201adbc87eae372cebd0051a3"
+    }
+  },
+  "toolchain_package": {
+    "url": "https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel1/arm-gnu-toolchain-15.3.rel1-darwin-arm64-arm-none-eabi.pkg",
+    "sha256": "5fb58dc3bd6684e70a02bd1c654a6b91f044cda241eb3ae663a7b9170491d7b2"
+  },
+  "reference_artifacts": {
+    "stock": {
+      "build_id": "ucsbxrp-rp2350-1.29.0-control-20260930.1",
+      "artifacts": {
+        "uf2": {
+          "bytes": 1786880,
+          "sha256": "e816533312f25faa59a6c826d830a66866de354dbc54200b89dc989d1e6eb26d"
+        },
+        "bin": {
+          "bytes": 893172,
+          "sha256": "b98865d1faafcc61104773b88b22acd7316f4c5690f48c8e10b6ae7714807377"
+        },
+        "elf": {
+          "bytes": 8884428,
+          "sha256": "f36461d9217b81e3a45225a379136673e5aedd79f640fe63d7117fa06636ef39"
+        },
+        "elf.map": {
+          "bytes": 5575506,
+          "sha256": "e748dacda2b1ffb406f5627d7301726a70a6837718036a0c6341ce4a7383b1ba"
+        }
+      }
+    },
+    "gcsync": {
+      "build_id": "ucsbxrp-rp2350-1.29.0-gcsync-20260930.1",
+      "artifacts": {
+        "uf2": {
+          "bytes": 1789952,
+          "sha256": "8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a"
+        },
+        "bin": {
+          "bytes": 894660,
+          "sha256": "8f970b9aaf50bbb38781d36911fd06bd8eb03d785be14e65add9250ab10eeff6"
+        },
+        "elf": {
+          "bytes": 8977236,
+          "sha256": "ac9876f4acd15d447dbb9de605bc812ac995c08b226f1a64b044d6eeeaf0ccc9"
+        },
+        "elf.map": {
+          "bytes": 6407699,
+          "sha256": "2d6bd7ef6777f44303c6e05abbde30cbebd9c6a687bbc5117e7cfa38e58fc266"
+        }
+      }
+    }
+  },
+  "uf2_ignored_preamble_sha256": "beba6c28ea1a9d1bb050c7870c039077e6b5a2a0d77d3b4d2d9c2b52bc5c585f",
+  "firmware_region_start": 268435456,
+  "filesystem_start": 270008320,
+  "flash_bytes": 16777216,
+  "filesystem_bytes": 15204352,
+  "candidate_status": "native stationary and clean-WPI Mac browser qualification passed; native Windows and motion unqualified",
+  "gcsync_patch_sha256": "a100318739c5d9eeaa7365d8a901b2c38b9ea7e90b5d2689785616cafa62e1ff",
+  "picotool_binary_sha256": "83e6913e49c2d6111f65877546e333d00b12866e52c717b41cb98d475d556808",
+  "picotool_config_hashes": {
+    "picotoolConfig.cmake": "ca12b6fee18e6583713cfdcb2e81886aaee741d40304ea2cc88c4f5b2df2b6c3",
+    "picotoolConfigVersion.cmake": "61485a18a59a186d7cb82ddf7686c5f1f4def81726568ae49fd0033db368f7e3",
+    "picotoolTargets-release.cmake": "e40085002e565de850554e772c90f1a1c4cffb545f853eaa231b145e498f7c0f",
+    "picotoolTargets.cmake": "bfdb36f8140b9f4264bbc6d500585f1f48e256568461bc86c7439c655aa31b25"
+  },
+  "reference_macros": {
+    "stock": {
+      "MICROPY_HW_BOARD_NAME": "\"SparkFun XRP Controller\"",
+      "MICROPY_HW_USB_VID": "(0x1B4F)",
+      "MICROPY_HW_USB_PID": "(0x0046)",
+      "MICROPY_HW_ENABLE_PSRAM": "1",
+      "MICROPY_HW_PSRAM_CS_PIN": "47",
+      "MICROPY_HW_FLASH_STORAGE_BYTES": "15204352",
+      "PICO_FLASH_SIZE_BYTES": "(16 * 1024 * 1024)",
+      "PICO_AUTO_DETECT_PSRAM_SIZE": "1",
+      "PICO_PSRAM_CS_PIN": "47",
+      "MICROPY_PY_NETWORK_CYW43": "1",
+      "MICROPY_PY_LWIP": "1",
+      "MICROPY_PY_BLUETOOTH": "1",
+      "CYW43_SPI_PIO": "(1)",
+      "MICROPY_HW_USB_CDC": "(1)",
+      "MICROPY_PY_THREAD": "(1)",
+      "MICROPY_PY_THREAD_GIL": "(0)",
+      "MICROPY_PY_THREAD_GIL_VM_DIVISOR": "(32)",
+      "MICROPY_GC_SPLIT_HEAP": "MICROPY_HW_ENABLE_PSRAM",
+      "PICO_STACK_SIZE": "0x2000",
+      "PICO_CORE1_STACK_SIZE": "0",
+      "SYS_CLK_KHZ": "(SYS_CLK_HZ / 1000)",
+      "MICROPY_PY_SYS_PLATFORM": "\"rp2\"",
+      "SYS_CLK_HZ": "_u(150000000)",
+      "MICROPY_THREAD_YIELD()": "mp_handle_pending(MP_HANDLE_PENDING_CALLBACKS_AND_EXCEPTIONS)",
+      "PICO_ARM": "1",
+      "PICO_RP2350": "1",
+      "MICROPY_PY_WEAKREF": "(MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)"
+    },
+    "gcsync": {
+      "MICROPY_HW_BOARD_NAME": "\"SparkFun XRP Controller\"",
+      "MICROPY_HW_USB_VID": "(0x1B4F)",
+      "MICROPY_HW_USB_PID": "(0x0046)",
+      "MICROPY_HW_ENABLE_PSRAM": "1",
+      "MICROPY_HW_PSRAM_CS_PIN": "47",
+      "MICROPY_HW_FLASH_STORAGE_BYTES": "15204352",
+      "PICO_FLASH_SIZE_BYTES": "(16 * 1024 * 1024)",
+      "PICO_AUTO_DETECT_PSRAM_SIZE": "1",
+      "PICO_PSRAM_CS_PIN": "47",
+      "MICROPY_PY_NETWORK_CYW43": "1",
+      "MICROPY_PY_LWIP": "1",
+      "MICROPY_PY_BLUETOOTH": "1",
+      "CYW43_SPI_PIO": "(1)",
+      "MICROPY_HW_USB_CDC": "(1)",
+      "MICROPY_PY_THREAD": "(1)",
+      "MICROPY_PY_THREAD_GIL": "(0)",
+      "MICROPY_PY_THREAD_GIL_VM_DIVISOR": "(32)",
+      "MICROPY_GC_SPLIT_HEAP": "MICROPY_HW_ENABLE_PSRAM",
+      "PICO_STACK_SIZE": "0x2000",
+      "PICO_CORE1_STACK_SIZE": "0",
+      "SYS_CLK_KHZ": "(SYS_CLK_HZ / 1000)",
+      "MICROPY_PY_SYS_PLATFORM": "\"rp2\"",
+      "SYS_CLK_HZ": "_u(150000000)",
+      "MICROPY_THREAD_YIELD()": "mp_handle_pending(MP_HANDLE_PENDING_CALLBACKS_AND_EXCEPTIONS)",
+      "MICROPY_RP2_GCSYNC": "(1)",
+      "MICROPY_RP2_GCSYNC_TIMEOUT_US": "(250000u)",
+      "MICROPY_RP2_GCSYNC_START_TIMEOUT_US": "(250000u)",
+      "MICROPY_RP2_GCSYNC_WFE_POLL()": "mp_thread_gcsync_poll()",
+      "MICROPY_VM_HOOK_LOOP": "mp_thread_gcsync_poll();",
+      "MICROPY_VM_HOOK_RETURN": "mp_thread_gcsync_poll();",
+      "PICO_ARM": "1",
+      "PICO_RP2350": "1",
+      "MICROPY_PY_WEAKREF": "(MICROPY_CONFIG_ROM_LEVEL_AT_LEAST_EVERYTHING)"
+    }
+  },
+  "compiler_adaptation": "mbedTLS aes.c and gcm.c only: -Wno-error=array-bounds; diagnostics remain visible",
+  "reference_warning_count": 7,
+  "withdrawn_candidate": {
+    "build_id": "ucsbxrp-rp2350-1.29.0-gcsync-20260930.2",
+    "uf2_sha256": "575c329513b46d7469258ef23e41a480a46601dcd34405018d64bb12894e34f6",
+    "patch_sha256": "ae115e5ced423ba0222e86d0a3d013fc8c6442cf403fa745000a87297f9b3563",
+    "reason": "native GC rendezvous failures on next Run after allocating-loop Stop fallback reset; timed SDK mutex wait withdrawn"
+  },
+  "rejected_candidate_evidence": [
+    "outputs/revisions/2026-09-30-mac-first-setup/gcsync2-standard-01/report.json",
+    "outputs/revisions/2026-09-30-mac-first-setup/gcsync2-after-stop-native-stats.json"
+  ],
+  "service_requirement": "Persistent project-worker idle uses nonblocking wake acquisition and time.sleep_ms(PROJECT_WORKER_IDLE_MS), with PROJECT_WORKER_IDLE_MS=5 and shutdown checks; the exact service revision requires separate native qualification."
+}

@@ -1,0 +1,91 @@
+{
+  "description": "Byte-exact upstream license and notice files accompanying the pinned native MicroPython firmware; no combined-license interpretation.",
+  "micropython_commit": "0fd6c573ea815774668bbb16b8e197c8822368b2",
+  "firmware_sha256": "8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a",
+  "files": [
+    {
+      "path": "btstack/LICENSE",
+      "source_path": "lib/btstack/LICENSE",
+      "source_commit": "77e752abd6a0992334047a48038a5a3960e5c6bc",
+      "byte_size": 1721,
+      "sha256": "10aa5f952979a9fa2f58bf63c1390c9795b41f8eca405ab975ab926e4d14fc5a"
+    },
+    {
+      "path": "cyw43-driver/LICENSE",
+      "source_path": "lib/cyw43-driver/LICENSE",
+      "source_commit": "055d64274b014dd7b1c2fc94d26e8a18face7124",
+      "byte_size": 1654,
+      "sha256": "0ce42360898b7c3f168317b559d4783b55c892751580c2a12c76b548aa5858fb"
+    },
+    {
+      "path": "cyw43-driver/LICENSE.RP",
+      "source_path": "lib/cyw43-driver/LICENSE.RP",
+      "source_commit": "055d64274b014dd7b1c2fc94d26e8a18face7124",
+      "byte_size": 1789,
+      "sha256": "67aca4f10d9edf489871f64cd8f0dcd6c5df3e4ce75bd39e1914fc54f99e40b3"
+    },
+    {
+      "path": "cyw43-driver/firmware/README.md",
+      "source_path": "lib/cyw43-driver/firmware/README.md",
+      "source_commit": "055d64274b014dd7b1c2fc94d26e8a18face7124",
+      "byte_size": 1367,
+      "sha256": "ef8f2117d35be65bc7153877cfca827f08ed7110c8b6b7efc058ae4c8489fb0b"
+    },
+    {
+      "path": "lwip/COPYING",
+      "source_path": "lib/lwip/COPYING",
+      "source_commit": "77dcd25a72509eb83f72b033d219b1d40cd8eb95",
+      "byte_size": 1425,
+      "sha256": "ef4aac92e05e87cd1cdc140870ed52206ba03d4a7fe46c1e11d7ffa6c87d252b"
+    },
+    {
+      "path": "mbedtls/LICENSE",
+      "source_path": "lib/mbedtls/LICENSE",
+      "source_commit": "0bebf8b8c7f07abe3571ded48a11aa907a1ffb20",
+      "byte_size": 29852,
+      "sha256": "9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b"
+    },
+    {
+      "path": "tinyusb/LICENSE",
+      "source_path": "lib/tinyusb/LICENSE",
+      "source_commit": "b549ac1d84cbbe550c9590951e2290098b3fb16c",
+      "byte_size": 1094,
+      "sha256": "f878d62e47e693ea64160218edb1b9b4755f4839a3179e5bef4a6b0359399431"
+    },
+    {
+      "path": "pico-sdk/LICENSE.TXT",
+      "source_path": "lib/pico-sdk/LICENSE.TXT",
+      "source_commit": "98a542c1a62fb549ffb5d66a3e5892b06276b670",
+      "byte_size": 1489,
+      "sha256": "483f865953435b66c443dee7558debe3cc3cf8fcbb6a112fd9fc6a795d53f1f6"
+    },
+    {
+      "path": "pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
+      "source_path": "lib/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
+      "source_commit": "98a542c1a62fb549ffb5d66a3e5892b06276b670",
+      "byte_size": 2281,
+      "sha256": "3b9280bbfedf57d9f7793d2f9af7beb5d5c45f16b587fa3c3568aaedd16fedf4"
+    },
+    {
+      "path": "pico-sdk/src/rp2_common/pico_printf/LICENSE",
+      "source_path": "lib/pico-sdk/src/rp2_common/pico_printf/LICENSE",
+      "source_commit": "98a542c1a62fb549ffb5d66a3e5892b06276b670",
+      "byte_size": 1080,
+      "sha256": "3fd3a80a06465d0b4affa1d1a16e18a8d2ef42a52eb52060109ae12f1f878f72"
+    },
+    {
+      "path": "pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
+      "source_path": "lib/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
+      "source_commit": "98a542c1a62fb549ffb5d66a3e5892b06276b670",
+      "byte_size": 11357,
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+    },
+    {
+      "path": "micropython-lib/LICENSE",
+      "source_path": "lib/micropython-lib/LICENSE",
+      "source_commit": "ee4bb8ff139e24c42b739935fbd8ec7c4d061e02",
+      "byte_size": 14363,
+      "sha256": "a38cf48836aa313254cdcf3de9fb7c24da4a2eab75ead2cc0cecd998336e7800"
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "status": "native stationary and clean-WPI Mac browser qualification passed; native Windows and motion unqualified",
+  "firmwareBuildId": "ucsbxrp-rp2350-1.29.0-gcsync-20260930.1",
+  "firmwareSha256": "8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a",
+  "runtimeManifestSha256": "8671b0de9cef4da79ad1805f862f0646caa631eda40fa5c240f69a8cd294ed8c",
+  "safetyTier": "no-motion",
+  "automaticGcEnabled": true,
+  "clockMHz": 150,
+  "passed": [
+    "Original four 50-step runs and 300-step run; all rows and no sequence gaps",
+    "Closure/function and 2 MiB PSRAM/SRAM sentinel stress; 16 explicit collections from each core; zero rendezvous failures",
+    "Cooperative and sleep-heavy Stop acknowledgement; allocating/blocked Stop fallback and next Run",
+    "Idle and active interpreter soft reboot; next Run after each",
+    "NIST AES vectors and LAN TLS 1.2 AES-GCM",
+    "CPU calculation with and without telemetry polling",
+    "Clean WPI 1.25.0-preview.beta06 / XRPLib 2.1.3 to course firmware in a fresh app-created Working folder; 64 files read-verified",
+    "Native Chrome battery-only class Wi-Fi commissioning, Run/Stop, complete archives, saved-trial reopen after reload and full CSV export"
+  ],
+  "performance": {
+    "baselineMeanCourseIntervalMs": 23.65,
+    "candidateMeanCourseIntervalMs": 23.344997,
+    "courseIntervalChangePercent": -1.2896533,
+    "stockCpuIdleMedianUs": 151162.5,
+    "candidateCpuIdleMedianUs": 123374.0,
+    "stockCpuPolledMedianUs": 144013.5,
+    "candidateCpuPolledMedianUs": 139427.5,
+    "scope": "Descriptive stationary comparison; course uses unchanged original harness/project. CPU calculation is identical but host diagnostic revisions differ. No randomized alternation or motion claim."
+  },
+  "stressObserverBounds": {
+    "requestTimeoutSeconds": 5,
+    "executionWindowSeconds": 120,
+    "reason": "2 MiB resident-heap tracing plus 16 repeated sentinel hashes takes longer than the original diagnostic window; ordinary tests retain two-second request deadline."
+  },
+  "limitations": [
+    "Unobserved exact initiating corruption",
+    "Unknown shipment firmware image",
+    "Windows native qualification pending",
+    "Arbitrary blocking native extensions, WLAN.scan with active worker and explicit hard Python IRQs are not qualified",
+    "One fresh-restart Wi-Fi readiness timeout was preserved; subsequent restart recovered without file/configuration changes"
+  ],
+  "nativeBrowser": {
+    "platform": "macOS 26.3.1",
+    "browser": "Chrome 154",
+    "recordingBuild": "fe1bac6b58d6369d0990",
+    "robotId": "4c91fae8f1775aa4",
+    "bootId": "d0d33fdd03c1",
+    "baseline": {
+      "micropython": "1.25.0-preview.beta06",
+      "xrplib": "2.1.3",
+      "otherPackages": ["BLE", "phew"],
+      "provenance": "verified official erase, WPI seed, empty root, actual WPI editor installation; not an identified shipment image"
+    },
+    "workingFolder": "XRP-WPI-Final-2026-09-30/xrp-working-02",
+    "verifiedChangedFiles": 64,
+    "verifiedUnchangedFiles": 0,
+    "completedRunSamples": [302, 302],
+    "stoppedRunSamples": 1053,
+    "csvSequencesContiguous": true,
+    "nonzeroEffortObservations": 0,
+    "droppedTelemetrySamples": 0,
+    "droppedOutputLines": 0,
+    "reopenedAfterBrowserReload": true,
+    "exportedStoppedRunCsvRows": 1053,
+    "evidence": "outputs/revisions/2026-09-30-mac-first-setup/final-native-run-recording.json",
+    "setupEvidence": "outputs/revisions/2026-09-30-mac-first-setup/final-native-commission-complete.json",
+    "wirelessEvidence": "outputs/revisions/2026-09-30-mac-first-setup/final-native-battery-wifi.json"
+  }
+}
