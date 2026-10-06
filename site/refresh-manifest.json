@@ -33,10 +33,10 @@
       "sha256": "6f810091939b6dbd5dcd18dfec6793f5af04e2bec5f4e7a4a912db7c41213cbf"
     },
     {
-      "path": "assets/InstructorAccessGate-DigD7OaG.js",
-      "url": "/ucsbxrp/assets/InstructorAccessGate-DigD7OaG.js",
+      "path": "assets/InstructorAccessGate-Dihghtd3.js",
+      "url": "/ucsbxrp/assets/InstructorAccessGate-Dihghtd3.js",
       "bytes": 913,
-      "sha256": "da5833418c8ab8540e4396b33ede300d9d26b5cde0b461af1ab6840a3c233bb6"
+      "sha256": "7091ee83a1fa340fe3992343a386fbbd8078103dce4367f80a664be84e4e4b4c"
     },
     {
       "path": "assets/MarkdownArticle-CGmxgl7k.js",
@@ -51,10 +51,10 @@
       "sha256": "7c23caf8f2b7ac8b6c7d0349395cc7dceaac194960817f60b5216a48a8ca5225"
     },
     {
-      "path": "assets/WorkspaceTargetNotice-DhRUqAxq.js",
-      "url": "/ucsbxrp/assets/WorkspaceTargetNotice-DhRUqAxq.js",
-      "bytes": 12730,
-      "sha256": "afb9af741036f023da5e4b96cc00dbba92c0b96b2e545ba32d8ab1d16530377c"
+      "path": "assets/WorkspaceTargetNotice-Cfz0jozh.js",
+      "url": "/ucsbxrp/assets/WorkspaceTargetNotice-Cfz0jozh.js",
+      "bytes": 12885,
+      "sha256": "ddfb17dbeca18c5b33955317e84154b6664ab1a4155639a020ee33fdd5892c7c"
     },
     {
       "path": "assets/__vite-browser-external-Cn0MOYvd.js",
@@ -63,10 +63,16 @@
       "sha256": "73dc21f16e67af3bd7beecd0558923d15231ceaa23967d7f7c3c1641b9cc6399"
     },
     {
-      "path": "assets/api-reference-DXjeGTjQ.js",
-      "url": "/ucsbxrp/assets/api-reference-DXjeGTjQ.js",
-      "bytes": 92605,
-      "sha256": "62c5e41867a1fc20611cc0060dc29c588b59fcea20e06d8d3b20ca4d5f3b546f"
+      "path": "assets/api-reference-DgI1ofGM.js",
+      "url": "/ucsbxrp/assets/api-reference-DgI1ofGM.js",
+      "bytes": 92634,
+      "sha256": "0a6ea2a74810f4bf44a6041d086ff7231b0f9ebdca5c5583a097c38796f6b0e3"
+    },
+    {
+      "path": "assets/author-BJ0vqQLe.js",
+      "url": "/ucsbxrp/assets/author-BJ0vqQLe.js",
+      "bytes": 76128,
+      "sha256": "aaba8d6577e6ae206991322d50028841738d497ac51f42beff09d4f49ba8048a"
     },
     {
       "path": "assets/author-BPBjpM32.css",
@@ -75,16 +81,10 @@
       "sha256": "f77acab6f7592a54f446921de77a39876e3e1ff3697b8b971d2b39f747d40450"
     },
     {
-      "path": "assets/author-C9iflzBO.js",
-      "url": "/ucsbxrp/assets/author-C9iflzBO.js",
-      "bytes": 76128,
-      "sha256": "2bc2db357c9b2f5ac3ce2f2a7bde9b632f24c1f9ade7c1651027bbe7163b8ecc"
-    },
-    {
-      "path": "assets/catalog-visibility-H55HL9GJ.js",
-      "url": "/ucsbxrp/assets/catalog-visibility-H55HL9GJ.js",
+      "path": "assets/catalog-visibility-DTwzp21T.js",
+      "url": "/ucsbxrp/assets/catalog-visibility-DTwzp21T.js",
       "bytes": 2682,
-      "sha256": "66bfb17891ab6cc209803b2b99648bf98d3a76cffbb3836cb24711bbcc8ee012"
+      "sha256": "5aa789ae6c0804f0162137f442b3a41b548ec7ad2de27e128c2e48d98f04db46"
     },
     {
       "path": "assets/class-wifi-profile-DiMvyz_3.js",
@@ -99,16 +99,16 @@
       "sha256": "cc2472e239e17062e7760af87f8f5997720cc0d94aa014a615c418baaf6333a8"
     },
     {
+      "path": "assets/commission-BTkBj7u2.js",
+      "url": "/ucsbxrp/assets/commission-BTkBj7u2.js",
+      "bytes": 123062,
+      "sha256": "e4683ad6a09f9aa86f0c62f06976261036b53ce803cb9a8c20526b01cf8e7632"
+    },
+    {
       "path": "assets/commission-Bd-y_COM.css",
       "url": "/ucsbxrp/assets/commission-Bd-y_COM.css",
       "bytes": 10477,
       "sha256": "a0706a07a1a708e7394b955a47f9a197540594f0e708c5913dcd494618d43f76"
-    },
-    {
-      "path": "assets/commission-Bl0I0r77.js",
-      "url": "/ucsbxrp/assets/commission-Bl0I0r77.js",
-      "bytes": 123062,
-      "sha256": "58b9a39e2b6c3f7f235e4c2060cdd4b597a4af0dcee39ff6d0e631d4da865947"
     },
     {
       "path": "assets/editor-BJ215w34.css",
@@ -135,10 +135,10 @@
       "sha256": "7cb08c390f143b21afb84e4774a9754d27fde5ddcace11658df9010e42c639c7"
     },
     {
-      "path": "assets/guide-BLF1N7s7.js",
-      "url": "/ucsbxrp/assets/guide-BLF1N7s7.js",
-      "bytes": 101109,
-      "sha256": "26f50e16d1f690ef7817379f2a0f4af33b6862ff7e26d1deb28b16c468825fad"
+      "path": "assets/guide-BI6gEeE_.js",
+      "url": "/ucsbxrp/assets/guide-BI6gEeE_.js",
+      "bytes": 101105,
+      "sha256": "d34468e8a7e7ae60a88a9f63d5827d25de3ba0275a6a32e14619cd388ecdebbe"
     },
     {
       "path": "assets/guide-bHgBJGj2.css",
@@ -147,10 +147,10 @@
       "sha256": "55f9826910501111fa8d62b2ec436cca3c5e350bd6315b43da2faa30a633f005"
     },
     {
-      "path": "assets/home-CinctgBb.js",
-      "url": "/ucsbxrp/assets/home-CinctgBb.js",
+      "path": "assets/home-BIVEMWsK.js",
+      "url": "/ucsbxrp/assets/home-BIVEMWsK.js",
       "bytes": 3544,
-      "sha256": "f183ca2c6cd6163c73cdf89786d43919f4fd658bf6c60fbddfd9ca4736f3bada"
+      "sha256": "e802780fdf055ff31328a51edb57960dd9916f77fc4468e2d39d6efcfda6cd59"
     },
     {
       "path": "assets/ide-WGA_NcKT.css",
@@ -159,10 +159,10 @@
       "sha256": "bc097aeb9b87eb900c2252cdd697da36811dc41c17d6bc420100b4ac18f3b536"
     },
     {
-      "path": "assets/ide-irzCBPXA.js",
-      "url": "/ucsbxrp/assets/ide-irzCBPXA.js",
-      "bytes": 968941,
-      "sha256": "a7b89894cf5fdf2c889a03865261e124101e8c0d490f6d358998a7db1decde8d"
+      "path": "assets/ide-bIuJyiHK.js",
+      "url": "/ucsbxrp/assets/ide-bIuJyiHK.js",
+      "bytes": 969035,
+      "sha256": "5b5a46a759913697efb0883e774a098e8843a01cd8fa39ce17160001ffacd354"
     },
     {
       "path": "assets/instructor-C3CTcc6j.css",
@@ -171,16 +171,16 @@
       "sha256": "fb6d1aee2315480d12592a07a1a217371c95ffd4a25cf884c4311576642ff048"
     },
     {
-      "path": "assets/instructor-D23gA4yo.js",
-      "url": "/ucsbxrp/assets/instructor-D23gA4yo.js",
+      "path": "assets/instructor-CObz29S3.js",
+      "url": "/ucsbxrp/assets/instructor-CObz29S3.js",
       "bytes": 13790,
-      "sha256": "c4ef2c19f6f1e1fc47872b3dee5b0d4c6f01d56d9ad7dafed48dd5f222f22f65"
+      "sha256": "3be30c046a8eb1af0e3d95b98d055db3c2b6db72903b27db286ba5dc238b9f97"
     },
     {
-      "path": "assets/instructor-access-ByfjwKUS.js",
-      "url": "/ucsbxrp/assets/instructor-access-ByfjwKUS.js",
+      "path": "assets/instructor-access-BCDXQkFc.js",
+      "url": "/ucsbxrp/assets/instructor-access-BCDXQkFc.js",
       "bytes": 3258,
-      "sha256": "3554f4189464bc64a8c79526c42e61411c7e6d7f7d64be8f18be1877b9d7c350"
+      "sha256": "7c3fd318144032465c447049c2056cb5a5f1e2cf0c56064c8749a2308e582c98"
     },
     {
       "path": "assets/json.worker-HXE_mNDT.js",
@@ -189,16 +189,16 @@
       "sha256": "834820d7bf9afb66906824fd474b4b8b92c9004b2d27d075829f8f2a8ba54be5"
     },
     {
+      "path": "assets/jsonMode-CPM6L8tI.js",
+      "url": "/ucsbxrp/assets/jsonMode-CPM6L8tI.js",
+      "bytes": 447120,
+      "sha256": "af65a73425fa87c3765ece45bb43ea6f1dd42a7f9df3345fdec271b1a731556b"
+    },
+    {
       "path": "assets/jsonMode-DbpeL5iC.css",
       "url": "/ucsbxrp/assets/jsonMode-DbpeL5iC.css",
       "bytes": 22501,
       "sha256": "a5cbfec8d657a9e5d7e1265fa3055f77c4f79bcac0eb6c8973a8bd477546bcb1"
-    },
-    {
-      "path": "assets/jsonMode-m5iY6KoI.js",
-      "url": "/ucsbxrp/assets/jsonMode-m5iY6KoI.js",
-      "bytes": 447120,
-      "sha256": "dcb601cfe33a392078c57a5eca2dc8a487717801f512333697184d6bf52658e8"
     },
     {
       "path": "assets/jsx-runtime-DE3RlOCf.js",
@@ -231,28 +231,28 @@
       "sha256": "067b72baa495f0d1848d216aec9543921c8e985577a688d5cbf21529a259765b"
     },
     {
+      "path": "assets/monitor-B0WdulYS.js",
+      "url": "/ucsbxrp/assets/monitor-B0WdulYS.js",
+      "bytes": 1283803,
+      "sha256": "640d7d067456effcd5e0961e2398b021d1b66049e724cd857c430cf47f1895b2"
+    },
+    {
       "path": "assets/monitor-CFojYeA-.css",
       "url": "/ucsbxrp/assets/monitor-CFojYeA-.css",
       "bytes": 22469,
       "sha256": "e4135cd3793ce0d04d25bac0b54e9554b437a138e082fd13d01afa1a7b1c697a"
     },
     {
-      "path": "assets/monitor-DWUnOWYU.js",
-      "url": "/ucsbxrp/assets/monitor-DWUnOWYU.js",
-      "bytes": 1283803,
-      "sha256": "adec81228b37b80b340116c79e7eb93ec9e2f527183c98c38db53fe101e097fe"
-    },
-    {
-      "path": "assets/monitor-export-CneZZwbr.js",
-      "url": "/ucsbxrp/assets/monitor-export-CneZZwbr.js",
+      "path": "assets/monitor-export-C5vFjOjV.js",
+      "url": "/ucsbxrp/assets/monitor-export-C5vFjOjV.js",
       "bytes": 10682,
-      "sha256": "ec283ea79aec839e7f6e92f4232c864acf2e08605c7d5e8d3e1130cd3396b6f7"
+      "sha256": "9e6b5001ae0d0aa9520117712ec0db3efa84a31f0db6cba6df30e98ef59dfea3"
     },
     {
-      "path": "assets/motion-summary-VH196rKB.js",
-      "url": "/ucsbxrp/assets/motion-summary-VH196rKB.js",
+      "path": "assets/motion-summary-f5KW4tVm.js",
+      "url": "/ucsbxrp/assets/motion-summary-f5KW4tVm.js",
       "bytes": 25371,
-      "sha256": "b77fca445711741c81db1be82ab99e94122bf118cc26f55e01214713ed5b2b3e"
+      "sha256": "dc143ac7510b7da6eee474fe7e8c7e8fa979997395fb5946cdcb00aa58a4fa38"
     },
     {
       "path": "assets/offline-shell-2BZ3rP7Q.js",
@@ -273,10 +273,10 @@
       "sha256": "3c3424d58b6800dbac26df10cbb89f111e6c730fddcdc5a7dc7ec1c3e8d2cb32"
     },
     {
-      "path": "assets/physical-target.shared-worker-ClNZf_j2.js",
-      "url": "/ucsbxrp/assets/physical-target.shared-worker-ClNZf_j2.js",
-      "bytes": 109236,
-      "sha256": "4ed72703759e6ef13d6f7807dd71829d472be57e63fd670fdf209c69c5d6e749"
+      "path": "assets/physical-target.shared-worker-BdWWPGM1.js",
+      "url": "/ucsbxrp/assets/physical-target.shared-worker-BdWWPGM1.js",
+      "bytes": 109397,
+      "sha256": "ad592666fd3ebca0b14721cb2679eb2977b2f79d2e0ff5dcd61c464a72c55ee9"
     },
     {
       "path": "assets/preload-helper-CjWZr7BR.js",
@@ -285,22 +285,22 @@
       "sha256": "f7832cc5b5fc0e9d459181beaa4cc63dd24c520c1cf588b8862abaf221d2008f"
     },
     {
-      "path": "assets/project-files-Bvk7kExE.js",
-      "url": "/ucsbxrp/assets/project-files-Bvk7kExE.js",
+      "path": "assets/project-files-Bb0xKci_.js",
+      "url": "/ucsbxrp/assets/project-files-Bb0xKci_.js",
       "bytes": 27491,
-      "sha256": "e02d14271c6a473684d3fe76fa9428c0d9145abdc8e55aba7158785e162b055c"
+      "sha256": "2ee2d02abebf6325209b5c36c804375d38dcf7bffd6a3b7b5fd3b695e39fd014"
+    },
+    {
+      "path": "assets/project-folder-reader-CRA3mLy1.js",
+      "url": "/ucsbxrp/assets/project-folder-reader-CRA3mLy1.js",
+      "bytes": 29330,
+      "sha256": "d674a274f3a4089b946b1f88bbe6ab5b1de22c8cf014c662c04d3f6e61e7f7a0"
     },
     {
       "path": "assets/project-folder-reader-DLFySdPs.css",
       "url": "/ucsbxrp/assets/project-folder-reader-DLFySdPs.css",
       "bytes": 510,
       "sha256": "ac2e4febe12a2d0f93c0e2b1c93e99cce4c3292600af20f04bb867135c1734d0"
-    },
-    {
-      "path": "assets/project-folder-reader-pWxUDJxM.js",
-      "url": "/ucsbxrp/assets/project-folder-reader-pWxUDJxM.js",
-      "bytes": 29303,
-      "sha256": "5df8772141ea9176a8d478ecd9cd18c382f760dc365d2cdae42df7b705b0824d"
     },
     {
       "path": "assets/project-native-write-BNjWtXme.js",
@@ -333,16 +333,16 @@
       "sha256": "35231d8c434f97f87228cbcb8285b0d11f83ea2640e1bd44221cb1dca0b9d6e5"
     },
     {
-      "path": "assets/reference-BhQ2uItw.js",
-      "url": "/ucsbxrp/assets/reference-BhQ2uItw.js",
-      "bytes": 12553,
-      "sha256": "d48fcb05a0752a699b11e2453838d505b9d90a812644302d0c796a34824b5f74"
-    },
-    {
       "path": "assets/reference-DQD2f7v5.css",
       "url": "/ucsbxrp/assets/reference-DQD2f7v5.css",
       "bytes": 8635,
       "sha256": "e1ee63175a742928541f939031e719f7d1b812be13394459c690864efb1b86dc"
+    },
+    {
+      "path": "assets/reference-Df0tq17G.js",
+      "url": "/ucsbxrp/assets/reference-Df0tq17G.js",
+      "bytes": 12553,
+      "sha256": "a6e45ca6a1ab81be47ec5a9f8599d74f9662e28a5f3bcfb197d787ede9bffbd8"
     },
     {
       "path": "assets/rolldown-runtime-CbXtAM7H.js",
@@ -357,28 +357,28 @@
       "sha256": "580ad8c58061a4dde99bde0a56905e382f0568516ee2f5b84dbfb52085709021"
     },
     {
-      "path": "assets/run-export-BVMcJDOg.js",
-      "url": "/ucsbxrp/assets/run-export-BVMcJDOg.js",
+      "path": "assets/run-export-CnCJFeqJ.js",
+      "url": "/ucsbxrp/assets/run-export-CnCJFeqJ.js",
       "bytes": 8805,
-      "sha256": "6fd170e3895d8e6e35854530b541e7d6f91499c567dcca50ebc5858349bb2aa0"
+      "sha256": "65acd37ab8b317034faa1180d235fe56a9b000cbc3678f86e05f347841bde72d"
     },
     {
-      "path": "assets/run-project-snapshot-CJB-LjFv.js",
-      "url": "/ucsbxrp/assets/run-project-snapshot-CJB-LjFv.js",
+      "path": "assets/run-project-snapshot-CZkiu12f.js",
+      "url": "/ucsbxrp/assets/run-project-snapshot-CZkiu12f.js",
       "bytes": 31672,
-      "sha256": "f98e1f90473103a4ff57529e8983bf1fa2e6122cb64e21455c70d672b88a23fe"
+      "sha256": "5f6fd6d605b281a5709027aeaab8526916bf9e8afd0f8798d6fd7e0e2686978c"
     },
     {
-      "path": "assets/shared-challenge-package-Cy5dPZLT.js",
-      "url": "/ucsbxrp/assets/shared-challenge-package-Cy5dPZLT.js",
+      "path": "assets/shared-challenge-package-DalyHm0U.js",
+      "url": "/ucsbxrp/assets/shared-challenge-package-DalyHm0U.js",
       "bytes": 3110,
-      "sha256": "27f2e70dc2ca2459057fb0dfd2346e8b87804dadfbca7bb8d37002bc04a5573a"
+      "sha256": "831ad00bbc4742fcabfa40655d3c403735facdb027ba7f167846f3788b3272d1"
     },
     {
-      "path": "assets/src-BWaewuoA.js",
-      "url": "/ucsbxrp/assets/src-BWaewuoA.js",
-      "bytes": 808440,
-      "sha256": "f87c544db3bec59d3dd649ce9dfe2cf8896f711ab3a68c12494aaef7f3e86c9b"
+      "path": "assets/src-D_qEW6rl.js",
+      "url": "/ucsbxrp/assets/src-D_qEW6rl.js",
+      "bytes": 808570,
+      "sha256": "44b017be24f1fcc3b3ae4c214fabc69f2e2ebcc3037bf40f73105966b727d26f"
     },
     {
       "path": "assets/theme-B2JY2HJZ.js",
@@ -393,10 +393,10 @@
       "sha256": "6d0c1c94978b9c1a527a1f28c3df2147b1da2c31520404265ef63d643c1b7626"
     },
     {
-      "path": "assets/ultrasound-map-tfBiWIO1.js",
-      "url": "/ucsbxrp/assets/ultrasound-map-tfBiWIO1.js",
+      "path": "assets/ultrasound-map-BOXjr9-G.js",
+      "url": "/ucsbxrp/assets/ultrasound-map-BOXjr9-G.js",
       "bytes": 3952,
-      "sha256": "9a02492bab8bd18ac33ace8a2ea28f92c5ebf2488cf8501608acc4149d4d3895"
+      "sha256": "2ef14f80b1c2cd11aa571209b51172c95914b214d815f4fbc47378384cea6100"
     },
     {
       "path": "assets/use-workspace-location-DK-X1xF_.js",
@@ -417,10 +417,10 @@
       "sha256": "2f06d28b4cda2447b6c86c271854e2f524898235c72138056cf13ffd4be4039c"
     },
     {
-      "path": "assets/walkthrough-tools-DlUciv2b.js",
-      "url": "/ucsbxrp/assets/walkthrough-tools-DlUciv2b.js",
+      "path": "assets/walkthrough-tools-Bw0mOEsI.js",
+      "url": "/ucsbxrp/assets/walkthrough-tools-Bw0mOEsI.js",
       "bytes": 2195,
-      "sha256": "3e857653c610ca92eb13d0526bb5da0d5d5c1c4e0f3845335d7dbcd618921ca3"
+      "sha256": "e85f2373da45c7c30250d8ffc999b04c9b9c6a6212051b6b358006ae80776d6b"
     },
     {
       "path": "assets/workspace-7kO5vwnh.css",
@@ -429,16 +429,16 @@
       "sha256": "9df335f1b8c4c83657912166b6e9411fffe70b5556ab8e808d99dd067271423e"
     },
     {
-      "path": "assets/workspace-BwTqx-4A.js",
-      "url": "/ucsbxrp/assets/workspace-BwTqx-4A.js",
-      "bytes": 9829,
-      "sha256": "a45ca3cef94c04d7be02f1f4237edf3e15dd77ba549ec9b57acb8e4e06920a7f"
+      "path": "assets/workspace-VsrMECfe.js",
+      "url": "/ucsbxrp/assets/workspace-VsrMECfe.js",
+      "bytes": 9889,
+      "sha256": "ae4dce24a3cd25fcc73d84041313dfa2682a451c4f440aa89dd19c8e6212c57e"
     },
     {
-      "path": "assets/workspace-target-preference-CdPHUawf.js",
-      "url": "/ucsbxrp/assets/workspace-target-preference-CdPHUawf.js",
+      "path": "assets/workspace-target-preference-DpnSDjTd.js",
+      "url": "/ucsbxrp/assets/workspace-target-preference-DpnSDjTd.js",
       "bytes": 11888,
-      "sha256": "aa384c01d59b1ff3c6ed8ab95786ab90dabea1723efd229107824041ef73db94"
+      "sha256": "49b9ec60d5882b3b3853c261289486331cc93c022b0bd37a1a3568c0aaf93eb1"
     },
     {
       "path": "assets/workspace-visibility-uzPnKvlu.js",
@@ -450,7 +450,7 @@
       "path": "author/index.html",
       "url": "/ucsbxrp/author/index.html",
       "bytes": 2135,
-      "sha256": "247c02be141ba6514a6a073781ea27c4ab6c47e6d09021a4afea8040cb042147"
+      "sha256": "853c38fd5da59d7309744f5a6861d1e16d6b06bb9328d96475558e67ee4ca9a5"
     },
     {
       "path": "class-wifi.json",
@@ -462,7 +462,7 @@
       "path": "commission/index.html",
       "url": "/ucsbxrp/commission/index.html",
       "bytes": 1945,
-      "sha256": "6645c8994db33ae2a872047f5d6059a5c1303ddc9a1ef416bbf58c20da787819"
+      "sha256": "5db6f0dcceadf7f0542c3930231e2e755f060e16cca05ea5ba8dee1f84e8b1aa"
     },
     {
       "path": "course/commissioning/releases/59/files/bootstrap/course_boot.py",
@@ -1151,8 +1151,8 @@
     {
       "path": "course/current/starters/challenge_1/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_1/robot_setup.py",
-      "bytes": 3361,
-      "sha256": "999e97c574c08605851e20731286fda5881500cf9eea02ec9a228b4339b0b5a7"
+      "bytes": 3360,
+      "sha256": "cdf51172ce10af8887c13939667526467f10749499e5eefff42040254de1580e"
     },
     {
       "path": "course/current/starters/challenge_1/sensor_processor.py",
@@ -1211,8 +1211,8 @@
     {
       "path": "course/current/starters/challenge_2/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_2/robot_setup.py",
-      "bytes": 3820,
-      "sha256": "e21767eca72901d9c1027148afaae392332279d95c6b7ac45c71cb3ff63dda49"
+      "bytes": 3819,
+      "sha256": "9713e3d1ebdd6474cab7b2ddc8030d767cd54209ea2f9a08162e8e67cbe6ab9d"
     },
     {
       "path": "course/current/starters/challenge_2/sensor_processor.py",
@@ -1277,8 +1277,8 @@
     {
       "path": "course/current/starters/challenge_3/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_3/robot_setup.py",
-      "bytes": 4260,
-      "sha256": "26809057018393c308e789a02e6797af09a54037b03a55ba2f8cb3d69a427ff6"
+      "bytes": 4259,
+      "sha256": "54bff125d0b0194d1ee9597589473670edd342280a3dee6d8c7838ace3c3997d"
     },
     {
       "path": "course/current/starters/challenge_3/sensor_processor.py",
@@ -1349,8 +1349,8 @@
     {
       "path": "course/current/starters/challenge_4/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_4/robot_setup.py",
-      "bytes": 4589,
-      "sha256": "31dbeb9b4726137d6e6980f260bcb1f9e01dc1d4ccff3ed5e4eec8494da226ba"
+      "bytes": 4588,
+      "sha256": "df8dbcd95984ee36038e9d62518bc92f437e17c5c986a6b62effa6d172769465"
     },
     {
       "path": "course/current/starters/challenge_4/sensor_processor.py",
@@ -1421,8 +1421,8 @@
     {
       "path": "course/current/starters/challenge_5/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_5/robot_setup.py",
-      "bytes": 4589,
-      "sha256": "31dbeb9b4726137d6e6980f260bcb1f9e01dc1d4ccff3ed5e4eec8494da226ba"
+      "bytes": 4588,
+      "sha256": "df8dbcd95984ee36038e9d62518bc92f437e17c5c986a6b62effa6d172769465"
     },
     {
       "path": "course/current/starters/challenge_5/sensor_processor.py",
@@ -1446,7 +1446,7 @@
       "path": "course/current/starters/challenge_6/README.md",
       "url": "/ucsbxrp/course/current/starters/challenge_6/README.md",
       "bytes": 5765,
-      "sha256": "b4f04d9e29acdc64478d53b82fafec5d5a51470cc42e52e64bcad28c18666b94"
+      "sha256": "cf734cb25902c0e1b5d2f6abefed336fc9cbfc9792fee61937c820156af62ce4"
     },
     {
       "path": "course/current/starters/challenge_6/challenge.py",
@@ -1505,8 +1505,8 @@
     {
       "path": "course/current/starters/challenge_6/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_6/robot_setup.py",
-      "bytes": 5050,
-      "sha256": "6aeb16e9defc6daa82d3e974acfbe081320231586608d6fc7def63ef7d4970df"
+      "bytes": 5049,
+      "sha256": "5a563bd1c1ef6faf5158904d0eca83dbecd25801df4ba3180265302270332f63"
     },
     {
       "path": "course/current/starters/challenge_6/sensor_processor.py",
@@ -1589,8 +1589,8 @@
     {
       "path": "course/current/starters/challenge_7/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_7/robot_setup.py",
-      "bytes": 5445,
-      "sha256": "81a243b3268e397b84fec4000db4bc62e6e6276d9616262359715fb2a225acc5"
+      "bytes": 5444,
+      "sha256": "5dd688d4839ba41607adca641028acf32b9025261b93c010fa84b91fb3137d8d"
     },
     {
       "path": "course/current/starters/challenge_7/sensor_processor.py",
@@ -1673,8 +1673,8 @@
     {
       "path": "course/current/starters/challenge_8/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_8/robot_setup.py",
-      "bytes": 6046,
-      "sha256": "1174ff0b6cb76a70b2a5ad84653db2e2f38933d2ab3f6595ed6601ad9187bf65"
+      "bytes": 6045,
+      "sha256": "17659076f4189c6ede92f212f62d54a3f832c8508ca20774603a6b7df3936baf"
     },
     {
       "path": "course/current/starters/challenge_8/sensor_processor.py",
@@ -1745,8 +1745,8 @@
     {
       "path": "course/current/starters/challenge_9/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/challenge_9/robot_setup.py",
-      "bytes": 3394,
-      "sha256": "4e63b49b6bec0b28169da25b061c00299b9f90a2bdcb97ccdf86930e77f23d6f"
+      "bytes": 3393,
+      "sha256": "678f3c1e0c99cae319e4607dffefd79141a848028fde4781aff3440d4d88e603"
     },
     {
       "path": "course/current/starters/challenge_9/world.json",
@@ -1793,8 +1793,8 @@
     {
       "path": "course/current/starters/new_challenge_1_robot_curling/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/robot_setup.py",
-      "bytes": 2230,
-      "sha256": "d7956b1f11807e1ea483fb6ed5ff02dd04489319cd88bcd01c90c3198d4bfd46"
+      "bytes": 2229,
+      "sha256": "7e0177ebc7680db94183f1083c18266aa53ec88d1424646baa3c0ab7bdfca61c"
     },
     {
       "path": "course/current/starters/new_challenge_1_robot_curling/sensor_processor.py",
@@ -1817,8 +1817,8 @@
     {
       "path": "course/current/starters/new_challenge_2_arena_line_circuit/README.md",
       "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/README.md",
-      "bytes": 18168,
-      "sha256": "dc1f88a184a9d20e9bae9ed2dc5d89d5d03c8e19838b364c3f2d5329beff8b95"
+      "bytes": 18167,
+      "sha256": "a05be89afda528d361fb29260bcf7161bad83922052d43488f935d7d4e7b9cef"
     },
     {
       "path": "course/current/starters/new_challenge_2_arena_line_circuit/challenge.py",
@@ -1871,8 +1871,8 @@
     {
       "path": "course/current/starters/new_challenge_2_arena_line_circuit/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/robot_setup.py",
-      "bytes": 4588,
-      "sha256": "3559e4218540d9067ccc2b6b25ec992891a78179e092fc36114879c47b3b7fa9"
+      "bytes": 4587,
+      "sha256": "675d64a06e6bdac5e3dcaeab6733427a2fe9a7581df918b35a6ddbd54fded35f"
     },
     {
       "path": "course/current/starters/new_challenge_2_arena_line_circuit/sensor_processor.py",
@@ -1889,8 +1889,8 @@
     {
       "path": "course/current/starters/new_challenge_3_waypoint_courier/README.md",
       "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/README.md",
-      "bytes": 15764,
-      "sha256": "52317328a7b2cc8b757b8c5e47d7719d56a994c811bd4ba2f1337040897bce2b"
+      "bytes": 15763,
+      "sha256": "1b0135659b2a71f11563e6545b792bc3322786036191843d60defb8fd1c88ca7"
     },
     {
       "path": "course/current/starters/new_challenge_3_waypoint_courier/challenge.py",
@@ -1937,8 +1937,8 @@
     {
       "path": "course/current/starters/new_challenge_3_waypoint_courier/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/robot_setup.py",
-      "bytes": 4951,
-      "sha256": "b37ac80e89174520540db1e10d4ddeaf7d56feccbe063d302382b98f99c0bcae"
+      "bytes": 4950,
+      "sha256": "15f8e9860375d3b1b60d1063d7657d5b391956dafbd1aa2dddbf77f0e68ef40f"
     },
     {
       "path": "course/current/starters/new_challenge_3_waypoint_courier/route_progress.py",
@@ -1961,8 +1961,8 @@
     {
       "path": "course/current/starters/new_challenge_4_mapped_route/README.md",
       "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/README.md",
-      "bytes": 15621,
-      "sha256": "571519aad9a8f1cda52066071695347dcc37c98771a26f6a760b1f2e47f791a3"
+      "bytes": 15620,
+      "sha256": "a1ab88b22ffcd6e48dc8aac3b8522631a8a9a0cd277e69253b1e05983fcef41c"
     },
     {
       "path": "course/current/starters/new_challenge_4_mapped_route/challenge.py",
@@ -2021,8 +2021,8 @@
     {
       "path": "course/current/starters/new_challenge_4_mapped_route/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/robot_setup.py",
-      "bytes": 5253,
-      "sha256": "0290e22060df583b3a79051149ee55f2f01180abb9145217561edaa4a681bc05"
+      "bytes": 5252,
+      "sha256": "1920707e02287e486c4880a24334c3026b0d902ee75ab6eadd4ff63e56e14f73"
     },
     {
       "path": "course/current/starters/new_challenge_4_mapped_route/route_runner.py",
@@ -2051,8 +2051,8 @@
     {
       "path": "course/current/starters/new_challenge_5_out_and_back/README.md",
       "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/README.md",
-      "bytes": 18270,
-      "sha256": "98d21dbd56e8e6b4d3008aa06625e6a29e7a69c26fb4e7b70a37b53dfcd424b9"
+      "bytes": 18269,
+      "sha256": "d2ceb7f9e030de7f5eee80b64ac876377c34ee880fc7c1b576c88f8f8904ef90"
     },
     {
       "path": "course/current/starters/new_challenge_5_out_and_back/challenge.py",
@@ -2129,8 +2129,8 @@
     {
       "path": "course/current/starters/new_challenge_5_out_and_back/robot_setup.py",
       "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/robot_setup.py",
-      "bytes": 5253,
-      "sha256": "0290e22060df583b3a79051149ee55f2f01180abb9145217561edaa4a681bc05"
+      "bytes": 5252,
+      "sha256": "1920707e02287e486c4880a24334c3026b0d902ee75ab6eadd4ff63e56e14f73"
     },
     {
       "path": "course/current/starters/new_challenge_5_out_and_back/sensor_processor.py",
@@ -2231,8 +2231,8 @@
     {
       "path": "course/current/templates/demo_manual_drive/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_manual_drive/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "6b99e61f3627b20b3b7df56f517798b5c7e051fc6bb5fd24845986c971f294c0"
+      "bytes": 1646,
+      "sha256": "a455070424916ff1518c11207e226e68324ca65ff76ae0cf26049240fcbdb202"
     },
     {
       "path": "course/current/templates/demo_manual_drive/world.json",
@@ -2267,8 +2267,8 @@
     {
       "path": "course/current/templates/demo_obstacle_turn/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_obstacle_turn/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "6b99e61f3627b20b3b7df56f517798b5c7e051fc6bb5fd24845986c971f294c0"
+      "bytes": 1646,
+      "sha256": "a455070424916ff1518c11207e226e68324ca65ff76ae0cf26049240fcbdb202"
     },
     {
       "path": "course/current/templates/demo_obstacle_turn/world.json",
@@ -2303,8 +2303,8 @@
     {
       "path": "course/current/templates/demo_random_snake/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_random_snake/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "6b99e61f3627b20b3b7df56f517798b5c7e051fc6bb5fd24845986c971f294c0"
+      "bytes": 1646,
+      "sha256": "a455070424916ff1518c11207e226e68324ca65ff76ae0cf26049240fcbdb202"
     },
     {
       "path": "course/current/templates/demo_random_snake/world.json",
@@ -2339,8 +2339,8 @@
     {
       "path": "course/current/templates/demo_roomba/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_roomba/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "6b99e61f3627b20b3b7df56f517798b5c7e051fc6bb5fd24845986c971f294c0"
+      "bytes": 1646,
+      "sha256": "a455070424916ff1518c11207e226e68324ca65ff76ae0cf26049240fcbdb202"
     },
     {
       "path": "course/current/templates/demo_roomba/world.json",
@@ -2375,8 +2375,8 @@
     {
       "path": "course/current/templates/demo_snake_game/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_snake_game/robot_setup.py",
-      "bytes": 1963,
-      "sha256": "8a742d59c1d22ea17d49704cd0e7eb0a1d6b357346a9c5908ceb0cda17e040c4"
+      "bytes": 1962,
+      "sha256": "4dc40d24589581cc2c924ed52dc74d6609357d4fca80f41eb18cc7dd8925c589"
     },
     {
       "path": "course/current/templates/demo_snake_game/snake_config.json",
@@ -2435,8 +2435,8 @@
     {
       "path": "course/current/templates/demo_spiral/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_spiral/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "6b99e61f3627b20b3b7df56f517798b5c7e051fc6bb5fd24845986c971f294c0"
+      "bytes": 1646,
+      "sha256": "a455070424916ff1518c11207e226e68324ca65ff76ae0cf26049240fcbdb202"
     },
     {
       "path": "course/current/templates/demo_spiral/world.json",
@@ -2471,8 +2471,8 @@
     {
       "path": "course/current/templates/demo_ucsb_logo/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/demo_ucsb_logo/robot_setup.py",
-      "bytes": 2637,
-      "sha256": "345bb8aef868dbdae90b173fb37463b1cf4740175f0f9810fbff456b347ab1d5"
+      "bytes": 2636,
+      "sha256": "335779565ef00f53da7f1a3fb0cd88981c7d7347ee7e9b5451651a2d01a89ae0"
     },
     {
       "path": "course/current/templates/demo_ucsb_logo/world.json",
@@ -2507,8 +2507,8 @@
     {
       "path": "course/current/templates/new_demo_motor_characterization/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/new_demo_motor_characterization/robot_setup.py",
-      "bytes": 1664,
-      "sha256": "dbad1087e8a2ee5edbd8a008b0661ee880daf447170a18f7d78e07a5a80abc3c"
+      "bytes": 1663,
+      "sha256": "926d28bb3eccb782bf08804b0efe685e3e9e47f18a866909115ac61ceb28bf36"
     },
     {
       "path": "course/current/templates/new_demo_motor_characterization/world.json",
@@ -2567,8 +2567,8 @@
     {
       "path": "course/current/templates/tutorial_2_virtual_drawing/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/tutorial_2_virtual_drawing/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "54af88dd27da7dc3e57a27eaa6313c63180e047f4fdd0a6a5edaad663aa7ba49"
+      "bytes": 1646,
+      "sha256": "2a5841f5cf4173ee43be2537cfd06d2eb1435052e7524deed2e4e409d85ad148"
     },
     {
       "path": "course/current/templates/tutorial_2_virtual_drawing/student_work.py",
@@ -2603,8 +2603,8 @@
     {
       "path": "course/current/templates/tutorial_3_robot_programs/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/tutorial_3_robot_programs/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "54af88dd27da7dc3e57a27eaa6313c63180e047f4fdd0a6a5edaad663aa7ba49"
+      "bytes": 1646,
+      "sha256": "2a5841f5cf4173ee43be2537cfd06d2eb1435052e7524deed2e4e409d85ad148"
     },
     {
       "path": "course/current/templates/tutorial_3_robot_programs/student_work.py",
@@ -2645,8 +2645,8 @@
     {
       "path": "course/current/templates/tutorial_4_behavior_telemetry/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/tutorial_4_behavior_telemetry/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "54af88dd27da7dc3e57a27eaa6313c63180e047f4fdd0a6a5edaad663aa7ba49"
+      "bytes": 1646,
+      "sha256": "2a5841f5cf4173ee43be2537cfd06d2eb1435052e7524deed2e4e409d85ad148"
     },
     {
       "path": "course/current/templates/tutorial_4_behavior_telemetry/student_work.py",
@@ -2663,8 +2663,8 @@
     {
       "path": "course/current/templates/tutorial_5_physical_preflight/README.md",
       "url": "/ucsbxrp/course/current/templates/tutorial_5_physical_preflight/README.md",
-      "bytes": 5666,
-      "sha256": "49f97356e4d43018587acd71e83b224d423bdb7ea686db59bc101f8618d908dd"
+      "bytes": 5665,
+      "sha256": "f8a62486f8ce7b971d76bba4b49ae6b4fb17160dfff57a2c767802a1f368be9a"
     },
     {
       "path": "course/current/templates/tutorial_5_physical_preflight/exercise_checks.py",
@@ -2681,8 +2681,8 @@
     {
       "path": "course/current/templates/tutorial_5_physical_preflight/robot_setup.py",
       "url": "/ucsbxrp/course/current/templates/tutorial_5_physical_preflight/robot_setup.py",
-      "bytes": 1647,
-      "sha256": "54af88dd27da7dc3e57a27eaa6313c63180e047f4fdd0a6a5edaad663aa7ba49"
+      "bytes": 1646,
+      "sha256": "2a5841f5cf4173ee43be2537cfd06d2eb1435052e7524deed2e4e409d85ad148"
     },
     {
       "path": "course/current/templates/tutorial_5_physical_preflight/student_work.py",
@@ -3066,7 +3066,7 @@
       "path": "guide/index.html",
       "url": "/ucsbxrp/guide/index.html",
       "bytes": 2015,
-      "sha256": "b975dcd94674d5e86263785b024323c5807a6ff22cce6bc87af5af2ac1a68c6c"
+      "sha256": "7a8e4e69c96f4187e7ee9b193ac06f6a2b12186b52190e112038f35e265b5484"
     },
     {
       "path": "guide-figures/01-create-project.png",
@@ -3168,121 +3168,121 @@
       "path": "ide/index.html",
       "url": "/ucsbxrp/ide/index.html",
       "bytes": 3613,
-      "sha256": "bdcde8496ed9516387ed07b212d8d6bb5242b97d5878d944c268bb213041a739"
+      "sha256": "89578629afe34b70460a0d6ee609847a85eb33b37386dff09def242a831d9f69"
     },
     {
       "path": "index.html",
       "url": "/ucsbxrp/index.html",
       "bytes": 4146,
-      "sha256": "ba492c708f86c927222d7ecaa244180a6ff15cc8367f8ab1ebfcf051aaf393f3"
+      "sha256": "51d158f8d7ad01865ee72e557b3fa41fe053693bd0295cb4ebb20e10b5345045"
     },
     {
       "path": "instructor/index.html",
       "url": "/ucsbxrp/instructor/index.html",
       "bytes": 2115,
-      "sha256": "3c86a36702bdb7ce65f7bc80e09077f820052145b528c1f8b078114700596e4f"
+      "sha256": "7b85d308a11057306ada36097fcda27e801c2d960077910483c2634442a1cabb"
     },
     {
       "path": "instructor/package.enc.json",
       "url": "/ucsbxrp/instructor/package.enc.json",
       "bytes": 1831283,
-      "sha256": "62b323f399f1e224f34a3c6fba7a6644ab404d1928facde64c5e2f8df3d40be3"
+      "sha256": "945edc396f619f20e69decc6f8098c09fd9a3ca8ec20311d3e8d21c6d3cb7ce1"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/01_robot_curling-activity.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling.html",
       "url": "/ucsbxrp/instructor/walkthroughs/01_robot_curling.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/02_arena_line_circuit-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/02_arena_line_circuit-activity.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/02_arena_line_circuit.html",
       "url": "/ucsbxrp/instructor/walkthroughs/02_arena_line_circuit.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/03_waypoint_courier-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/03_waypoint_courier-activity.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/03_waypoint_courier.html",
       "url": "/ucsbxrp/instructor/walkthroughs/03_waypoint_courier.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/04_mapped_route-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/04_mapped_route-activity.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/04_mapped_route.html",
       "url": "/ucsbxrp/instructor/walkthroughs/04_mapped_route.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/05_out_and_back-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/05_out_and_back-activity.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/05_out_and_back.html",
       "url": "/ucsbxrp/instructor/walkthroughs/05_out_and_back.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/VALIDATION.html",
       "url": "/ucsbxrp/instructor/walkthroughs/VALIDATION.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/code/01_robot_curling/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/01_robot_curling/index.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/code/02_arena_line_circuit/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/02_arena_line_circuit/index.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/code/03_waypoint_courier/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/03_waypoint_courier/index.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/code/04_mapped_route/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/04_mapped_route/index.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/code/05_out_and_back/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/05_out_and_back/index.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/course-assets/arena-line-circuit.svg",
@@ -3342,7 +3342,7 @@
       "path": "instructor/walkthroughs/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/index.html",
       "bytes": 373,
-      "sha256": "33b6f64d6cf6e5259bae35a424c26851098eb9b547c1bef1e0ff85616a31fdb9"
+      "sha256": "78fc6a43a62c4fa6733d758ff2a5c068fb480f69f68b9fe0084e504115d81b45"
     },
     {
       "path": "instructor/walkthroughs/katex/fonts/KaTeX_AMS-Regular.ttf",
@@ -3732,7 +3732,7 @@
       "path": "monitor/index.html",
       "url": "/ucsbxrp/monitor/index.html",
       "bytes": 2814,
-      "sha256": "34796a488019da340f2592301c55b2eb36aa88c7da86bb85ee410f5af66a5847"
+      "sha256": "67e336d9a1d8d7b2997dcb3e37ec7ce52d9c080f0839b29fc22a5575bbb53fda"
     },
     {
       "path": "orientation/figures/check-results.png",
@@ -3882,7 +3882,7 @@
       "path": "reference/index.html",
       "url": "/ucsbxrp/reference/index.html",
       "bytes": 1740,
-      "sha256": "7b9abd43add9fe8d6537ed0cffdf87493bf7a37a071dc4b0192f0e64bc90cc5a"
+      "sha256": "7ebd8281d1c05c47310b5514037d68a54e1749badf624a1ff9806ca0b2094d15"
     },
     {
       "path": "refresh.html",
@@ -4134,9 +4134,9 @@
       "path": "workspace/index.html",
       "url": "/ucsbxrp/workspace/index.html",
       "bytes": 2196,
-      "sha256": "9a9a58c0be499c246d9db977f480e6ce61eb8815c54f6e621ab64e9d940666bc"
+      "sha256": "78fc3a3cc54446226abe6121937ca9cf1d1702306661de307860058af88ff85f"
     }
   ],
-  "version": "3604a0638d7b4a587a4b",
-  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-3604a0638d7b4a587a4b"
+  "version": "c3f0b013f4579dbcfddd",
+  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-c3f0b013f4579dbcfddd"
 }

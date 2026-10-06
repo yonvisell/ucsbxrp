@@ -5,7 +5,7 @@ from ucsb_xrp import NavigationConfig, RobotConfig, Robot, XRPBot
 # Robot calibration and controller settings.
 # Wheel geometry and motor-command calibration must describe this robot.
 ROBOT_CONFIG = RobotConfig(
-    sample_period_ms=10,  # Scheduled sample interval in ms; 10 ms gives 100 Hz.
+    sample_period_ms=20,  # Scheduled sample interval in ms; 20 ms gives 50 Hz.
     left_start_command=0.12,  # Left-wheel starting command; dimensionless, measured under load.
     right_start_command=0.13,  # Right-wheel starting command; dimensionless, measured under load.
     left_speed_command_gain=0.0031,  # Left feedforward command per mm/s of requested speed (s/mm).

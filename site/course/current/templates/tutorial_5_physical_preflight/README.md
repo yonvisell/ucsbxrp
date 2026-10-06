@@ -84,7 +84,7 @@ checks the Python project; it does not verify the physical network or hardware.
 1. `run_preflight()` runs the report checks. A failed check ends the program
    before robot construction.
 2. `make_robot(ROBOT_CONFIG)` assembles the supplied sensor, wheel-control,
-   drive, and odometry components. `sample_period_ms=10` schedules 100 Hz.
+   drive, and odometry components. `sample_period_ms=20` schedules 50 Hz.
 3. `collect_stationary_samples(robot)` starts from the selected world's pose,
    saves the first state, and calls `robot.step(STOP_COMMAND, read_range=True)`
    until 1 s has elapsed. It stops in `finally` and returns the saved states.

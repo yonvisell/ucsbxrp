@@ -12,7 +12,7 @@ from ucsb_xrp import NavigationConfig, RobotConfig, Robot, XRPBot
 # Supplied motor settings for Virtual XRP; use the instructor's settings for a physical XRP.
 # Measure wheel diameter and track width in mm; use specified encoder counts.
 ROBOT_CONFIG = RobotConfig(
-    sample_period_ms=10,  # Scheduled sample interval in ms; 10 ms gives 100 Hz.
+    sample_period_ms=20,  # Scheduled sample interval in ms; 20 ms gives 50 Hz.
     wheel_diameter_mm=60.0,  # Rolling wheel diameter in mm; measure on the physical robot.
     encoder_counts_per_revolution=585.0,  # Encoder counts for one wheel revolution.
     track_width_mm=155.0,  # Effective left-to-right wheel separation in mm.

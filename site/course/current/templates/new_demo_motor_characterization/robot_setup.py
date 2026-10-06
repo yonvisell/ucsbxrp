@@ -5,7 +5,7 @@ from ucsb_xrp import RobotConfig, Robot, XRPBot
 # main.py uses the sample interval and sensor settings. It applies motor
 # commands directly, so the wheel-feedback settings below are unused here.
 ROBOT_CONFIG = RobotConfig(
-    sample_period_ms=10,  # Scheduled sample interval in ms; 10 ms gives 100 Hz.
+    sample_period_ms=20,  # Scheduled sample interval in ms; 20 ms gives 50 Hz.
     left_start_command=0.12,  # Left-wheel starting command; dimensionless; unused in this experiment.
     right_start_command=0.13,  # Right-wheel starting command; dimensionless; unused in this experiment.
     left_speed_command_gain=0.0031,  # Left motor command per requested speed (s/mm); unused here.

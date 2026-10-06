@@ -51,7 +51,7 @@ and states these requirements; your class implements only `update()`. Import
 the base from `ucsb_xrp.student_api` as shown in the starter.
 
 The supplied moving window contains three distinct ultrasound attempts, not
-three control-loop iterations. Attempts are at least 70 ms apart, independently of the nominal 10 ms
+three control-loop iterations. Attempts are at least 70 ms apart, independently of the nominal 20 ms
 control period. Physical sensor reads can lengthen a control interval. A missing
 latest echo stops the approach immediately. Observations older than 0.25 s are
 excluded; fewer than three usable current observations also require a stopped
