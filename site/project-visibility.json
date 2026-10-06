@@ -27,6 +27,6 @@
     "new_challenge_3_waypoint_courier": false,
     "new_challenge_4_mapped_route": false,
     "new_challenge_5_out_and_back": false,
-    "new_demo_motor_characterization": true
+    "new_demo_motor_characterization": false
   }
 }
