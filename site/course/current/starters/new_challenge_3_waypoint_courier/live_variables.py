@@ -17,9 +17,14 @@ TURN_RATE = live.number(
 )
 
 
+# Register signal names and units once; the loop writes only each value.
+_WATCH_GOALS_REACHED = live.register_watch('goals_reached')
+_PLOT_HEADING_RAD = live.register_plot('heading_rad', unit="rad", label="Estimated heading")
+
+
 def publish_goal_count(reached_count):
-    live.watch("goals_reached", reached_count)
+    _WATCH_GOALS_REACHED.value = reached_count
 
 
 def publish_heading(pose):
-    live.plot("heading_rad", pose.heading_rad, unit="rad", label="Estimated heading")
+    _PLOT_HEADING_RAD.value = pose.heading_rad

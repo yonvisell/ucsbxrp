@@ -99,9 +99,10 @@ decision. The IDE **Stop** action interrupts the run separately.
 
 ## 4. Connect telemetry to its source
 
-`publish_telemetry(state, phase)` sends the current `phase` and `range_mm` to
-`live.watch(...)`. A watch shows the latest value; unavailable range appears
-as text. It sends two numerical values to `live.plot(...)`:
+`student_work.py` registers its watches and plots before the run.
+`publish_telemetry(state, phase)` assigns their `.value` fields. The watches show
+the current `phase` and `range_mm`; unavailable range appears as text. The plots
+record these two numerical quantities:
 
 - `wheel_distance_mm`: mean left/right wheel position in mm;
 - `heading_rad`: estimated heading in rad.

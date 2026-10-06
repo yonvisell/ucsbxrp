@@ -8,6 +8,12 @@ APPROACH = "approach"
 TURN = "turn"
 DONE = "done"
 
+# Register the displayed quantities once; publication assigns their values.
+_PHASE = live.register_watch("phase")
+_RANGE = live.register_watch("range_mm", unit="mm")
+_DISTANCE = live.register_plot("wheel_distance_mm", unit="mm")
+_HEADING = live.register_plot("heading_rad", unit="rad")
+
 # Inputs: current phase, range (mm or None), stop distance (mm), turn status.
 # Returns: the next phase; a missing range does not request a turn.
 def next_phase(
@@ -59,12 +65,12 @@ def publish_telemetry(state: RobotState, phase: str) -> None:
     range_value = state.measurements.range_mm
     if range_value is None:
         range_value = "unavailable"
-    live.watch("phase", phase)
-    live.watch("range_mm", range_value, unit="mm")
+    _PHASE.value = phase
+    _RANGE.value = range_value
     mean_distance_mm = (
         # Averaging signed wheel positions estimates axle-center travel.
         state.measurements.left_position_mm
         + state.measurements.right_position_mm
     ) / 2.0
-    live.plot("wheel_distance_mm", mean_distance_mm, unit="mm")
-    live.plot("heading_rad", state.pose.heading_rad, unit="rad")
+    _DISTANCE.value = mean_distance_mm
+    _HEADING.value = state.pose.heading_rad

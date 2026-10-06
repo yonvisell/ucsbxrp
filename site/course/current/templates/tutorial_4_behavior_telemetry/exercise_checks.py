@@ -82,6 +82,41 @@ class _LiveRecorder:
         self.plots.append((name, value, unit))
 
 
+class _RecordedSignal:
+    def __init__(self):
+        self.value = None
+
+
+def _capture_telemetry(state):
+    recorder = _LiveRecorder()
+    signals = (
+        ("_PHASE", recorder.watch, "phase", ""),
+        ("_RANGE", recorder.watch, "range_mm", "mm"),
+        ("_DISTANCE", recorder.plot, "wheel_distance_mm", "mm"),
+        ("_HEADING", recorder.plot, "heading_rad", "rad"),
+    )
+    missing = object()
+    original_live = student_work.live
+    original_signals = [getattr(student_work, name, missing) for name, _, _, _ in signals]
+    captured = [_RecordedSignal() for _ in signals]
+    try:
+        student_work.live = recorder
+        for (name, _, _, _), signal in zip(signals, captured):
+            setattr(student_work, name, signal)
+        student_work.publish_telemetry(state, student_work.APPROACH)
+        for (_, publish, label, unit), signal in zip(signals, captured):
+            if signal.value is not None:
+                publish(label, signal.value, unit)
+    finally:
+        student_work.live = original_live
+        for (name, _, _, _), original in zip(signals, original_signals):
+            if original is missing:
+                delattr(student_work, name)
+            else:
+                setattr(student_work, name, original)
+    return recorder
+
+
 def _check_telemetry():
     measurements = Measurements(
         100,
@@ -96,13 +131,7 @@ def _check_telemetry():
         False,
     )
     state = RobotState(measurements, Pose(50.0, 20.0, 0.4))
-    recorder = _LiveRecorder()
-    original_live = student_work.live
-    student_work.live = recorder
-    try:
-        student_work.publish_telemetry(state, student_work.APPROACH)
-    finally:
-        student_work.live = original_live
+    recorder = _capture_telemetry(state)
     watches = dict((name, (value, unit)) for name, value, unit in recorder.watches)
     plots = dict((name, (value, unit)) for name, value, unit in recorder.plots)
     expected_watches = {
@@ -128,12 +157,7 @@ def _check_telemetry():
         Measurements(120, 0.02, 142.0, 162.0, 2.0, 2.0, 100.0, 100.0, None, False),
         Pose(52.0, 20.0, 0.4),
     )
-    recorder = _LiveRecorder()
-    student_work.live = recorder
-    try:
-        student_work.publish_telemetry(no_range, student_work.APPROACH)
-    finally:
-        student_work.live = original_live
+    recorder = _capture_telemetry(no_range)
     watches = dict((name, value) for name, value, _unit in recorder.watches)
     if watches.get("range_mm") != "unavailable":
         raise AssertionError("publish 'unavailable' when no range is available")

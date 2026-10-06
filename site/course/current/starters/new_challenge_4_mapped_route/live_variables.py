@@ -17,5 +17,9 @@ TURN_RATE = live.number(
 )
 
 
+# Register signal names and units once; the loop writes only each value.
+_WATCH_NAVIGATION_STEPS = live.register_watch('navigation_steps')
+
+
 def publish_navigation_steps(step_count):
-    live.watch("navigation_steps", step_count)
+    _WATCH_NAVIGATION_STEPS.value = step_count

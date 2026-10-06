@@ -17,20 +17,27 @@ TURN_RATE = live.number(
 )
 
 
+# Register signal names and units once; the loop writes only each value.
+_WATCH_MISSION_PHASE = live.register_watch('mission_phase')
+_WATCH_MISSION_RESULT = live.register_watch('mission_result')
+_WATCH_GOALS_REACHED = live.register_watch('goals_reached')
+_WATCH_RETURN_PATH_CELLS = live.register_watch('return_path_cells')
+
+
 def publish_phase(phase):
-    live.watch("mission_phase", phase)
+    _WATCH_MISSION_PHASE.value = phase
 
 
 def publish_result(result):
-    live.watch("mission_result", result)
+    _WATCH_MISSION_RESULT.value = result
 
 
 def publish_goals_reached(count):
-    live.watch("goals_reached", count)
+    _WATCH_GOALS_REACHED.value = count
 
 
 def publish_return_path_cells(count):
-    live.watch("return_path_cells", count)
+    _WATCH_RETURN_PATH_CELLS.value = count
 
 
 # Write the result to both Monitor and Program output.

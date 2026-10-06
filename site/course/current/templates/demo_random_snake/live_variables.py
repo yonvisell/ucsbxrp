@@ -9,13 +9,19 @@ FORWARD_SPEED_MM_S = live.number("snake_forward_speed_mm_s", 150.0, 60.0, 180.0,
 TURN_RATE_RAD_S = live.number("snake_turn_rate_rad_s", 1.4, 0.5, 1.8, 0.1, unit="rad/s", label="Turn rate")
 
 
+# Register signal names and units once; the loop writes only each value.
+_WATCH_SEGMENT = live.register_watch('segment')
+_WATCH_PHASE = live.register_watch('phase')
+_WATCH_TRAVEL_MM = live.register_watch('travel_mm', unit="mm")
+
+
 def publish_segment(number):
-    live.watch("segment", number)
+    _WATCH_SEGMENT.value = number
 
 
 def publish_phase(phase):
-    live.watch("phase", phase)
+    _WATCH_PHASE.value = phase
 
 
 def publish_travel(travel_mm):
-    live.watch("travel_mm", travel_mm, unit="mm")
+    _WATCH_TRAVEL_MM.value = travel_mm

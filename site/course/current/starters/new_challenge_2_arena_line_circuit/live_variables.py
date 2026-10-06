@@ -11,10 +11,19 @@ CRUISE_SPEED = live.number("cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S, 50.0,
 P_GAIN = live.number("line_gain", DEFAULT_P_GAIN_RAD_S, 0.0, 5.0, 0.1, label="P gain", unit="rad/s")
 
 
+# Register signal names and units once; the loop writes only each value.
+_PLOT_REFLECTANCE_LEFT = live.register_plot('reflectance_left')
+_PLOT_REFLECTANCE_RIGHT = live.register_plot('reflectance_right')
+_PLOT_LINE_ERROR = live.register_plot('line_error')
+_PLOT_TURN_RATE_RAD_S = live.register_plot('turn_rate_rad_s', unit="rad/s", label="Requested turn rate")
+_WATCH_CHECKPOINTS_REACHED = live.register_watch('checkpoints_reached')
+_WATCH_PHASE = live.register_watch('phase')
+
+
 def publish_line_values(readings, command, line_error, checkpoints_reached, phase):
-    live.plot("reflectance_left", readings.left)  # Normalized reflectance: 0 = light, 1 = dark.
-    live.plot("reflectance_right", readings.right)
-    live.plot("line_error", line_error)  # Left reading minus right reading.
-    live.plot("turn_rate_rad_s", command.turn_rate_rad_s, unit="rad/s", label="Requested turn rate")
-    live.watch("checkpoints_reached", checkpoints_reached)
-    live.watch("phase", phase)
+    _PLOT_REFLECTANCE_LEFT.value = readings.left  # Normalized reflectance: 0 = light, 1 = dark.
+    _PLOT_REFLECTANCE_RIGHT.value = readings.right
+    _PLOT_LINE_ERROR.value = line_error  # Left reading minus right reading.
+    _PLOT_TURN_RATE_RAD_S.value = command.turn_rate_rad_s
+    _WATCH_CHECKPOINTS_REACHED.value = checkpoints_reached
+    _WATCH_PHASE.value = phase

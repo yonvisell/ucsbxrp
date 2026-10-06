@@ -10,12 +10,30 @@ GROWTH_MM = live.number("snake_growth_mm", growth["default"], growth["minimum"],
 SPEED_MM_S = live.number("snake_speed_mm_s", speed["default"], speed["minimum"], speed["maximum"], speed["step"], unit="mm/s", label="Cruise speed")
 
 
+# Register signal names and units once; the loop writes only each value.
+_WATCH_SNAKE_SCORE = live.register_watch('snake_score', label="Score")
+_WATCH_SNAKE_FOOD_COUNT = live.register_watch('snake_food_count', label="Food in arena")
+_WATCH_SNAKE_TAIL_MM = live.register_watch('snake_tail_mm', unit="mm", label="Tail length")
+_WATCH_SNAKE_PHASE = live.register_watch('snake_phase', label="Game")
+_WATCH_SNAKE_SCENE_SEED = live.register_watch('snake_scene_seed')
+_WATCH_SNAKE_SCENE_MAX_FOOD = live.register_watch('snake_scene_max_food')
+_WATCH_SNAKE_SCENE_MARGIN = live.register_watch('snake_scene_margin')
+_WATCH_SNAKE_SCENE_JITTER_X = live.register_watch('snake_scene_jitter_x')
+_WATCH_SNAKE_SCENE_JITTER_Y = live.register_watch('snake_scene_jitter_y')
+_WATCH_SNAKE_SCENE_HEAD_MM = live.register_watch('snake_scene_head_mm')
+_WATCH_SNAKE_SCENE_TAIL_MM = live.register_watch('snake_scene_tail_mm')
+_WATCH_SNAKE_SCENE_PELLET_MM = live.register_watch('snake_scene_pellet_mm')
+_WATCH_SNAKE_SCENE_SAMPLE_MM = live.register_watch('snake_scene_sample_mm')
+_WATCH_SNAKE_SCENE_INITIAL_MM = live.register_watch('snake_scene_initial_mm')
+_WATCH_SNAKE_SCENE_POINTS = live.register_watch('snake_scene_points')
+
+
 def publish_game(game):
     # Send the current score, food state, tail length, and stopping reason to Monitor.
-    live.watch("snake_score", game.score, label="Score")
-    live.watch("snake_food_count", len(game.food), label="Food in arena")
-    live.watch("snake_tail_mm", game.tail_mm, unit="mm", label="Tail length")
-    live.watch("snake_phase", game.phase, label="Game")
+    _WATCH_SNAKE_SCORE.value = game.score
+    _WATCH_SNAKE_FOOD_COUNT.value = len(game.food)
+    _WATCH_SNAKE_TAIL_MM.value = game.tail_mm
+    _WATCH_SNAKE_PHASE.value = game.phase
 
 
 def publish_scene_config(world):
@@ -23,14 +41,14 @@ def publish_scene_config(world):
     food = CONFIG["food"]
     body = CONFIG["body"]
     seed = food["physical_seed"] if world.id == "snake-physical" else food["virtual_seed"]
-    live.watch("snake_scene_seed", seed)
-    live.watch("snake_scene_max_food", food["maximum"])
-    live.watch("snake_scene_margin", food["edge_margin_mm"])
-    live.watch("snake_scene_jitter_x", food["jitter_x_fraction"])
-    live.watch("snake_scene_jitter_y", food["jitter_y_fraction"])
-    live.watch("snake_scene_head_mm", body["head_diameter_mm"])
-    live.watch("snake_scene_tail_mm", body["tail_diameter_mm"])
-    live.watch("snake_scene_pellet_mm", body["pellet_radius_mm"])
-    live.watch("snake_scene_sample_mm", body["sample_spacing_mm"])
-    live.watch("snake_scene_initial_mm", body["initial_tail_mm"])
-    live.watch("snake_scene_points", body["maximum_tail_points"])
+    _WATCH_SNAKE_SCENE_SEED.value = seed
+    _WATCH_SNAKE_SCENE_MAX_FOOD.value = food["maximum"]
+    _WATCH_SNAKE_SCENE_MARGIN.value = food["edge_margin_mm"]
+    _WATCH_SNAKE_SCENE_JITTER_X.value = food["jitter_x_fraction"]
+    _WATCH_SNAKE_SCENE_JITTER_Y.value = food["jitter_y_fraction"]
+    _WATCH_SNAKE_SCENE_HEAD_MM.value = body["head_diameter_mm"]
+    _WATCH_SNAKE_SCENE_TAIL_MM.value = body["tail_diameter_mm"]
+    _WATCH_SNAKE_SCENE_PELLET_MM.value = body["pellet_radius_mm"]
+    _WATCH_SNAKE_SCENE_SAMPLE_MM.value = body["sample_spacing_mm"]
+    _WATCH_SNAKE_SCENE_INITIAL_MM.value = body["initial_tail_mm"]
+    _WATCH_SNAKE_SCENE_POINTS.value = body["maximum_tail_points"]

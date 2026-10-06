@@ -13,13 +13,19 @@ TURN_DIRECTION = live.choice("turn_direction", "left", options=("left", "right")
 SECOND_APPROACH = live.toggle("second_approach", True, label="Drive after turn")
 
 
+# Register signal names and units once; the loop writes only each value.
+_WATCH_RANGE_MM = live.register_watch('range_mm', unit="mm")
+_WATCH_PHASE = live.register_watch('phase')
+_WATCH_HEADING_ERROR_RAD = live.register_watch('heading_error_rad', unit="rad")
+
+
 def publish_range(range_mm):
-    live.watch("range_mm", range_mm if range_mm is not None else "No echo", unit="mm")
+    _WATCH_RANGE_MM.value = range_mm if range_mm is not None else "No echo"
 
 
 def publish_phase(phase):
-    live.watch("phase", phase)
+    _WATCH_PHASE.value = phase
 
 
 def publish_heading_error(error_rad):
-    live.watch("heading_error_rad", error_rad, unit="rad")
+    _WATCH_HEADING_ERROR_RAD.value = error_rad
