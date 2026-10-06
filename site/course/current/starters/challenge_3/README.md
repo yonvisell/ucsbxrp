@@ -53,7 +53,7 @@ Keep an active-goal index and a small explicit mode such as `turn`, `drive`, or
 | [`navigation_controller.py`](navigation_controller.py) | Selects the next `MotionCommand` from the active route goal and pose. |
 | [`robot_setup.py`](robot_setup.py) | Holds robot calibration and settings, selects components, and constructs the robot. |
 
-**Test functions always loads the classes from the five component project
+**Run code tests always loads the classes from the five component project
 files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
@@ -79,7 +79,7 @@ requested final heading.
 
 ## Check the component
 
-Select **Test functions**. Read `USE`, `INPUT`, and `EXPECT` before each
+Select **Run code tests**. Read `USE`, `INPUT`, and `EXPECT` before each
 result. The navigation checks cover an empty route, goals ahead and to either
 side, ordered goals, approach speed, realignment, angle wrap, and a required
 final heading.
@@ -88,7 +88,7 @@ final heading.
 - `NOT IMPLEMENTED` means the named method still needs to be written.
 - `FAIL` means the method ran but returned an incorrect command or route state.
 
-Fix every unfinished or failing result, repeat **Test functions**, and then
+Fix every unfinished or failing result, repeat **Run code tests**, and then
 set `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` in `robot_setup.py`.
 
 ## Complete the challenge

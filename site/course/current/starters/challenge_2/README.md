@@ -75,7 +75,7 @@ forced termination can bypass Python cleanup.
 
 ## Check each component
 
-Select **Test functions**. The checks load all four classes from their named
+Select **Run code tests**. The checks load all four classes from their named
 project files and do not move either robot. Read each class's `USE`,
 `INPUT`, and `EXPECT` lines before its result:
 
@@ -85,7 +85,7 @@ project files and do not move either robot. Read each class's `USE`,
 
 The new checks cover straight, curved, and in-place wheel relationships, plus
 odometry reset, translation, rotation, and curved travel. Fix every unfinished
-or failing result, repeat **Test functions**, and then set the matching
+or failing result, repeat **Run code tests**, and then set the matching
 `USE_STUDENT_*` flag to `True`.
 
 ## Complete the challenge

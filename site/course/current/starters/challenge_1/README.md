@@ -73,7 +73,7 @@ handles the IDE's **Stop** separately; forced termination can bypass Python clea
 
 ## Check each component
 
-Select **Test functions** in the IDE. The checks load `SensorProcessor` from
+Select **Run code tests** in the IDE. The checks load `SensorProcessor` from
 `sensor_processor.py` and `WheelSpeedController` from
 `wheel_speed_controller.py`; they do not move either robot. For each class,
 read its `USE`,
@@ -84,7 +84,7 @@ read its `USE`,
 - `FAIL` means the method ran, but its result did not meet the stated
   requirement.
 
-Fix every `NOT IMPLEMENTED` and `FAIL`, then run **Test functions** again. Set
+Fix every `NOT IMPLEMENTED` and `FAIL`, then run **Run code tests** again. Set
 the matching `USE_STUDENT_*` flag in `robot_setup.py` to `True` only after that
 class passes its checks.
 

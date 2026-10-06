@@ -18,13 +18,13 @@ MISSION_MAP_WORLD = load_world(world_id=MISSION_MAP_WORLD_ID)
 DELIVERY_TASK = DeliveryTask(
     initial_pose=WORLD.initial_pose,
     arena=MISSION_MAP_WORLD.arena_map(),
-    grid_resolution_mm=100.0,
+    grid_resolution_mm=100.0,  # Width and height of each square planning cell, mm.
     # 85 mm virtual collision radius plus 10 mm planning margin.
     clearance_mm=95.0,
     destination=WORLD.waypoint("destination"),
     observed_feature_name="center_gate",
-    range_sample_count=7,
-    minimum_usable_range_count=4,
-    blocked_range_threshold_mm=500.0,
+    range_sample_count=7,  # Distinct ultrasound attempts in the stationary gate observation.
+    minimum_usable_range_count=4,  # Positive finite readings required to form a range estimate.
+    blocked_range_threshold_mm=500.0,  # Estimate at or below this sensor distance marks the gate blocked, mm.
     assume_blocked_without_range=True,
 )

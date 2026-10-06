@@ -19,7 +19,7 @@ motor stop; edit `student_work.py` only when exploring a function.
 | `live_variables.py` | Supplied Monitor control declarations for speed, distance, direction, and Run behavior. |
 | `main.py` | Supplied measured approach/turn sequence and motor cleanup. |
 | `exercise_checks.py` | Supplied input/output examples that run before motion. |
-| `robot_setup.py`, `robot_setup.py` | Supplied robot assembly and settings. |
+| `robot_setup.py` | Supplied robot assembly and settings. |
 | `world.json` | Supplied arena, wall, and start pose shown in Monitor. |
 
 `Robot.step(command, read_range=True)` takes the next sample while approaching.
@@ -44,9 +44,10 @@ and new readings determine the next one.
 | `DONE` | Any later reading | `DONE` |
 
 `None` means no usable range measurement, not zero distance. The function
-checks `range_mm is not None` before comparing distances. Six consecutive
-unavailable readings cause the supplied runner to stop with a fault, rather
-than drive toward an unseen wall. `next_phase` itself stays a small,
+checks `range_mm is not None` before comparing distances. An uninterrupted
+0.12 s of unavailable range causes the supplied runner to stop with a fault.
+The runner adds the actual sample intervals, so this limit remains 0.12 s
+when the sample rate changes. `next_phase` itself stays a small,
 input/output function that can be checked without starting a robot.
 
 `turn_start_heading_rad` is reset when the phase first changes to `TURN`.
@@ -112,7 +113,7 @@ Publication does not choose a command. Use a `print(...)` for a rare milestone
 or exception, not once per sample.
 
 The runner stops if approach wheel travel reaches 500 mm without a valid phase
-change, if six consecutive range readings are unavailable, or if a turn fails
+change, if range remains unavailable for 0.12 s, or if a turn fails
 to reach π/2 within 5 s. Those limits are fault stops; normal approach and turn
 end from range and heading measurements. `robot.stop()` in `finally` covers
 normal completion and Python exceptions. `Robot.step()` already schedules

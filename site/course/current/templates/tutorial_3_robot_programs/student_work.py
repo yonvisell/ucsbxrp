@@ -1,9 +1,9 @@
 # Read RobotState and run one straight motion to a measured wheel-travel target.
 
-from ucsb_xrp import MotionCommand, Robot, RobotState, load_world
+from ucsb_xrp import MotionCommand, Robot, RobotState, elapsed_time_s, load_world
 
 
-MAXIMUM_SAMPLES = 400  # Fault stop if a sensor or wheel reports no progress.
+MAXIMUM_RUN_TIME_S = 8.0  # Stop if measured travel has not reached the target in 8 s.
 
 
 def mean_wheel_position_mm(state: RobotState) -> float:
@@ -24,7 +24,8 @@ def run_robot_program(
         state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         start_position_mm = mean_wheel_position_mm(state)
         command = MotionCommand(forward_speed_mm_s, 0.0)
-        for _ in range(MAXIMUM_SAMPLES):
+        start_ms = state.measurements.time_ms
+        while elapsed_time_s(state.measurements.time_ms, start_ms) < MAXIMUM_RUN_TIME_S:
             # Subtract the initial axle position so reruns use their own origin.
             if mean_wheel_position_mm(state) - start_position_mm >= target_distance_mm:
                 return state

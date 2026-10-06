@@ -11,10 +11,10 @@ from stationary_observation import wait_until_stationary
 from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import elapsed_time_s
 
-robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
-navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create the route controller.
+robot = make_robot(ROBOT_CONFIG)  # Assemble the selected sensing, wheel-control, drive, and odometry objects.
+navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create a separate navigation object with its own route progress.
 try:  # Run this block, then stop the motors in finally.
-    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
+    state = robot.start(INITIAL_POSE)  # Start wheel travel at zero and set the estimated starting Pose.
     publish_phase("outbound")
     state, result = follow_route(robot, navigation, state, OUTBOUND_ROUTE)
     robot.stop()
@@ -28,8 +28,8 @@ try:  # Run this block, then stop the motors in finally.
         else:
             publish_phase("observe")
             samples = robot.collect_range_samples(RANGE_SAMPLE_COUNT, timeout_s=RANGE_COLLECTION_TIMEOUT_S)
-            state = robot.state  # Read the state updated during range collection.
-            estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)  # Combine usable readings into one distance.
+            state = robot.state  # Collection performed stopped control steps; use their latest measurements and pose.
+            estimate_mm = robot.estimate_range(samples, MINIMUM_USABLE_RANGE_COUNT)  # Call the selected SensorProcessor on distinct attempts, including None.
             blocked = observed_gate(estimate_mm, BLOCKED_RANGE_THRESHOLD_MM)  # Classify the gate as blocked, open, or unknown.
             print("stationary_range_samples_mm:", samples)
             print("range_estimate_mm:", estimate_mm)

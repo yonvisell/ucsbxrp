@@ -4,7 +4,7 @@ from robot_setup import make_line_follower, make_robot
 from lap_progress import LapProgress
 from live_variables import publish_line_values
 from robot_setup import (
-    FINISH_CONFIRM_SAMPLES,
+    FINISH_CONFIRM_TIME_S,
     FINISH_THRESHOLD,
     LINE_FOLLOWER_SETTINGS,
     LINE_VISIBLE_THRESHOLD,
@@ -35,7 +35,7 @@ def run_challenge():
                 break
             # Both sensors must see the dark finish bar in the same sample.
             on_finish = min(readings.left, readings.right) >= FINISH_THRESHOLD
-            if lap.update(state.pose, on_finish, FINISH_CONFIRM_SAMPLES):
+            if lap.update(state.pose, on_finish, state.measurements.dt_s, FINISH_CONFIRM_TIME_S):
                 result = "complete"
                 break
             # With neither sensor on the line, command zero and time the gap.

@@ -25,7 +25,8 @@ class Odometry(OdometryBase):
         # track_width_mm is the distance between the two wheels. Update the
         # retained axle-midpoint x_mm/y_mm in the fixed arena frame and wrap
         # heading_rad in radians; return that Pose. Use measured travel rather
-        # than requested commands or simulator ground truth.
+        # than requested commands or simulator ground truth. Each increment
+        # already covers the measured interval; do not multiply it by dt again.
         raise NotImplementedError("Complete Odometry.update")
 
     @property

@@ -1,12 +1,11 @@
 from sensor_processor import SensorProcessor
-from wheel_speed_controller import WheelSpeedController
 from differential_drive import DifferentialDrive
 from ucsb_xrp.component_checks import run_component_checks
 from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import RawSensors, ReflectanceReadings
 
 # Exercise the project classes directly, regardless of Run selectors.
-run_component_checks(SensorProcessor, WheelSpeedController, DifferentialDrive)
+run_component_checks(SensorProcessor, DifferentialDrive)
 
 
 def check_reflectance_preservation():
@@ -46,7 +45,7 @@ def check_line_follower():
         assert centered.turn_rate_rad_s == 0, "equal readings must request no turn after reset"
         assert left.turn_rate_rad_s > 0 and right.turn_rate_rad_s < 0, "turn toward the darker sensor"
         follower.reset()
-        assert follower.update(ReflectanceReadings(0.6, 0.6), 0.02).turn_rate_rad_s == 0, "reset must clear controller history"
+        assert follower.update(ReflectanceReadings(0.6, 0.6), 0.02).turn_rate_rad_s == 0, "reset must clear the preceding error and accumulated error"
     except NotImplementedError as error:
         print("NOT IMPLEMENTED · LineFollower:", error)
         return

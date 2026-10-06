@@ -19,7 +19,7 @@ implement the Challenge 1 sensor or stopping controllers.
 | `student_work.py` | The measured-position calculation and straight program to read and edit. |
 | `main.py` | Supplied entrypoint with the 120 mm/s request and 300 mm target. |
 | `exercise_checks.py` | Supplied software robot that checks returned data and stop behavior without motors. |
-| `robot_setup.py`, `robot_setup.py` | Supplied robot assembly and settings. |
+| `robot_setup.py` | Supplied robot assembly and settings. |
 | `world.json` | Supplied arena and start pose shared by the Virtual XRP and Monitor. |
 
 Read `main.py` first. `from student_work import ...` loads the functions from
@@ -69,8 +69,9 @@ The last step can exceed the target slightly because the robot moves between
 samples. In the software check, left and right positions advance 2.0 and
 2.4 mm per sample. Their mean advances 2.2 mm, so a 30 mm target is first met
 after 14 samples (`14 × 2.2 = 30.8 mm`). The target, not the number 14,
-controls the loop. `MAXIMUM_SAMPLES` is only a fault stop if the sensor reports
-no progress; it is not a maneuver duration.
+controls the loop. `MAXIMUM_RUN_TIME_S = 8.0` stops a run if measured
+travel has not reached the target within 8 s. This limit stays the same
+when the control sample period changes.
 
 ## 3. Make one controlled comparison
 

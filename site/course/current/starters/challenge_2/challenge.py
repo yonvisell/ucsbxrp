@@ -14,5 +14,5 @@ FINAL_HEADING_RAD = INITIAL_POSE.heading_rad
 
 # These visible phase limits stop a mistaken component from commanding motion
 # indefinitely. They are diagnostic bounds, not hidden changes to commands.
-MAX_STRAIGHT_TIME_S = 12.0
-MAX_TURN_TIME_S = 8.0
+MAX_STRAIGHT_TIME_S = 12.0  # Nominal seconds per straight segment; main.py converts this to a step limit.
+MAX_TURN_TIME_S = 8.0  # Nominal seconds per rotation; main.py converts this to a step limit.

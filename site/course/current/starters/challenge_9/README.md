@@ -21,6 +21,11 @@ runs the sampled loop. It contains no stored trajectory or mission step limit.
 `LapProgress` accepts a finish crossing only after four ordered checkpoints
 from the estimated odometry pose. Reflectance readings steer the robot and
 detect the finish bar; they do not by themselves establish a completed lap.
+After all checkpoints, both sensors must remain on the finish bar for
+`FINISH_CONFIRM_TIME_S = 0.08` s. `LapProgress.update(pose, on_finish, dt_s,
+confirm_time_s)` adds actual sample intervals while the bar is detected and
+clears that duration when the robot leaves it. This duration remains the same
+at 50 Hz and 100 Hz.
 If neither sensor reaches the line-visible threshold, `main.py` requests zero
 motion while it waits for the line to reappear.
 
@@ -55,7 +60,7 @@ check steering signs, command limits, and reset behavior.
 
 ## Complete the challenge
 
-1. Run **Test functions**. An unfinished `LineFollower` reports `NOT IMPLEMENTED`.
+1. Run **Run code tests**. An unfinished `LineFollower` reports `NOT IMPLEMENTED`.
 2. Implement `LineFollower.update` in `line_follower.py`.
 3. Set `USE_STUDENT_LINE_FOLLOWER = True` in `robot_setup.py` and rerun the check.
 4. Run virtually and compare left/right reflectance and line error in Monitor.

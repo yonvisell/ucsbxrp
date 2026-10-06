@@ -3,9 +3,10 @@
 from ucsb_xrp import live
 
 
-DEFAULT_CRUISE_SPEED_MM_S = 150.0
-DEFAULT_TURN_RATE_RAD_S = 0.8
-# Create sliders in Monitor; .value reads each slider setting.
+DEFAULT_CRUISE_SPEED_MM_S = 150.0  # Initial forward-speed slider value, mm/s.
+DEFAULT_TURN_RATE_RAD_S = 0.8  # Initial magnitude limit for turning, rad/s.
+# Create sliders in Monitor; .value reads each applied setting.
+# Each declaration lists the initial value, lower/upper bounds, and adjustment step.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",

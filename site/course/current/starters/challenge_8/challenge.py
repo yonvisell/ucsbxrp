@@ -15,10 +15,11 @@ NODE_GOALS = (
     NavigationGoal(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm, INITIAL_POSE.heading_rad),
 ) + SERVICE_STOPS
 NODE_NAMES = ("depot", "stop_a", "stop_b", "stop_c")
+# Indices address NODE_GOALS: 0 is the depot; 1, 2, and 3 are the service stops.
 START_NODE_INDEX = 0
-REQUIRED_NODE_INDICES = (1, 2, 3)
-FINISH_NODE_INDEX = 0
+REQUIRED_NODE_INDICES = (1, 2, 3)  # Visit all three; the planner chooses their order.
+FINISH_NODE_INDEX = 0  # Return to the depot after the service stops.
 ARENA_MAP = WORLD.arena_map()
 # Grid resolution sets cell size in mm; clearance expands blocked regions.
 GRID_RESOLUTION_MM = 100.0
-CLEARANCE_MM = 95.0
+CLEARANCE_MM = 95.0  # Expand obstacles by an 85 mm robot radius plus a 10 mm planning margin.

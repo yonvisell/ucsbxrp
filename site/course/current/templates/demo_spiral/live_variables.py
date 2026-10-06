@@ -3,6 +3,8 @@
 from ucsb_xrp import live
 
 
+# Each number sets an initial value, lower/upper bounds, and step in the stated unit.
+# Winding rate sets initial revolutions per meter; the spiral reduces it as travel grows.
 FORWARD_SPEED = live.number("forward_speed_mm_s", 110.0, minimum=60.0, maximum=160.0, step=10.0, unit="mm/s", label="Forward speed")
 WINDING_RATE = live.number("spiral_winding_turns_per_m", 0.7, minimum=0.3, maximum=1.4, step=0.1, unit="revolutions/m", label="Spiral winding rate")
 IGNORE_OBSTACLES = live.toggle("ignore_obstacles", False, label="Ignore obstacles")

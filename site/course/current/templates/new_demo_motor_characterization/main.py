@@ -1,5 +1,5 @@
 # Measure motor effort versus wheel speed without wheel-speed feedback.
-from time import sleep_ms
+from time import sleep_ms, ticks_add, ticks_diff, ticks_ms
 from experiment import (
     EFFORTS,
     EFFORT_DURATION_S,
@@ -19,6 +19,8 @@ try:  # Ensure finally stops motors on exit.
     bot.reset_encoders()
     # Use the first raw reading after encoder reset as the measurement origin.
     measurements = model.reset(bot.read())
+    measurement_start_ms = measurements.time_ms
+    next_sample_ms = ticks_add(ticks_ms(), ROBOT_CONFIG.sample_period_ms)
     # Repeat zero command, commanded effort, and zero command at each level.
     for effort in EFFORTS:
         if not 0.0 <= effort <= 0.3:
@@ -34,7 +36,10 @@ try:  # Ensure finally stops motors on exit.
             start_ms = measurements.time_ms
             bot.set_drive(DriveCommand(command, command))
             while elapsed_time_s(measurements.time_ms, start_ms) < duration_s:
-                sleep_ms(ROBOT_CONFIG.sample_period_ms)  # Robot.step would supply this delay.
+                # Wait until the next scheduled sample, subtracting time spent computing.
+                remaining_ms = ticks_diff(next_sample_ms, ticks_ms())
+                if remaining_ms > 0:
+                    sleep_ms(remaining_ms)
                 measurements = model.update(bot.read())
                 wheel_travel_mm = max(
                     abs(measurements.left_position_mm),
@@ -42,8 +47,17 @@ try:  # Ensure finally stops motors on exit.
                 )
                 if wheel_travel_mm > MAXIMUM_WHEEL_TRAVEL_MM:  # Bound either wheel's travel.
                     raise RuntimeError("Characterization travel limit reached")
-                publish_motor_values(command, measurements)
+                publish_motor_values(command, measurements, measurement_start_ms, ROBOT_CONFIG.sample_period_ms)
+                next_sample_ms = ticks_add(next_sample_ms, ROBOT_CONFIG.sample_period_ms)
+                # Skip missed intervals instead of taking several samples immediately.
+                lateness_ms = ticks_diff(ticks_ms(), next_sample_ms)
+                if lateness_ms >= 0:
+                    missed = lateness_ms // ROBOT_CONFIG.sample_period_ms + 1
+                    next_sample_ms = ticks_add(next_sample_ms, missed * ROBOT_CONFIG.sample_period_ms)
             print("effort:", command, "wheel_speeds_mm_s:", measurements.wheel_speeds)
+    # Retain the final published measurement in one last stopped raw acquisition.
+    bot.stop()
+    bot.read()
     print("Motor characterization complete")
 finally:
     bot.stop()

@@ -1,7 +1,7 @@
 # Tutorial 5: Physical XRP deployment
 
 Run one project first on the Virtual XRP and then on a physical XRP. The first
-part collects stationary sensor records. The second part requests a short,
+part collects stationary sensor records for 1 s. The second part requests a short,
 low-speed straight motion and confirms that wheel position changes. This tests
 project transfer, execution, telemetry, sensors, motors, encoders, and stopping
 without solving a course challenge.
@@ -48,8 +48,9 @@ motion.
    with `STOP_COMMAND`, prints the stationary report, and exits without motion.
 3. In `main.py`, change the setting to `ENABLE_SHORT_MOTION = True`, select
    **Reset**, and select **Run** again. After the
-   stationary report, the program requests 60 mm/s for 25 samples
-   (approximately 0.5 seconds), then stops.
+   stationary report, the program requests 60 mm/s for 0.5 s of measured
+   sample time, then stops. The final sample can exceed this limit by one
+   sample interval.
 4. Press and release the virtual USER button during the stopped portion if you
    want to verify that field.
 5. Confirm the stationary report and `motion_wheel_travel_mm` in **Program
@@ -78,10 +79,29 @@ motion.
 If connection fails, use the current System log message. A Virtual XRP pass
 checks the Python project; it does not verify the physical network or hardware.
 
+## Trace `main.py`
+
+1. `run_preflight()` runs the report checks. A failed check ends the program
+   before robot construction.
+2. `make_robot(ROBOT_CONFIG)` assembles the supplied sensor, wheel-control,
+   drive, and odometry components. `sample_period_ms=10` schedules 100 Hz.
+3. `collect_stationary_samples(robot)` starts from the selected world's pose,
+   saves the first state, and calls `robot.step(STOP_COMMAND, read_range=True)`
+   until 1 s has elapsed. It stops in `finally` and returns the saved states.
+4. `preflight_report(states)` reads that collection and returns six named
+   results. `run_preflight()` prints each result.
+5. When `ENABLE_SHORT_MOTION` is `True`, `run_short_motion(robot)` starts a
+   fresh measurement sequence, requests `MotionCommand(60.0, 0.0)` for 0.5 s,
+   and stops in `finally`. The program subtracts starting wheel position
+   from final wheel position to report this motion's travel.
+
+Both durations use sample timestamps. Changing the control period changes
+how many states are collected, while retaining the 1 s and 0.5 s limits.
+
 ## Why the loop contains no delay
 
-`Robot.step(...)` already waits for the next scheduled sample, applies the
-command, reads sensors, updates state, and publishes telemetry. **Do not add
+`Robot.step(...)` calculates and applies the wheel commands, waits until
+the next scheduled sample, reads sensors, updates state, and publishes telemetry. **Do not add
 `sleep()` or `sleep_ms()` inside the loop.** An extra delay slows feedback and changes the time between motion commands.
 The measurement timestamps still record the actual elapsed interval.
 

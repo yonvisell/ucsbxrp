@@ -22,7 +22,7 @@ from ucsb_xrp import elapsed_time_s, load_world, wrap_angle_rad
 
 
 MAXIMUM_APPROACH_TRAVEL_MM = 500.0  # Fault stop before the practice wall.
-MAXIMUM_MISSING_RANGE_SAMPLES = 6  # Fault stop if range sensing is unavailable.
+MAXIMUM_MISSING_RANGE_TIME_S = 0.12  # Stop after 0.12 s without a usable range.
 MAXIMUM_TURN_TIME_S = 5.0  # Fault stop if heading feedback does not progress.
 
 
@@ -39,7 +39,7 @@ else:
         ) / 2.0
         turn_start_heading_rad = state.pose.heading_rad
         turn_start_ms = state.measurements.time_ms
-        missing_range_samples = 0
+        missing_range_s = 0.0
         # Range selects the turn; estimated heading determines when it ends.
         while phase != DONE:
             if not RUN_BEHAVIOR.value:
@@ -60,14 +60,14 @@ else:
 
             if phase == APPROACH:
                 # Consecutive absent echoes and forward wheel travel bound the approach.
-                missing_range_samples = (
-                    missing_range_samples + 1
+                missing_range_s = (
+                    missing_range_s + state.measurements.dt_s
                     if state.measurements.range_mm is None else 0
                 )
                 mean_mm = (
                     state.measurements.left_position_mm + state.measurements.right_position_mm
                 ) / 2.0
-                if missing_range_samples >= MAXIMUM_MISSING_RANGE_SAMPLES:
+                if missing_range_s + 1e-9 >= MAXIMUM_MISSING_RANGE_TIME_S:
                     raise RuntimeError("Range sensing unavailable during approach")
                 if mean_mm - start_mean_mm >= MAXIMUM_APPROACH_TRAVEL_MM:
                     raise RuntimeError("Approach exceeded the practice-area travel bound")

@@ -18,7 +18,7 @@ files are already runnable so that each later edit has a visible baseline.
 | `student_work.py` | Edit the segment data classes and `build_drawing(...)` to explore a path. |
 | `main.py` | Supplied entrypoint; sets target dimensions, runs each segment, and stops the robot. |
 | `exercise_checks.py` | Supplied checks for commands, measured completion, and segment order. |
-| `robot_setup.py`, `robot_setup.py` | Supplied robot assembly and settings. |
+| `robot_setup.py` | Supplied robot assembly and settings. |
 | `world.json` | Supplied arena and initial pose used by the Virtual XRP. |
 
 Each `.py` file is a Python module. `main.py` imports `build_drawing` from
@@ -101,8 +101,9 @@ before continuing.
 
 The inner loop in `main.py` calls `Robot.step(command)` repeatedly **until the
 measured target is reached**. It does not use a duration as the drawing
-instruction. `MAXIMUM_SEGMENT_SAMPLES` is a fault stop if measurements or
-motion fail to advance; it is not the target for a normal side or corner.
+instruction. `MAXIMUM_SEGMENT_TIME_S = 8.0` stops a segment if it has not completed
+within 8 s of measured sample time. Each normal side or corner still ends
+from wheel travel or heading.
 `Robot.step()` already schedules samples, so do not add `sleep()` inside the
 loop. The `finally` block calls `robot.stop()` when motion finishes or Python
 raises an error. Select **Stop** in the IDE to interrupt a running experiment.

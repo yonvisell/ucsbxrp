@@ -3,6 +3,9 @@
 from ucsb_xrp import live
 
 
+# Each number lists initial value, minimum, maximum, and slider step in the stated unit.
+# Sensor range at or below the obstacle distance starts reversal; reverse speed is negative.
+# Turn rate limits the magnitude of either left or right avoidance rotation.
 OBSTACLE_DISTANCE_MM = live.number("obstacle_distance_mm", 240.0, 150.0, 700.0, 10.0, unit="mm", label="Obstacle distance")
 FORWARD_SPEED_MM_S = live.number("roomba_forward_speed_mm_s", 150.0, 60.0, 180.0, 10.0, unit="mm/s", label="Forward speed")
 REVERSE_SPEED_MM_S = live.number("roomba_reverse_speed_mm_s", -120.0, -180.0, -60.0, 10.0, unit="mm/s", label="Reverse speed")

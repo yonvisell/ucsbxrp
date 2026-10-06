@@ -5,7 +5,7 @@ from snake_config import CONFIG
 
 
 FOOD = CONFIG["food"]
-MAX_FOOD = FOOD["maximum"]
+MAX_FOOD = FOOD["maximum"]  # Limit the generated pellet count in either arena.
 
 
 def food_count(bounds, density):

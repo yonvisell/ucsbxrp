@@ -63,7 +63,7 @@ information between `plan()` calls.
 | [`grid_planner.py`](grid_planner.py) | Connects the requested start and goal through free grid cells. |
 | [`robot_setup.py`](robot_setup.py) | Holds robot calibration and settings, selects components, and constructs the robot. |
 
-**Test functions always loads the classes from the six component project
+**Run code tests always loads the classes from the six component project
 files**, regardless of which classes are selected for a complete robot run.
 
 ## Provided files and tools
@@ -92,7 +92,7 @@ goals at turns and at the destination.
 
 ## Check the component
 
-Select **Test functions**. The checks call `GridPlanner.plan()` from
+Select **Run code tests**. The checks call `GridPlanner.plan()` from
 `grid_planner.py` with small software grids and do not move either robot. Read
 `USE`, `INPUT`, and `EXPECT` before each result:
 
@@ -100,7 +100,7 @@ Select **Test functions**. The checks call `GridPlanner.plan()` from
 - `NOT IMPLEMENTED` means `plan()` still needs to be written.
 - `FAIL` means the method ran but returned an invalid path or incorrect `None`.
 
-Fix every unfinished or failing result, repeat **Test functions**, and then
+Fix every unfinished or failing result, repeat **Run code tests**, and then
 set `USE_STUDENT_GRID_PLANNER` to `True` in `robot_setup.py`.
 
 ## Complete the challenge

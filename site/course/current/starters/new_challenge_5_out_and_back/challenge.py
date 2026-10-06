@@ -11,10 +11,10 @@ HOME = WORLD.waypoint("home")
 MISSION_MAP = load_world(world_id="gate-blocked").arena_map()
 GRID_RESOLUTION_MM = 100.0  # Width and height of each square grid cell.
 CLEARANCE_MM = 95.0  # Expand obstacles by the robot radius plus a tracking margin.
-RANGE_SAMPLE_COUNT = 7
-MINIMUM_USABLE_RANGE_COUNT = 4
-BLOCKED_RANGE_THRESHOLD_MM = 550.0
-GATE_FEATURE = "center_gate"
+RANGE_SAMPLE_COUNT = 7  # Number of distinct ultrasound attempts, including missing echoes.
+MINIMUM_USABLE_RANGE_COUNT = 4  # Positive finite readings required for an estimate.
+BLOCKED_RANGE_THRESHOLD_MM = 550.0  # Estimate at or below this value means blocked; calibrate from stationary batches.
+GATE_FEATURE = "center_gate"  # Only this named map feature changes after the observation.
 
 STATIONARY_DURATION_S = 0.3  # Required continuous interval at low wheel speed.
 STATIONARY_SPEED_MM_S = 5.0  # Maximum absolute wheel speed counted as stationary.

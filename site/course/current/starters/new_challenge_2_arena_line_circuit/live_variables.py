@@ -3,9 +3,10 @@
 from ucsb_xrp import live
 
 
-DEFAULT_CRUISE_SPEED_MM_S = 100.0
-DEFAULT_P_GAIN_RAD_S = 1.8
-# Create sliders in Monitor; .value reads each slider setting.
+DEFAULT_CRUISE_SPEED_MM_S = 100.0  # Initial forward-speed slider value, mm/s.
+DEFAULT_P_GAIN_RAD_S = 1.8  # Initial rad/s correction per unit left-minus-right reflectance.
+# Create sliders in Monitor; .value reads each applied setting.
+# Each declaration lists the initial value, lower/upper bounds, and adjustment step.
 CRUISE_SPEED = live.number("cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S, 50.0, 180.0, 5.0, label="Cruise speed", unit="mm/s")
 P_GAIN = live.number("line_gain", DEFAULT_P_GAIN_RAD_S, 0.0, 5.0, 0.1, label="P gain", unit="rad/s")
 

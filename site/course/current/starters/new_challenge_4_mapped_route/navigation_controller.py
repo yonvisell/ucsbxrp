@@ -11,6 +11,13 @@ from ucsb_xrp.student_api import NavigationControllerBase
 # State: Saved goals, active-goal index, and turn/drive/align phase.
 # Returns: MotionCommand (forward mm/s, turn rad/s) and completion status.
 
+# Optional distance-feedback gains for a forward-speed request (mm/s).
+# The supplied controller does not read these; use them only in your own rule.
+TARGET_LOCATION_KP = 0.0  # 1/s times distance error (mm).
+TARGET_LOCATION_KI = 0.0  # 1/s^2 times accumulated distance error (mm*s).
+TARGET_LOCATION_KD = 0.0  # Dimensionless times distance-error rate (mm/s).
+# Keep TARGET_LOCATION_KI and TARGET_LOCATION_KD at zero; they are not assigned in this challenge.
+
 class NavigationController(NavigationControllerBase):
     # Keep the active-goal index and whether the robot is turning toward a
     # target, driving to it, or aligning to its requested final heading.
@@ -24,7 +31,8 @@ class NavigationController(NavigationControllerBase):
         # x_mm and y_mm locate a target in the fixed arena coordinate frame.
         # Its heading_rad is the required final angle from the positive x axis,
         # counterclockwise in radians; None means no final-angle requirement.
-        # Save this route and discard previous progress. If goals is empty,
+        # Save this route and the current index on self; update() reads them
+        # on later calls. Discard previous progress. If goals is empty,
         # is_complete() returns True and update() returns STOP_COMMAND.
         raise NotImplementedError("Complete NavigationController.start")
 

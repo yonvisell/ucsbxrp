@@ -34,16 +34,16 @@ class _RecordingRobot:
         self.step_calls.append((command, read_range))
         if len(self.step_calls) == self.fail_at_step:
             raise RuntimeError("injected robot.step failure")
-        self.state = _state_for_step(0 if self.frozen else len(self.step_calls))
+        self.state = _state_for_step(len(self.step_calls), frozen=self.frozen)
         return self.state
 
     def stop(self):
         self.stop_count += 1
 
 
-def _state_for_step(step):
-    left_mm = float(step) * 2.0
-    right_mm = float(step) * 2.4
+def _state_for_step(step, frozen=False):
+    left_mm = 0.0 if frozen else float(step) * 2.0
+    right_mm = 0.0 if frozen else float(step) * 2.4
     measurements = Measurements(
         step * 20,
         0.02 if step else 0.0,

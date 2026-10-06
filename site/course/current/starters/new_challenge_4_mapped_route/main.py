@@ -12,7 +12,7 @@ from ucsb_xrp import OccupancyGrid
 
 
 print("World:", WORLD.label)
-grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)  # Mark cells blocked by expanded obstacles.
+grid = OccupancyGrid.from_arena(ARENA_MAP, GRID_RESOLUTION_MM, CLEARANCE_MM)  # Expand obstacles by clearance and mark the intersecting cells blocked.
 if grid.column_count * grid.row_count > MAXIMUM_GRID_CELLS:
     raise ValueError("The map exceeds {} cells. Increase GRID_RESOLUTION_MM in challenge.py.".format(MAXIMUM_GRID_CELLS))
 start = grid.world_to_cell(INITIAL_POSE.x_mm, INITIAL_POSE.y_mm)  # Convert position to a grid column and row.
@@ -33,7 +33,7 @@ else:
         if not EXECUTE_ROUTE:
             print("Path checked. Set EXECUTE_ROUTE = True in challenge.py to drive the route.")
         else:
-            goals = list(path.to_goals(grid))  # Convert grid-cell centers to navigation goals.
+            goals = list(path.to_goals(grid))  # Each cell center becomes a NavigationGoal(x_mm, y_mm).
             goals[-1] = DESTINATION  # Replace the last cell center with the exact destination.
             robot = make_robot(ROBOT_CONFIG)
             navigation = make_navigation_controller(NAVIGATION_CONFIG)

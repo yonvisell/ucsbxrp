@@ -7,12 +7,12 @@ from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG, apply_navigation_contro
 from route_progress import count_reached_goals
 
 
-robot = make_robot(ROBOT_CONFIG)  # Create the robot instance.
-navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create the route controller.
+robot = make_robot(ROBOT_CONFIG)  # Assemble the selected sensing, wheel-control, drive, and odometry objects.
+navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create a separate navigation object with its own route progress.
 step_count = 0
 reached_count = 0
 try:  # Run this block, then stop the motors in finally.
-    state = robot.start(INITIAL_POSE)  # Initialize estimated pose; reset measurements.
+    state = robot.start(INITIAL_POSE)  # Start wheel travel at zero and set the estimated starting Pose.
     reached_count = count_reached_goals(state.pose, ROUTE, reached_count, navigation.config)
     navigation.start(ROUTE)  # Load the ordered waypoints and start at the first.
     while not navigation.is_complete():  # Update motion until the controller finishes the route.

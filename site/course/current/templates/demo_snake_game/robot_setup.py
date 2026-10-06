@@ -4,8 +4,13 @@ from ucsb_xrp import NavigationConfig, RobotConfig, Robot, XRPBot
 from snake_config import CONFIG
 
 # Robot calibration and controller settings.
-# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
-ROBOT_CONFIG = RobotConfig(**CONFIG["robot"])
+# Starting command overcomes friction; speed gain requests steady speed; kp corrects speed error.
+ROBOT_CONFIG = RobotConfig(
+    sample_period_ms=10,  # Scheduled interval in ms; 100 Hz.
+    wheel_speed_ki=0.0,  # I gain (1/mm); unused by the supplied P controller.
+    wheel_speed_kd=0.0,  # D gain (s^2/mm); unused by the supplied P controller.
+    **CONFIG["robot"],
+)
 
 
 def navigation_config_for_speed(speed_mm_s):

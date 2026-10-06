@@ -4,14 +4,14 @@ from robot_setup import make_robot
 from exercise_checks import run_exercise_checks
 from robot_setup import ROBOT_CONFIG
 from student_work import preflight_report
-from ucsb_xrp import MotionCommand, STOP_COMMAND, load_world
+from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s, load_world
 
 
 # Set True before Run for the short motion check; restore False afterward.
 ENABLE_SHORT_MOTION = False
-STATIONARY_SAMPLE_COUNT = 50
-MOTION_SAMPLE_COUNT = 25
-MOTION_SPEED_MM_S = 60.0
+STATIONARY_DURATION_S = 1.0  # Stopped sensor capture lasts 1 s at any sample rate.
+MOTION_DURATION_S = 0.5  # Gated motion lasts at most 0.5 s plus one sample interval.
+MOTION_SPEED_MM_S = 60.0  # Requested straight speed in mm/s.
 
 # Input: Robot; returns stationary RobotState samples, including the start.
 def collect_stationary_samples(robot):
@@ -21,7 +21,8 @@ def collect_stationary_samples(robot):
         state = robot.start(load_world().initial_pose)  # Initialize estimated pose; reset measurements.
         states.append(state)
         # Collect repeated stopped samples to expose sensor noise and encoder drift.
-        for _ in range(STATIONARY_SAMPLE_COUNT):
+        start_ms = state.measurements.time_ms
+        while elapsed_time_s(state.measurements.time_ms, start_ms) < STATIONARY_DURATION_S:
             state = robot.step(STOP_COMMAND, read_range=True)
             states.append(state)
         return tuple(states)
@@ -31,13 +32,14 @@ def collect_stationary_samples(robot):
 
 # Input: Robot; returns start and final RobotState after a short gated motion run.
 def run_short_motion(robot):
-    # This fixed-sample motion checks motors and encoders; it is not distance control.
+    # This timed motion checks motors and encoders; wheel travel does not end the run.
     try:  # Ensure finally stops motors on exit.
         initial_state = robot.start(load_world().initial_pose)
         state = initial_state
         command = MotionCommand(MOTION_SPEED_MM_S, 0.0)
         # The explicit motion gate permits only this short diagnostic sequence.
-        for _ in range(MOTION_SAMPLE_COUNT):
+        start_ms = state.measurements.time_ms
+        while elapsed_time_s(state.measurements.time_ms, start_ms) < MOTION_DURATION_S:
             state = robot.step(command)
         return initial_state, state
     finally:

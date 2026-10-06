@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="372" viewBox="0 0 900 372" role="img" aria-label="2 · Choose the next straight-motion request">
+<rect width="100%" height="100%" rx="8" fill="#f4f7fb"/>
+<text x="22" y="32" fill="#123b5d" font-family="sans-serif" font-size="22" font-weight="bold">2 · Choose the next straight-motion request</text>
+<text x="22" y="56" fill="#455b6b" font-family="sans-serif" font-size="15">main.py · numbered statements from the supplied file</text>
+<rect x="18" y="61" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="82" fill="#66717b" font-family="monospace" font-size="16">23</text>
+<text x="70" y="82" fill="#17334a" font-family="monospace" font-size="16">remaining_mm = TRAVEL_DISTANCE_MM - travel_mm</text>
+<rect x="18" y="93" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="114" fill="#66717b" font-family="monospace" font-size="16">24</text>
+<text x="70" y="114" fill="#17334a" font-family="monospace" font-size="16">speed_mm_s = 0.0 if stop_requested else speed_for_distance(remaining_mm)</text>
+<rect x="18" y="125" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="146" fill="#66717b" font-family="monospace" font-size="16">25</text>
+<text x="70" y="146" fill="#17334a" font-family="monospace" font-size="16">command = MotionCommand(speed_mm_s, 0.0)</text>
+<rect x="18" y="157" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="178" fill="#66717b" font-family="monospace" font-size="16">29</text>
+<text x="70" y="178" fill="#17334a" font-family="monospace" font-size="16">state = robot.step(command)</text>
+<text x="22" y="228" fill="#263e4b" font-family="sans-serif" font-size="18">The student function chooses forward speed from measured remaining distance.</text>
+<text x="22" y="266" fill="#263e4b" font-family="sans-serif" font-size="18">MotionCommand stores that speed and zero turn rate; it does not drive the motors.</text>
+<text x="22" y="304" fill="#263e4b" font-family="sans-serif" font-size="18">step applies the request through the component objects and returns the next state.</text>
+</svg>

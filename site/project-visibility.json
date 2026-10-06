@@ -23,10 +23,10 @@
     "tutorial_behavior_telemetry": true,
     "tutorial_physical_preflight": true,
     "new_challenge_1_robot_curling": true,
+    "new_demo_motor_characterization": false,
     "new_challenge_2_arena_line_circuit": false,
     "new_challenge_3_waypoint_courier": false,
     "new_challenge_4_mapped_route": false,
-    "new_challenge_5_out_and_back": false,
-    "new_demo_motor_characterization": false
+    "new_challenge_5_out_and_back": false
   }
 }

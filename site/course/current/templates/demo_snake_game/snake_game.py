@@ -8,10 +8,10 @@ from snake_config import CONFIG
 
 
 BODY = CONFIG["body"]
-SAMPLE_SPACING_MM = BODY["sample_spacing_mm"]
-MAX_TAIL_POINTS = BODY["maximum_tail_points"]
-COLLISION_REACH_MM = (BODY["head_diameter_mm"] + BODY["tail_diameter_mm"]) / 2
-FOOD_REACH_MM = BODY["head_diameter_mm"] / 2
+SAMPLE_SPACING_MM = BODY["sample_spacing_mm"]  # Minimum head travel before storing another tail point, mm.
+MAX_TAIL_POINTS = BODY["maximum_tail_points"]  # Discard oldest points above this bounded count.
+COLLISION_REACH_MM = (BODY["head_diameter_mm"] + BODY["tail_diameter_mm"]) / 2  # Head-to-tail centerline separation counted as collision, mm.
+FOOD_REACH_MM = BODY["head_diameter_mm"] / 2  # Head-center distance to a pellet center counted as pickup, mm.
 
 
 def distance(first, second):

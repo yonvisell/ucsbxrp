@@ -7,15 +7,14 @@ from ucsb_xrp.student_api import WheelSpeedControllerBase
 # Called by: Robot.step() after DifferentialDrive and SensorProcessor.
 # Methods: reset(), update().
 # Inputs: Target and measured WheelSpeeds (mm/s).
-# State: Feedback history reset before each run.
+# State: Any saved speed errors are set to their starting values before a run.
 # Returns: DriveCommand with normalized left/right values.
 
 class WheelSpeedController(WheelSpeedControllerBase):
     # Control each wheel independently and limit the resulting motor commands.
 
     def reset(self):
-        # Clear any controller state retained from the preceding run.
-        # Initialize state here if your controller stores history.
+        # Set any saved speed error or accumulated error to zero before a run.
         pass
 
     def update(self, target, measured):

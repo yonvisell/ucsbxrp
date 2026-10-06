@@ -495,20 +495,26 @@
     "source": "starters/new_challenge_1_robot_curling",
     "label": "1 \u00b7 Robot Curling",
     "short_label": "1 \u00b7 Robot Curling",
-    "summary": "Travel 2286 mm along the arena and stop close to the target as quickly as possible. Develop sensing, wheel-speed feedback, and stopping control.",
+    "summary": "Travel 2286 mm along the arena and stop close to the target as quickly as possible. Develop wheel measurements and a distance-based stopping rule.",
     "entrypoint": "main.py",
     "components": [
       {
         "name": "SensorProcessor",
         "file": "sensor_processor.py",
         "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
-      },
-      {
-        "name": "WheelSpeedController",
-        "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       }
     ],
+    "published": true
+  },
+  {
+    "id": "new_demo_motor_characterization",
+    "group": "newest-challenges",
+    "kind": "demo",
+    "source": "templates/new_demo_motor_characterization",
+    "label": "(Challenge 1) Motor Characterization",
+    "short_label": "(Challenge 1) Motor Characterization",
+    "summary": "Measure separate left/right speed responses to bounded open-loop effort steps.",
+    "entrypoint": "main.py",
     "published": true
   },
   {
@@ -525,11 +531,6 @@
         "name": "SensorProcessor",
         "file": "sensor_processor.py",
         "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
-      },
-      {
-        "name": "WheelSpeedController",
-        "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
@@ -558,11 +559,6 @@
         "name": "SensorProcessor",
         "file": "sensor_processor.py",
         "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
-      },
-      {
-        "name": "WheelSpeedController",
-        "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
@@ -596,11 +592,6 @@
         "name": "SensorProcessor",
         "file": "sensor_processor.py",
         "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
-      },
-      {
-        "name": "WheelSpeedController",
-        "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
@@ -639,11 +630,6 @@
         "name": "SensorProcessor",
         "file": "sensor_processor.py",
         "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
-      },
-      {
-        "name": "WheelSpeedController",
-        "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
       },
       {
         "name": "DifferentialDrive",
@@ -685,11 +671,6 @@
         "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
       },
       {
-        "name": "WheelSpeedController",
-        "file": "wheel_speed_controller.py",
-        "selection_flag": "USE_STUDENT_WHEEL_SPEED_CONTROLLER"
-      },
-      {
         "name": "DifferentialDrive",
         "file": "differential_drive.py",
         "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
@@ -711,17 +692,6 @@
     "summary": "Record two reflectance sensors without motor motion and check floor/tape contrast.",
     "entrypoint": "main.py",
     "published": false
-  },
-  {
-    "id": "new_demo_motor_characterization",
-    "group": "demonstrations",
-    "kind": "demo",
-    "source": "templates/new_demo_motor_characterization",
-    "label": "Motor Characterization",
-    "short_label": "Motor Characterization",
-    "summary": "Measure separate left/right speed responses to bounded open-loop effort steps.",
-    "entrypoint": "main.py",
-    "published": true
   },
   {
     "id": "new_demo_planning_comparison",

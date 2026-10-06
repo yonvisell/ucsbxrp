@@ -7,7 +7,7 @@ from ucsb_xrp.student_api import SensorProcessorBase
 # Called by: Robot.start(), Robot.step(), and range collection.
 # Methods: reset(), update(), estimate_range().
 # Inputs: RawSensors encoder counts/time (counts, ms); optional range samples (mm).
-# State: Count/time origin and recent wheel positions used for speed estimates.
+# State: Starting counts, preceding sample, and values used to estimate speed.
 # Returns: Measurements with wheel positions (mm), speeds (mm/s), and dt_s (s).
 
 class SensorProcessor(SensorProcessorBase):
@@ -21,7 +21,7 @@ class SensorProcessor(SensorProcessorBase):
         raise NotImplementedError("Complete SensorProcessor.reset")
 
     def update(self, raw):
-        # raw holds the next time_ms and signed left/right encoder counts.
+        # raw is the next sensor record: timestamp in ms and encoder counts.
         # Convert counts to wheel position and increment in mm using the
         # config's left_encoder_sign, right_encoder_sign, wheel_diameter_mm,
         # and encoder_counts_per_revolution. Derive dt_s from sample times and

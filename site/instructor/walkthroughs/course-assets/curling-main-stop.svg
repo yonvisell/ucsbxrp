@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="436" viewBox="0 0 900 436" role="img" aria-label="3 · Check the timer and remove motor effort at the limit">
+<rect width="100%" height="100%" rx="8" fill="#f4f7fb"/>
+<text x="22" y="32" fill="#123b5d" font-family="sans-serif" font-size="22" font-weight="bold">3 · Check the timer and remove motor effort at the limit</text>
+<text x="22" y="56" fill="#455b6b" font-family="sans-serif" font-size="15">main.py · numbered statements from the supplied file</text>
+<rect x="18" y="61" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="82" fill="#66717b" font-family="monospace" font-size="16">33</text>
+<text x="70" y="82" fill="#17334a" font-family="monospace" font-size="16">timer.update(measured, stop_requested)</text>
+<rect x="18" y="93" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="114" fill="#66717b" font-family="monospace" font-size="16">34</text>
+<text x="70" y="114" fill="#17334a" font-family="monospace" font-size="16">if elapsed_time_s(measured.time_ms, first.time_ms) &gt;= MAXIMUM_RUN_TIME_S:</text>
+<rect x="18" y="125" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="146" fill="#66717b" font-family="monospace" font-size="16">35</text>
+<text x="108.4" y="146" fill="#17334a" font-family="monospace" font-size="16">robot.stop()</text>
+<rect x="18" y="157" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="178" fill="#66717b" font-family="monospace" font-size="16">36</text>
+<text x="108.4" y="178" fill="#17334a" font-family="monospace" font-size="16">timer.motion_time_s = MAXIMUM_RUN_TIME_S</text>
+<rect x="18" y="189" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="210" fill="#66717b" font-family="monospace" font-size="16">37</text>
+<text x="108.4" y="210" fill="#17334a" font-family="monospace" font-size="16">publish_curling_values(remaining_mm, 0.0, timer.motion_time_s, True)</text>
+<rect x="18" y="221" width="864" height="28" rx="3" fill="#dfeefa"/>
+<text x="26" y="242" fill="#66717b" font-family="monospace" font-size="16">38</text>
+<text x="108.4" y="242" fill="#17334a" font-family="monospace" font-size="16">reason = &quot;time_limit&quot;</text>
+<text x="22" y="292" fill="#263e4b" font-family="sans-serif" font-size="18">The 120 s deadline uses elapsed sample time from the first measurement.</text>
+<text x="22" y="330" fill="#263e4b" font-family="sans-serif" font-size="18">The cutoff keeps this sample’s distance and fixes the reported time at 120 s.</text>
+<text x="22" y="368" fill="#263e4b" font-family="sans-serif" font-size="18">The finally block stops motors on completion or a Python error.</text>
+</svg>

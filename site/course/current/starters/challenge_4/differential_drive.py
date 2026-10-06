@@ -7,7 +7,7 @@ from ucsb_xrp.student_api import DifferentialDriveBase
 # Called by: Robot.step() before wheel-speed feedback.
 # Methods: wheel_speeds().
 # Inputs: MotionCommand (forward mm/s, counterclockwise rad/s); wheel separation (mm).
-# State: No per-call history; config is inherited from the base class.
+# State: RobotConfig is supplied by the base class; no preceding sample is needed.
 # Returns: WheelSpeeds (mm/s).
 
 class DifferentialDrive(DifferentialDriveBase):

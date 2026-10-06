@@ -51,8 +51,8 @@ and states these requirements; your class implements only `update()`. Import
 the base from `ucsb_xrp.student_api` as shown in the starter.
 
 The supplied moving window contains three distinct ultrasound attempts, not
-three control-loop iterations. Attempts are at least 70 ms apart; at a normal
-20 ms control period, new readings usually arrive about every 80 ms. A missing
+three control-loop iterations. Attempts are at least 70 ms apart, independently of the nominal 10 ms
+control period. Physical sensor reads can lengthen a control interval. A missing
 latest echo stops the approach immediately. Observations older than 0.25 s are
 excluded; fewer than three usable current observations also require a stopped
 command. The 0.4 s response allowance comprises that 0.25 s admitted age plus
@@ -97,7 +97,7 @@ requested speed + measured speed + range estimate
 
 ## Complete the challenge
 
-1. Select **Test functions** and make every RangeSafetyController case pass.
+1. Select **Run code tests** and make every RangeSafetyController case pass.
 2. Run the supplied controller in all three virtual worlds. The no-range case
    must remain stopped.
 3. Select your controller and compare range, measured speed, safe speed, final

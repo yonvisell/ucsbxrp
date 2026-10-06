@@ -3,14 +3,17 @@
 from ucsb_xrp import RobotConfig, Robot, XRPBot
 
 # Robot calibration and controller settings.
-# Start effort offsets deadband; speed gain is feedforward and kp corrects error.
+# Starting command overcomes friction; speed gain requests steady speed; kp corrects speed error.
 ROBOT_CONFIG = RobotConfig(
-    left_start_command=0.12,
-    right_start_command=0.13,
-    left_speed_command_gain=0.0031,
-    right_speed_command_gain=0.0031,
-    wheel_speed_kp=0.001,
-    max_drive_command=0.55,
+    sample_period_ms=10,  # Scheduled sample interval in ms; 10 ms gives 100 Hz.
+    left_start_command=0.12,  # Left-wheel starting command; dimensionless, measured under load.
+    right_start_command=0.13,  # Right-wheel starting command; dimensionless, measured under load.
+    left_speed_command_gain=0.0031,  # Left feedforward command per mm/s of requested speed (s/mm).
+    right_speed_command_gain=0.0031,  # Right feedforward command per mm/s of requested speed (s/mm).
+    wheel_speed_kp=0.001,  # P gain: command per wheel-speed error (s/mm).
+    wheel_speed_ki=0.0,  # Accumulated-error coefficient (1/mm); supplied controller does not use it.
+    wheel_speed_kd=0.0,  # Error-rate coefficient (s^2/mm); supplied controller does not use it.
+    max_drive_command=0.55,  # Maximum absolute command for either motor; dimensionless, within [0, 1].
 )
 
 # Supplied component classes.
