@@ -23,13 +23,13 @@ def _mean_position_mm(measurements):
     return (measurements.left_position_mm + measurements.right_position_mm) / 2.0
 
 
-def run_straight_trial(robot, initial_pose, target_distance_mm, speed_for_distance):
-    # speed_for_distance(remaining_mm) returns a nonnegative speed in mm/s;
+def run_straight_trial(robot, initial_pose, target_distance_mm, stopping_controller):
+    # stopping_controller(remaining_mm) returns a nonnegative speed in mm/s;
     # zero requests the final stop. Manual Stop and exceptions also stop motors.
     # motion_time_s spans first detected motion through first detected rest,
     # excluding the confirmation interval. It is not a floor measurement.
-    if not callable(speed_for_distance):
-        raise TypeError("speed_for_distance must be callable")
+    if not callable(stopping_controller):
+        raise TypeError("stopping_controller must be callable")
     if not isfinite(target_distance_mm) or target_distance_mm <= 0.0:
         raise ValueError("target_distance_mm must be positive and finite")
 
@@ -48,9 +48,9 @@ def run_straight_trial(robot, initial_pose, target_distance_mm, speed_for_distan
         while True:
             travel_mm = _mean_position_mm(state.measurements) - initial_position_mm
             remaining_mm = target_distance_mm - travel_mm
-            speed_mm_s = 0.0 if stopped else speed_for_distance(remaining_mm)
+            speed_mm_s = 0.0 if stopped else stopping_controller(remaining_mm)
             if isinstance(speed_mm_s, bool) or not isinstance(speed_mm_s, (int, float)):
-                raise TypeError("speed_for_distance must return a speed in mm/s")
+                raise TypeError("stopping_controller must return a speed in mm/s")
             if not isfinite(speed_mm_s) or speed_mm_s < 0.0:
                 raise ValueError("requested forward speed must be finite and nonnegative")
             if speed_mm_s == 0.0:

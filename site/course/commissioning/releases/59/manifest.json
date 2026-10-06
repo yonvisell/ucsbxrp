@@ -549,9 +549,9 @@
         "url": "files/runtime/lib/ucsb_xrp/straight_line.py"
       },
       {
-        "bytes": 4162,
+        "bytes": 4168,
         "path": "lib/ucsb_xrp/straight_trial.py",
-        "sha256": "ea964eba43b2494fe7042b0a8cb2c17eed0b74d8ac4b5a30aa48745b41a67342",
+        "sha256": "3afe91fcac626d6fe0dbcad659d0428dc4f0c60efb3c8af21d665c14d08b0271",
         "source": "vendor/current/ucsb_xrp/straight_trial.py",
         "url": "files/runtime/lib/ucsb_xrp/straight_trial.py"
       },
@@ -649,7 +649,7 @@
     ],
     "manifest": {
       "bytes": 8040,
-      "sha256": "57f3a4875d30325b6ada0296388bcff86ddf285a4c1c9e9816a82b0be297068e",
+      "sha256": "06fc3a7feec21f7b1c1bca4b2dfe72f3862e8e0d29534d698c839329a82d9c15",
       "url": "files/runtime/runtime-manifest.json"
     }
   },

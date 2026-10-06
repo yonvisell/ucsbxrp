@@ -127,10 +127,10 @@ your file, regardless of this setting. Keep the supplied wheel-controller settin
 Near the target, implement a **PID controller** to minimize the remaining
 distance. The key tradeoff is between travel time and stopping accuracy.
 
-### 2.1. Implement speed_for_distance
+### 2.1. Implement stopping_controller
 
 In `stopping_controller.py`, replace the stub in
-`speed_for_distance(remaining_mm)`. The input is target distance minus mean
+`stopping_controller(remaining_mm)`. The input is target distance minus mean
 left/right wheel travel. Positive values mean distance remains; negative values
 mean the measured travel has passed the target. Return a finite, nonnegative
 forward speed. Implement the following stop, cruise, and approach calculations
@@ -273,7 +273,7 @@ the motor input; wheel speed is the measured output.
 
 **Run code tests**
 checks your measurement methods regardless of the sensing flag; **Run** uses
-the selected processor. `speed_for_distance` is called directly and has no
+the selected processor. `stopping_controller` is called directly and has no
 selector.
 
 <div class="project-file-table">
@@ -304,7 +304,7 @@ from the supplied wheel-speed settings in `robot_setup.py`.
 | --- | --- | --- |
 | `SensorProcessor.reset(raw)` | First `RawSensors` sample | Zeroed `Measurements` and retained count/time origin. |
 | `SensorProcessor.update(raw)` | Next `RawSensors` sample | Wheel positions, increments, speeds, and elapsed interval. |
-| `speed_for_distance(remaining_mm)` | Measured remaining distance | Forward speed; zero commands the final stop. |
+| `stopping_controller(remaining_mm)` | Measured remaining distance | Forward speed; zero commands the final stop. |
 
 <div class="main-walkthrough">
 
@@ -319,7 +319,7 @@ objects created by `make_robot()` carry out wheel measurement and control.
 
 `from challenge import ...` reads the start pose, target distance, stopping
 thresholds, and run limit from `challenge.py`. That file reads `world.json`.
-`from stopping_controller import speed_for_distance` selects your stopping controller. The other imports provide the timer, Monitor signals, robot setup,
+`from stopping_controller import stopping_controller` selects your stopping controller. The other imports provide the timer, Monitor signals, robot setup,
 and the `MotionCommand` record. Importing a name lets this file use a function,
 class, or value defined in another file.
 
@@ -379,7 +379,7 @@ and returns the next measurements.*
 
 ```python
 remaining_mm = TRAVEL_DISTANCE_MM - travel_mm
-speed_mm_s = 0.0 if stop_requested else speed_for_distance(remaining_mm)
+speed_mm_s = 0.0 if stop_requested else stopping_controller(remaining_mm)
 command = MotionCommand(speed_mm_s, 0.0)
 ```
 

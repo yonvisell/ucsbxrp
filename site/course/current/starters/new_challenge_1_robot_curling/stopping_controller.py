@@ -14,7 +14,7 @@ TARGET_LOCATION_KD = 0.0  # Derivative gain; initially zero.
 STOP_DISTANCE_MM = 10.0  # Command zero at/below this remaining distance, including overshoot.
 
 
-def speed_for_distance(remaining_mm):
+def stopping_controller(remaining_mm):
     # Positive means distance remains; negative means measured travel passed the target.
     # Check STOP_DISTANCE_MM before choosing cruise speed or proportional approach speed.
     # Read CRUISE_SPEED_MM_S.value and SLOWDOWN_DISTANCE_MM.value on each call.

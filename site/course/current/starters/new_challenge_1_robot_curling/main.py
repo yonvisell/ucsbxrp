@@ -5,7 +5,7 @@ from challenge import STATIONARY_SPEED_MM_S, STATIONARY_DURATION_S
 from live_variables import publish_curling_trial, publish_curling_values
 from motion_timer import MotionTimer
 from robot_setup import ROBOT_CONFIG, make_robot
-from stopping_controller import speed_for_distance
+from stopping_controller import stopping_controller
 from ucsb_xrp import MotionCommand, elapsed_time_s
 
 
@@ -21,10 +21,10 @@ try:  # Normal completion or a Python exception reaches the motor stop in finall
 
     while True:  # Use the latest measurements to choose the next straight-motion request.
         remaining_mm = TRAVEL_DISTANCE_MM - travel_mm
-        speed_mm_s = 0.0 if stop_requested else speed_for_distance(remaining_mm)
+        speed_mm_s = 0.0 if stop_requested else stopping_controller(remaining_mm)
         command = MotionCommand(speed_mm_s, 0.0)  # Forward mm/s; zero turn rate in rad/s.
         if command.forward_speed_mm_s < 0.0:
-            raise ValueError("speed_for_distance must return a nonnegative speed")
+            raise ValueError("stopping_controller must return a nonnegative speed")
         stop_requested = stop_requested or speed_mm_s == 0.0  # Keep requesting zero after the first stop decision.
         state = robot.step(command)  # Set motor commands, wait for the sample, then read and process encoders.
         measured = state.measurements

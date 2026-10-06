@@ -7,7 +7,7 @@
 <text x="70" y="82" fill="#17334a" font-family="monospace" font-size="16">remaining_mm = TRAVEL_DISTANCE_MM - travel_mm</text>
 <rect x="18" y="93" width="864" height="28" rx="3" fill="#dfeefa"/>
 <text x="26" y="114" fill="#66717b" font-family="monospace" font-size="16">24</text>
-<text x="70" y="114" fill="#17334a" font-family="monospace" font-size="16">speed_mm_s = 0.0 if stop_requested else speed_for_distance(remaining_mm)</text>
+<text x="70" y="114" fill="#17334a" font-family="monospace" font-size="16">speed_mm_s = 0.0 if stop_requested else stopping_controller(remaining_mm)</text>
 <rect x="18" y="125" width="864" height="28" rx="3" fill="#dfeefa"/>
 <text x="26" y="146" fill="#66717b" font-family="monospace" font-size="16">25</text>
 <text x="70" y="146" fill="#17334a" font-family="monospace" font-size="16">command = MotionCommand(speed_mm_s, 0.0)</text>
