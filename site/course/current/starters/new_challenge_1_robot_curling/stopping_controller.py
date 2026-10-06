@@ -1,23 +1,23 @@
 # Choose forward speed from the target distance minus mean measured wheel travel.
-# Called by: main.py before its next motion request.
+# Called by: main.py before its next motion command.
 # Inputs: remaining_mm in mm; live cruise speed and slowing distance.
-# State: none; live values are read on each call.
-# Returns: forward speed in mm/s; zero requests a stop.
+# State: none; use only the proportional term of PID for this challenge.
+# Returns: forward speed in mm/s; the first zero command is final.
 
 from live_variables import CRUISE_SPEED_MM_S, SLOWDOWN_DISTANCE_MM
 
 
-# Distance-feedback constants, declared here so the stopping controller owns them.
-# All start at zero; a constant affects the requested speed only if your controller uses it.
-TARGET_LOCATION_KP = 0.0  # 1/s: multiply remaining distance (mm).
-TARGET_LOCATION_KI = 0.0  # 1/s^2: multiply accumulated distance error (mm*s).
-TARGET_LOCATION_KD = 0.0  # Dimensionless: multiply distance-error rate (mm/s).
+# Distance-controller gains; these do not change the supplied motor-speed loop.
+TARGET_LOCATION_KP = 1.0  # 1/s: multiply remaining distance (mm) to obtain speed (mm/s).
+TARGET_LOCATION_KI = 0.0  # 1/s^2: integral gain; leave zero (no accumulated-error term).
+TARGET_LOCATION_KD = 0.0  # Dimensionless: derivative gain; leave zero (no error-rate term).
+STOP_DISTANCE_MM = 10.0  # Command zero at/below this remaining distance, including overshoot.
 
 
 def speed_for_distance(remaining_mm):
-    # remaining_mm = target distance - mean left/right travel since start (mm).
-    # Positive means travel remains; negative means the wheels passed the target distance.
+    # Positive means distance remains; negative means measured travel passed the target.
+    # Check STOP_DISTANCE_MM before choosing cruise speed or proportional approach speed.
     # Read CRUISE_SPEED_MM_S.value and SLOWDOWN_DISTANCE_MM.value on each call.
-    # Return a finite, nonnegative speed in mm/s. The first zero request is final.
-    # Leave TARGET_LOCATION_KI and TARGET_LOCATION_KD at zero for this challenge.
-    raise NotImplementedError("Choose speed from measured remaining distance")
+    # Within the approach region, use TARGET_LOCATION_KP; cap speed at cruise speed.
+    # Return a finite, nonnegative speed in mm/s. See README Steps 2.1–2.3.
+    raise NotImplementedError("Implement cruise, proportional approach, and distance stop")

@@ -124,25 +124,68 @@ your file, regardless of this setting. Keep the supplied wheel-controller settin
 
 ## 2. Implement and tune the stopping controller
 
-1. **Implement the distance-to-speed calculation.** In `stopping_controller.py`,
-   replace the stub in `speed_for_distance(remaining_mm)`. Its input is target
-   distance minus mean left/right wheel distance from the start, in mm.
-   Positive values mean distance remains; negative values mean the measured
-   travel has passed the target. Your calculation must produce a finite,
-   nonnegative forward-speed request in mm/s. Return that value from the
-   function with `return`. Zero requests the final stop.
-2. **Use the two adjustable parameters in your calculation.** Access
-   `CRUISE_SPEED_MM_S.value` for the speed before slowing and
-   `SLOWDOWN_DISTANCE_MM.value` for the distance over which to slow. Include
-   both in your function so Monitor's **Cruise speed** and **Slowing distance**
-   controls affect the next trial. Leave `TARGET_LOCATION_KI` and
-   `TARGET_LOCATION_KD` at zero; accumulated-error and error-rate terms are not
-   required. `TARGET_LOCATION_KP` is available if your controller uses a
-   proportional distance coefficient.
-3. **Account for the program's stop condition.** After the first zero request,
-   `main.py` keeps requesting zero and waits until both measured wheel speeds
-   stay within ±5 mm/s for 0.3 s. The reported motion time excludes that final
-   confirmation interval.
+Near the target, implement the proportional part of a **PID controller** to
+reduce the remaining distance. The key tradeoff is time versus stopping accuracy:
+a faster approach leaves less time to slow. Your controller commands forward
+speed; the supplied motor-speed loop adjusts motor effort.
+
+### 2.1. Implement the distance-to-speed function
+
+In `stopping_controller.py`, replace the stub in
+`speed_for_distance(remaining_mm)`. The input is target distance minus mean
+left/right wheel travel, in mm. Positive values mean distance remains; negative
+values mean the measured travel has passed the target. Return a finite,
+nonnegative speed in mm/s. Return `0.0` to command zero speed.
+
+### 2.2. Set the cruise and approach speeds
+
+Read `CRUISE_SPEED_MM_S.value` and `SLOWDOWN_DISTANCE_MM.value` in the function.
+After checking the stop condition in Step 2.3, return the cruise speed while
+`remaining_mm` exceeds the slowing distance. Otherwise, calculate the approach
+speed from the PID form:
+
+<p><em>v</em> = K<sub>P</sub> <em>e</em> + K<sub>I</sub> ∫ <em>e</em> dt + K<sub>D</sub> d<em>e</em>/dt</p>
+
+Here, `e` is `remaining_mm`, `v` is the speed command in mm/s, and `t` is time
+in seconds. The terms use current error, accumulated error, and error rate.
+For this challenge, implement only the proportional term:
+
+`speed_mm_s = TARGET_LOCATION_KP * remaining_mm`
+
+Limit that speed to the interval from zero to `CRUISE_SPEED_MM_S.value`, then
+return it. Your PID constants may be stored in `TARGET_LOCATION_KP`,
+`TARGET_LOCATION_KI`, and `TARGET_LOCATION_KD`. These are the equation's
+K<sub>P</sub>, K<sub>I</sub>, and K<sub>D</sub>; the template declares them above
+the function. Start with `TARGET_LOCATION_KP = 1.0` (1/s). Leave
+`TARGET_LOCATION_KI` and `TARGET_LOCATION_KD` at zero; no integral or derivative
+calculation is needed.
+
+### 2.3. Command zero speed at the distance threshold
+
+At the start of the function, before the cruise or approach calculation, return
+`0.0` when `remaining_mm` is at or below `STOP_DISTANCE_MM`. Start with the
+supplied 10 mm threshold. This also stops an overshoot instead of commanding
+reverse motion. A positive threshold ends the approach instead of waiting for
+proportional control to reach exactly zero error. It specifies when to command
+zero speed; it does not guarantee a 10 mm final position error.
+
+After that first zero command, `main.py` keeps speed at zero. The supplied timer
+continues observing wheel motion until rest is confirmed, then reports the
+motion time and final distance. Do not edit the timer or use its wheel-speed
+threshold to choose when your controller stops.
+
+### 2.4. Compare two gain settings
+
+Run one trial with the supplied cruise speed, slowing distance, gain and stop
+threshold. Change only `TARGET_LOCATION_KP` for the second trial: increase it
+for a faster approach, or decrease it for a slower approach. Use the recorded
+time and final error to choose between them. Keep the integral and derivative gains zero. If needed,
+make one further trial with a larger `STOP_DISTANCE_MM` to command zero earlier.
+
+The cruise limit can delay slowing until `TARGET_LOCATION_KP * remaining_mm` falls below cruise
+speed. Keep cruise speed and slowing distance fixed during these comparisons.
+Repeat the selected settings as described below; record the results rather than
+continuing to tune for an exact stop.
 
 ## 3. Run and record stopping trials
 
@@ -153,7 +196,8 @@ your file, regardless of this setting. Keep the supplied wheel-controller settin
 2. **Run your controller on Virtual XRP.** Open `main.py` in the Project
    panel and choose **Actions for main.py → Make main** if it is not marked
    **main**. Select **Virtual XRP**, then **Compile** and **Run**. Record trial number,
-   target distance, cruise speed, and slowing distance. Keep the controls fixed
+   target distance, cruise speed, slowing distance, `TARGET_LOCATION_KP`, and
+   `STOP_DISTANCE_MM`. Keep the controls fixed
    during each run. In Monitor, select **›** at the upper left if its controls
    are collapsed. Observe **Remaining distance** and **Requested speed**.
    **Virtual distance** shows the simulated robot's straight-line distance from
@@ -168,9 +212,8 @@ your file, regardless of this setting. Keep the supplied wheel-controller settin
    gives the path, normally in your Project's `exports` folder. Rename the file
    `trial01.csv`, using a different trial number each time. It contains
    `time_s`, `remaining_mm`, and `requested_speed_mm_s`.
-5. **Compare controller settings.** Change one parameter or one calculation at
-   a time and test at least two settings. Repeat the selected setting three
-   times. For each run, save its CSV, **Export program output**, and export a
+5. **Complete the comparisons in Step 2.4.** Then record three trials with
+   the selected settings. For each run, save its CSV, **Export program output**, and export a
    run ZIP with **Include code in ZIP** enabled to retain the controller and settings.
 6. **Record floor measurements for physical trials.** Align the robot's front
    with the start line. Use a tape measure to record its final longitudinal
@@ -191,7 +234,7 @@ exportgraphics(gcf,'trial01.png','Resolution',200);
 ```
 
 Time starts at the run's first encoder acquisition. Locate the first speed
-reduction and zero request; compare the final remaining distance with Program
+reduction and zero-speed command; compare the final remaining distance with Program
 output. Use these observations to explain a short stop or overshoot and select
 your next change. Identify the trial and settings in each figure's caption and
 use the same axis limits when comparing trials.
@@ -205,10 +248,10 @@ See further guidance in syllabus.
    the variables retained by `SensorProcessor`, and the stopping controller.
    Give the expected and observed code-test results.
 2. **Figures:** include the MATLAB panels for each controller setting. Identify
-   slowing, the zero request, and final remaining distance on one trial.
+   slowing, the zero-speed command, and final remaining distance on one trial.
 3. **Trial table:** list trial number, virtual/physical target, `d`, cruise speed,
-   slowing distance, stopping reason, reported time, and encoder remaining
-   distance. Include all three repeats. For physical trials, add robot ID,
+   slowing distance, `TARGET_LOCATION_KP`, `STOP_DISTANCE_MM`, stopping reason,
+   reported time, and encoder remaining distance. Include all three repeats. For physical trials, add robot ID,
    longitudinal/lateral errors, and heading.
 4. **Controller revision:** identify one change, predict its effect, and compare
    the recorded results before and after it using the figures and trial table.
@@ -223,7 +266,12 @@ and code/settings ZIPs. Report actual values, including unsuccessful trials.
 <strong class="student-file">Blue *</strong>: code to implement.
 <strong class="config-file">Amber †</strong>: settings to adjust.
 <span class="supplied-file">Gray S</span>: code provided or completed earlier.
-`main.py` and the library wheel controller are supplied. **Run code tests**
+`main.py` is supplied and does not need to be edited. The UCSBXRP library
+already incorporates the low-level motor-speed control loop: it adjusts motor
+effort so measured wheel speed follows commanded wheel speed. Motor effort is
+the motor input; wheel speed is the measured output.
+
+**Run code tests**
 checks your measurement methods regardless of the sensing flag; **Run** uses
 the selected processor. `speed_for_distance` is called directly and has no
 selector.
@@ -232,9 +280,9 @@ selector.
 
 | File | What it does |
 | --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Shows the straight control loop, calls your stopping controller, latches the first zero request, prints the measured outcome, ends the trial at 120 s if needed, and stops the motors on exit. |
+| <span class="supplied-file"><code>main.py</code> S</span> | Shows the straight control loop, calls your stopping controller, latches the first zero-speed command, prints the measured outcome, ends the trial at 120 s if needed, and stops the motors on exit. |
 | <strong class="student-file"><code>sensor_processor.py</code> *</strong> | Converts encoder readings into wheel travel and speed; also contains later range estimation. |
-| <strong class="student-file"><code>stopping_controller.py</code> *</strong> | Contains your distance-based stopping controller. |
+| <strong class="student-file"><code>stopping_controller.py</code> *</strong> | Contains your distance-based stopping controller.<br>`TARGET_LOCATION_KP` — proportional gain in 1/s.<br>`TARGET_LOCATION_KI`, `TARGET_LOCATION_KD` — integral/derivative gains; keep zero for these trials.<br>`STOP_DISTANCE_MM` — remaining distance in mm at which to command zero speed. |
 | <strong class="config-file"><code>live_variables.py</code> †</strong> | `CRUISE_SPEED_MM_S` — Monitor Cruise speed setting in mm/s; read .value in your stopping controller.<br>`SLOWDOWN_DISTANCE_MM` — Monitor Slowing distance setting in mm; read .value in your stopping controller. |
 | <strong class="config-file"><code>robot_setup.py</code> †</strong> | `sample_period_ms` — scheduled measurement interval in ms; 10 ms requests 100 Hz.<br>`wheel_diameter_mm` — wheel diameter in mm used to convert encoder counts to travel.<br>`encoder_counts_per_revolution` — encoder counts for one wheel revolution.<br>`track_width_mm` — wheel spacing in mm used for turning and odometry.<br>`left_start_command`, `right_start_command` — supplied motor commands for starting each wheel.<br>`left_speed_command_gain`, `right_speed_command_gain` — supplied motor-command coefficients per requested wheel speed.<br>`wheel_speed_kp` — supplied correction per wheel-speed error.<br>`wheel_speed_ki`, `wheel_speed_kd` — reserved settings; keep zero because the supplied controller does not use them.<br>`max_drive_command` — largest permitted absolute motor command.<br>`USE_STUDENT_SENSOR_PROCESSOR` — True uses your wheel measurements; False uses supplied measurements. |
 | <strong class="config-file"><code>challenge.py</code> †</strong> | `TRAVEL_DISTANCE_MM` — requested wheel travel in mm, calculated from the start and finish.<br>`STATIONARY_SPEED_MM_S` — maximum absolute wheel speed in mm/s counted as stopped.<br>`STATIONARY_DURATION_S` — consecutive stopped interval in s required to confirm rest.<br>`MAXIMUM_RUN_TIME_S` — maximum trial time in s; 120 ends the run. |
@@ -248,15 +296,15 @@ selector.
 ## Functions and methods
 
 Keep the template method names and arguments. The API Reference defines the
-record fields used by `SensorProcessor`. Optional `TARGET_LOCATION_KP`,
-`TARGET_LOCATION_KI`, and `TARGET_LOCATION_KD` belong to your stopping controller;
-keep them at zero unless your stopping controller explicitly uses them.
+record fields used by `SensorProcessor`. Keep the stopping-controller gains
+and distance threshold together in `stopping_controller.py`; they are separate
+from the supplied wheel-speed settings in `robot_setup.py`.
 
 | Method or function | Input | Return or effect |
 | --- | --- | --- |
 | `SensorProcessor.reset(raw)` | First `RawSensors` sample | Zeroed `Measurements` and retained count/time origin. |
 | `SensorProcessor.update(raw)` | Next `RawSensors` sample | Wheel positions/increments in mm, speeds in mm/s, and elapsed interval in s. |
-| `speed_for_distance(remaining_mm)` | Measured remaining distance in mm | Forward speed in mm/s; zero requests the final stop. |
+| `speed_for_distance(remaining_mm)` | Measured remaining distance in mm | Forward speed in mm/s; zero-speed commands the final stop. |
 
 <div class="main-walkthrough">
 
@@ -336,11 +384,11 @@ command = MotionCommand(speed_mm_s, 0.0)
 ```
 
 Each `while True` iteration calculates remaining distance and calls your stopping controller.
-After the first zero request, the conditional expression keeps speed at zero
-without calling the rule again. `MotionCommand` stores forward speed in mm/s
+After the first zero-speed command, the conditional expression keeps speed at zero
+without calling your controller again. `MotionCommand` stores forward speed in mm/s
 and turn rate in rad/s; `0.0` requests no turn. Its constructor rejects invalid
 numeric values. The following check rejects negative speed, and the next line
-saves whether any zero request has occurred.
+saves whether any zero-speed command has occurred.
 
 ### E. robot.step applies the request and supplies updated measurements
 
@@ -378,9 +426,11 @@ outcome. These are source excerpts, with inline comments omitted for fit.*
 ### F. The timer checks for rest and the loop enforces the run limit
 
 `timer.update(measured, stop_requested)` checks both measured wheel speeds.
-Absolute wheel speeds above 5 mm/s count as motion. After a zero request, both
-speeds must stay within ±5 mm/s for 0.3 consecutive seconds before
-`timer.stop_confirmed` becomes `True`. Renewed movement restarts that rest
+After your distance threshold commands zero speed, the timer uses
+`STATIONARY_SPEED_MM_S` and `STATIONARY_DURATION_S` from `challenge.py` to
+confirm that both wheels have stopped. Then `timer.stop_confirmed` becomes
+`True`. These supplied settings govern motion/rest detection and reporting; they do
+not set your distance threshold or select the speed command. Renewed movement restarts that rest
 interval. The timer reports the interval from first detected motion to the
 first rest sample after final movement; it excludes the rest-confirmation wait.
 
@@ -388,7 +438,7 @@ The next `if` checks elapsed sample time since `start()`. At 120 s it calls
 `robot.stop()`, fixes the reported time at 120 s, publishes the cutoff values,
 and exits the loop with `reason = "time_limit"`. Otherwise,
 `publish_curling_values()` sends remaining distance, requested speed, and motion
-time to Monitor. A confirmed normal stop exits with `stationary`; a zero request
+time to Monitor. A confirmed normal stop exits with `stationary`; a zero-speed command
 before detected movement exits with `no_motion`.
 
 ### G. The program prints the outcome and stops the motors
