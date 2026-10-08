@@ -61,8 +61,8 @@
     <main>
       <h1>Refresh UCSBXRP</h1>
       <p>
-        Download the current app into this Chrome profile. Your project files,
-        saved runs, and browser settings stay in place.
+        Update UCSBXRP in this browser. Your project files, saved runs, and
+        browser settings stay in place.
       </p>
       <p>
         Stop any running programs or robot installation first. Keep an internet
@@ -74,10 +74,10 @@
       <details>
         <summary>App still not working?</summary>
         <p>
-          Repair downloads the full app again and checks every file. Project
-          files, saved runs, and settings are preserved.
+          Repair reinstalls the app and checks every file. Project files, saved
+          runs, and settings are preserved.
         </p>
-        <button id="repair" type="button">Repair downloaded app</button>
+        <button id="repair" type="button">Repair app</button>
       </details>
     </main>
     <script>
@@ -118,7 +118,7 @@
         });
         if (!response.ok)
           throw new Error(
-            "No online update could be confirmed. Your downloaded app is still available; check your internet connection and try again.",
+            "No online update could be confirmed. Your current app is still available; check your internet connection and try again.",
           );
         return response.json();
       }
@@ -144,26 +144,31 @@
         );
       }
       async function completeDownload(manifest) {
-        if (
-          !validManifest(manifest) ||
-          !(await caches.has(manifest.cache_name))
-        )
+        try {
+          if (
+            !validManifest(manifest) ||
+            !(await caches.has(manifest.cache_name))
+          )
+            return false;
+          const cache = await caches.open(manifest.cache_name);
+          const saved = await cache.match(manifestUrl);
+          if (!saved) return false;
+          const local = await saved.json();
+          if (
+            !validManifest(local) ||
+            local.version !== manifest.version ||
+            local.cache_name !== manifest.cache_name
+          )
+            return false;
+          const urls = new Set((await cache.keys()).map((entry) => entry.url));
+          return [
+            manifestUrl,
+            ...manifest.assets.map((asset) => new URL(asset.url, base).href),
+          ].every((url) => urls.has(url));
+        } catch {
+          // A malformed/evicted local manifest is a repairable incomplete copy.
           return false;
-        const cache = await caches.open(manifest.cache_name);
-        const saved = await cache.match(manifestUrl);
-        if (!saved) return false;
-        const local = await saved.json();
-        if (
-          !validManifest(local) ||
-          local.version !== manifest.version ||
-          local.cache_name !== manifest.cache_name
-        )
-          return false;
-        const urls = new Set((await cache.keys()).map((entry) => entry.url));
-        return [
-          manifestUrl,
-          ...manifest.assets.map((asset) => new URL(asset.url, base).href),
-        ].every((url) => urls.has(url));
+        }
       }
       async function cachedManifest(version) {
         for (const name of await caches.keys()) {
@@ -186,27 +191,30 @@
       }
       function identity(worker) {
         if (!worker) return Promise.resolve(null);
-        if (!identities.has(worker))
-          identities.set(
-            worker,
-            new Promise((resolve) => {
-              const channel = new MessageChannel();
-              const finish = (result) => {
-                clearTimeout(timer);
-                channel.port1.close();
-                resolve(result);
-              };
-              const timer = setTimeout(() => finish(null), 1500);
-              channel.port1.onmessage = (event) => finish(event.data);
-              try {
-                worker.postMessage({ type: "ucsb-xrp-shell-version" }, [
-                  channel.port2,
-                ]);
-              } catch {
-                finish(null);
-              }
-            }),
-          );
+        if (!identities.has(worker)) {
+          const pending = new Promise((resolve) => {
+            const channel = new MessageChannel();
+            const finish = (result) => {
+              clearTimeout(timer);
+              channel.port1.close();
+              resolve(result);
+            };
+            const timer = setTimeout(() => finish(null), 1500);
+            channel.port1.onmessage = (event) => finish(event.data);
+            try {
+              worker.postMessage({ type: "ucsb-xrp-shell-version" }, [
+                channel.port2,
+              ]);
+            } catch {
+              finish(null);
+            }
+          });
+          identities.set(worker, pending);
+          void pending.then((result) => {
+            if (!result && identities.get(worker) === pending)
+              identities.delete(worker);
+          });
+        }
         return identities.get(worker);
       }
       async function matchingWorker(registration, manifest, scriptUrl) {
@@ -257,19 +265,22 @@
           });
         const deadline = Date.now() + 15000;
         while (Date.now() < deadline) {
-          const current = await identity(navigator.serviceWorker.controller);
           if (
             navigator.serviceWorker.controller === worker &&
-            worker.state === "activated" &&
-            current?.version === manifest.version &&
-            current.cacheName === manifest.cache_name
-          )
-            return;
+            worker.state === "activated"
+          ) {
+            const current = await identity(worker);
+            if (
+              current?.version === manifest.version &&
+              current.cacheName === manifest.cache_name
+            )
+              return;
+          }
           if (worker.state === "redundant") break;
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
         throw new Error(
-          "The downloaded app could not start. Select Refresh app to retry.",
+          "The app could not start. Select Refresh app to retry.",
         );
       }
       async function verifyDownload(manifest) {
@@ -281,9 +292,7 @@
               const asset = manifest.assets[next++];
               const response = await cache.match(new URL(asset.url, base).href);
               if (!response)
-                throw new Error(
-                  "The downloaded app is incomplete. Please try again.",
-                );
+                throw new Error("The app is incomplete. Please try again.");
               const bytes = await response.arrayBuffer();
               const digest = await crypto.subtle.digest("SHA-256", bytes);
               const hash = Array.from(new Uint8Array(digest), (byte) =>
@@ -326,33 +335,67 @@
           if (registration?.scope !== base.href) registration = null;
           let worker =
             !repair && (await matchingWorker(registration, manifest));
-          if (worker && !(await completeDownload(manifest)))
-            throw new Error(
-              "The downloaded app is incomplete. Use Repair downloaded app below to restore it.",
-            );
+          let restore = worker && !(await completeDownload(manifest));
           if (!worker || repair || !(await completeDownload(manifest))) {
             const started = Date.now();
             const showProgress = () => {
-              status.textContent = `Downloading the current app… ${Math.floor((Date.now() - started) / 1000)} s. Keep this page open.`;
+              status.textContent = `${repair ? "Repairing" : "Preparing"} the app… ${Math.floor((Date.now() - started) / 1000)} s. Keep this page open.`;
             };
             showProgress();
             progress = setInterval(showProgress, 1000);
             const script = new URL("service-worker.js", base);
             if (repair) script.searchParams.set("refresh", crypto.randomUUID());
-            registration = await navigator.serviceWorker.register(script.href, {
-              scope: base.pathname,
-              updateViaCache: "none",
-            });
+            else if (restore) {
+              // Identical worker bytes do not reinstall an evicted cache.
+              // A new URL starts normal installation without full repair work.
+              script.searchParams.set("restore", manifest.version);
+              script.searchParams.set("attempt", crypto.randomUUID());
+            }
+            const newest =
+              registration?.installing ??
+              registration?.waiting ??
+              registration?.active;
+            if (newest?.scriptURL === script.href) {
+              // register(same URL/options) can return without an update check.
+              // Updating is essential when the latest version is not prepared.
+              await registration.update();
+            } else {
+              registration = await navigator.serviceWorker.register(
+                script.href,
+                {
+                  scope: base.pathname,
+                  updateViaCache: "none",
+                },
+              );
+            }
+            // A cold worker may have missed the first identity request. Once
+            // it replies, recover its missing cache rather than waiting for
+            // byte-identical code to trigger an installation that cannot occur.
+            if (!repair && !restore && !registration.installing) {
+              const current = await matchingWorker(registration, manifest);
+              if (current && !(await completeDownload(manifest))) {
+                restore = true;
+                script.searchParams.set("restore", manifest.version);
+                script.searchParams.set("attempt", crypto.randomUUID());
+                registration = await navigator.serviceWorker.register(
+                  script.href,
+                  { scope: base.pathname, updateViaCache: "none" },
+                );
+              }
+            }
             worker = await waitForPrepared(
               registration,
               manifest,
-              repair ? script.href : undefined,
+              repair || restore ? script.href : undefined,
             );
           }
           clearInterval(progress);
           if (repair) {
-            status.textContent = "Checking downloaded files…";
-            await verifyDownload(manifest);
+            status.textContent = "Checking app files…";
+            // New repair workers verify before committing their cache. Older
+            // workers still need the independent page's compatibility check.
+            if ((await identity(worker))?.repairVerified !== true)
+              await verifyDownload(manifest);
           }
           status.textContent = "Opening the current app…";
           await activate(worker, manifest);
@@ -373,7 +416,7 @@
           status.className = "error";
           status.textContent =
             error.name === "TimeoutError" || error.name === "TypeError"
-              ? "No online update could be confirmed. Your downloaded app is still available. Check your internet connection and try again."
+              ? "No online update could be confirmed. Your current app is still available. Check your internet connection and try again."
               : error.message;
           button.disabled = repairButton.disabled = false;
         }
