@@ -159,10 +159,10 @@
       "sha256": "55f9826910501111fa8d62b2ec436cca3c5e350bd6315b43da2faa30a633f005"
     },
     {
-      "path": "assets/home-HOV74n__.js",
-      "url": "/ucsbxrp/assets/home-HOV74n__.js",
+      "path": "assets/home-C6Nb7Lfl.js",
+      "url": "/ucsbxrp/assets/home-C6Nb7Lfl.js",
       "bytes": 3789,
-      "sha256": "a18b4279e00b8996acdd5567964f344e3fd92da1803303729b60ea59a52ab839"
+      "sha256": "a34b28b83175253fd2bd2b0beb8c71155d1fff2a8a962799ff316a8f6061a33f"
     },
     {
       "path": "assets/ide-BKfZ_RKZ.js",
@@ -3192,7 +3192,7 @@
       "path": "index.html",
       "url": "/ucsbxrp/index.html",
       "bytes": 4408,
-      "sha256": "a5c36fe7f1b3dc41263c2d9341f4e3a9179e2322215c8484288ec7d3f8b38f44"
+      "sha256": "59d380601b1f1cd3ae63cef8c353e1484ec8f43fc970099ceb81f485013992ad"
     },
     {
       "path": "instructor/index.html",
@@ -3204,7 +3204,7 @@
       "path": "instructor/package.enc.json",
       "url": "/ucsbxrp/instructor/package.enc.json",
       "bytes": 1831283,
-      "sha256": "90557a6c89a512d1ca7979cabfdc4f78828026f603af5f8745a18897032f18ba"
+      "sha256": "efc4de19be8e0ced341800f10893f05293bab9c78792804c2ef709b0b6bd5651"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling-activity.html",
@@ -4155,6 +4155,6 @@
       "sha256": "c21b25fff8be10d10efb33eee517b2310e29f937dc8e6f65b302d1158bf3c402"
     }
   ],
-  "version": "a83ffb3e3c029cff5818",
-  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-a83ffb3e3c029cff5818"
+  "version": "c72d16bd8b26ff0e4199",
+  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-c72d16bd8b26ff0e4199"
 }
