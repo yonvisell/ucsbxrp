@@ -1254,3 +1254,108 @@ input[type="range"]:disabled {
   align-items: center;
   gap: 0.45rem;
 }
+
+/* This space exists before discovery; ready/applying never resize a header. */
+.app-update-slot {
+  position: relative;
+  width: 151px;
+  height: 21px;
+  min-width: 151px;
+  flex: 0 0 151px;
+  margin-left: auto;
+}
+
+.app-header .app-update-button {
+  width: 100%;
+  height: 21px;
+  min-height: 21px;
+  border: 1px solid #198332;
+  padding: 0 5px;
+  background: #65e879;
+  color: #102517;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-header .app-update-button:hover:not(:disabled) {
+  background: #80f08f;
+}
+
+.app-update-button[hidden] {
+  display: none;
+}
+
+.app-header:has(.app-update-error) {
+  overflow: visible;
+}
+
+.app-header .app-update-button:disabled {
+  border-color: #65946d;
+  background: #c2e6c8;
+  color: #37553d;
+  opacity: 1;
+}
+
+.app-update-error {
+  position: absolute;
+  z-index: 100;
+  top: 100%;
+  right: 0;
+  width: min(320px, 85vw);
+  padding: 7px;
+  border: 1px solid var(--red);
+  background: var(--panel);
+  color: var(--red);
+  font-size: var(--font-ui);
+  white-space: normal;
+}
+
+@media (max-width: 1120px) {
+  .app-header > .app-update-slot {
+    order: 3;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-header > .app-update-slot {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .app-header:has(> .app-update-slot) > .header-statuses {
+    grid-column: 2;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --course-header-height: 50px;
+  }
+
+  .course-header:has(> .app-update-slot) {
+    height: 50px;
+    min-height: 50px;
+    flex-wrap: wrap;
+  }
+
+  .course-header:has(> .app-update-slot) > .app-navigation {
+    order: 4;
+    width: 100%;
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .course-header.landing-header:has(> .app-update-slot) > .app-navigation {
+    width: calc(100% - 131px);
+    flex-basis: calc(100% - 131px);
+  }
+
+  .landing-header .landing-orientation-link {
+    order: 4;
+    margin-left: 0;
+  }
+}

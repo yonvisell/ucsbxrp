@@ -48,6 +48,9 @@
       #status {
         min-height: 3em;
       }
+      details {
+        margin-top: 24px;
+      }
       .error {
         color: #a02d27;
       }
@@ -62,20 +65,52 @@
         saved runs, and browser settings stay in place.
       </p>
       <p>
-        First stop any running programs and close other UCSBXRP tabs or app
-        windows in this profile. Keep an internet connection while refreshing.
+        Stop any running programs or robot installation first. Keep an internet
+        connection while checking for the current app.
       </p>
       <button id="refresh" type="button">Refresh app</button>
       <p id="status" role="status" aria-live="polite"></p>
-      <a href="./">Return to UCSBXRP</a>
+      <a id="return" href="./workspace/">Return to UCSBXRP</a>
+      <details>
+        <summary>App still not working?</summary>
+        <p>
+          Repair downloads the full app again and checks every file. Project
+          files, saved runs, and settings are preserved.
+        </p>
+        <button id="repair" type="button">Repair downloaded app</button>
+      </details>
     </main>
     <script>
-      // Kept self-contained so an older cached app cannot supply this page's code.
+      // Independent of app modules so a stale installation can recover here.
       const base = new URL("./", location.href);
       const button = document.querySelector("#refresh");
+      const repairButton = document.querySelector("#repair");
       const status = document.querySelector("#status");
-      async function currentManifest() {
-        const url = new URL("refresh-manifest.json", base);
+      const manifestUrl = new URL("offline-manifest.json", base).href;
+      const identities = new WeakMap();
+      const returnUrl = (() => {
+        const fallback = new URL("workspace/", base);
+        try {
+          const requested = new URL(
+            new URL(location.href).searchParams.get("return") || fallback.href,
+            base,
+          );
+          if (
+            requested.origin === base.origin &&
+            requested.pathname.startsWith(base.pathname) &&
+            requested.pathname !== new URL("refresh.html", base).pathname &&
+            requested.searchParams.get("refresh") !== "1"
+          )
+            return requested;
+        } catch {
+          /* An invalid return address uses the workspace. */
+        }
+        return fallback;
+      })();
+      document.querySelector("#return").href = returnUrl.href;
+
+      async function networkJson(filename) {
+        const url = new URL(filename, base);
         url.searchParams.set("check", crypto.randomUUID());
         const response = await fetch(url, {
           cache: "no-store",
@@ -83,82 +118,168 @@
         });
         if (!response.ok)
           throw new Error(
-            "The current app could not be downloaded. Check your internet connection and try again.",
+            "No online update could be confirmed. Your downloaded app is still available; check your internet connection and try again.",
           );
-        const manifest = await response.json();
-        if (
-          manifest.base_path !== base.pathname ||
-          !/^[a-f0-9]{20}$/.test(manifest.version) ||
-          !manifest.cache_name?.startsWith("ucsb-xrp-course-shell-") ||
-          !Array.isArray(manifest.assets)
-        )
-          throw new Error(
-            "The server did not return a valid UCSBXRP release. Try again when your internet connection is ready.",
-          );
-        return manifest;
+        return response.json();
       }
-      function waitForActive(registration, scriptUrl) {
-        return new Promise((resolve, reject) => {
-          const watched = new Set();
-          const finish = (error) => {
-            clearTimeout(timer);
-            registration.removeEventListener("updatefound", check);
-            for (const worker of watched)
-              worker.removeEventListener("statechange", check);
-            error ? reject(error) : resolve();
-          };
-          const check = () => {
-            for (const worker of new Set([
-              ...watched,
-              registration.installing,
-              registration.waiting,
-              registration.active,
-            ])) {
-              if (!worker || worker.scriptURL !== scriptUrl) continue;
-              if (worker.state === "activated") return finish();
-              if (worker.state === "redundant")
-                return finish(
-                  new Error(
-                    "The download did not finish. Check your internet connection and try again.",
-                  ),
-                );
-              if (!watched.has(worker)) {
-                watched.add(worker);
-                worker.addEventListener("statechange", check);
+      function validManifest(manifest) {
+        return (
+          manifest &&
+          manifest.base_path === base.pathname &&
+          /^[a-f0-9]{20}$/.test(manifest.version) &&
+          new RegExp(
+            "^ucsb-xrp-course-shell-[a-f0-9]{10}-" + manifest.version + "$",
+          ).test(manifest.cache_name) &&
+          Array.isArray(manifest.assets) &&
+          manifest.assets.length > 0 &&
+          manifest.assets.length <= 10000 &&
+          manifest.assets.every((asset) => {
+            if (!asset || typeof asset.url !== "string") return false;
+            const url = new URL(asset.url, base);
+            return (
+              url.origin === base.origin &&
+              url.pathname.startsWith(base.pathname)
+            );
+          })
+        );
+      }
+      async function completeDownload(manifest) {
+        if (
+          !validManifest(manifest) ||
+          !(await caches.has(manifest.cache_name))
+        )
+          return false;
+        const cache = await caches.open(manifest.cache_name);
+        const saved = await cache.match(manifestUrl);
+        if (!saved) return false;
+        const local = await saved.json();
+        if (
+          !validManifest(local) ||
+          local.version !== manifest.version ||
+          local.cache_name !== manifest.cache_name
+        )
+          return false;
+        const urls = new Set((await cache.keys()).map((entry) => entry.url));
+        return [
+          manifestUrl,
+          ...manifest.assets.map((asset) => new URL(asset.url, base).href),
+        ].every((url) => urls.has(url));
+      }
+      async function cachedManifest(version) {
+        for (const name of await caches.keys()) {
+          if (!name.endsWith("-" + version)) continue;
+          try {
+            const cache = await caches.open(name);
+            const saved = await cache.match(manifestUrl);
+            const manifest = saved && (await saved.json());
+            if (
+              manifest?.cache_name === name &&
+              manifest.version === version &&
+              (await completeDownload(manifest))
+            )
+              return manifest;
+          } catch {
+            /* An incomplete cache is not a ready app. */
+          }
+        }
+        return null;
+      }
+      function identity(worker) {
+        if (!worker) return Promise.resolve(null);
+        if (!identities.has(worker))
+          identities.set(
+            worker,
+            new Promise((resolve) => {
+              const channel = new MessageChannel();
+              const finish = (result) => {
+                clearTimeout(timer);
+                channel.port1.close();
+                resolve(result);
+              };
+              const timer = setTimeout(() => finish(null), 1500);
+              channel.port1.onmessage = (event) => finish(event.data);
+              try {
+                worker.postMessage({ type: "ucsb-xrp-shell-version" }, [
+                  channel.port2,
+                ]);
+              } catch {
+                finish(null);
               }
-            }
-          };
-          const timer = setTimeout(
-            () =>
-              finish(
-                new Error(
-                  "The download is taking too long. Check your internet connection and try again.",
-                ),
-              ),
-            105000,
+            }),
           );
-          registration.addEventListener("updatefound", check);
-          check();
-        });
+        return identities.get(worker);
+      }
+      async function matchingWorker(registration, manifest, scriptUrl) {
+        for (const worker of [registration?.waiting, registration?.active]) {
+          if (
+            !worker ||
+            !["installed", "activated"].includes(worker.state) ||
+            (scriptUrl && worker.scriptURL !== scriptUrl)
+          )
+            continue;
+          const result = await identity(worker);
+          if (
+            result?.version === manifest.version &&
+            result.cacheName === manifest.cache_name
+          )
+            return worker;
+        }
+        return null;
+      }
+      async function waitForPrepared(registration, manifest, scriptUrl) {
+        const deadline = Date.now() + 105000;
+        const observed = new Set();
+        while (Date.now() < deadline) {
+          if (registration.installing) observed.add(registration.installing);
+          const worker = await matchingWorker(
+            registration,
+            manifest,
+            scriptUrl,
+          );
+          if (worker && (await completeDownload(manifest))) return worker;
+          if (
+            [...observed].some((candidate) => candidate.state === "redundant")
+          )
+            throw new Error(
+              "The download did not finish. Your previous app is still available. Check your connection and try again.",
+            );
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+        throw new Error(
+          "The download is taking too long. Your previous app is still available. Please try again.",
+        );
+      }
+      async function activate(worker, manifest) {
+        if (worker.state === "installed")
+          worker.postMessage({
+            type: "ucsb-xrp-shell-activate",
+            version: manifest.version,
+          });
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+          const current = await identity(navigator.serviceWorker.controller);
+          if (
+            navigator.serviceWorker.controller === worker &&
+            worker.state === "activated" &&
+            current?.version === manifest.version &&
+            current.cacheName === manifest.cache_name
+          )
+            return;
+          if (worker.state === "redundant") break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        throw new Error(
+          "The downloaded app could not start. Select Refresh app to retry.",
+        );
       }
       async function verifyDownload(manifest) {
-        if (!(await caches.has(manifest.cache_name)))
-          throw new Error(
-            "The downloaded app is incomplete. Please try again.",
-          );
         const cache = await caches.open(manifest.cache_name);
         let next = 0;
         await Promise.all(
           Array.from({ length: 6 }, async () => {
             while (next < manifest.assets.length) {
               const asset = manifest.assets[next++];
-              const url = new URL(asset.url, base);
-              if (
-                url.origin !== base.origin ||
-                !url.pathname.startsWith(base.pathname)
-              )
-                throw new Error("Invalid app download address.");
-              const response = await cache.match(url.href);
+              const response = await cache.match(new URL(asset.url, base).href);
               if (!response)
                 throw new Error(
                   "The downloaded app is incomplete. Please try again.",
@@ -176,8 +297,8 @@
           }),
         );
       }
-      button.addEventListener("click", async () => {
-        button.disabled = true;
+      async function refresh(repair = false) {
+        button.disabled = repairButton.disabled = true;
         status.className = "";
         status.textContent = "Checking the current version…";
         let progress;
@@ -186,27 +307,57 @@
             throw new Error(
               "Use a current version of Chrome or Edge to refresh UCSBXRP.",
             );
-          // This new endpoint bypasses historical workers' cache-first manifest route.
-          // Do not remove working app data before this network check succeeds.
-          const manifest = await currentManifest();
-          const started = Date.now();
-          const showProgress = () => {
-            status.textContent = `Downloading the current app… ${Math.floor((Date.now() - started) / 1000)} s. Keep this page open.`;
-          };
-          showProgress();
-          progress = setInterval(showProgress, 1000);
-          const script = new URL("service-worker.js", base);
-          script.searchParams.set("refresh", crypto.randomUUID());
-          const registration = await navigator.serviceWorker.register(
-            script.href,
-            { scope: base.pathname, updateViaCache: "none" },
+          const latest = await networkJson("app-version.json");
+          if (!/^[a-f0-9]{20}$/.test(latest?.version))
+            throw new Error(
+              "The server did not return a valid UCSBXRP version. Please try again.",
+            );
+          let manifest = await cachedManifest(latest.version);
+          if (!manifest || repair) {
+            manifest = await networkJson("refresh-manifest.json");
+            if (!validManifest(manifest) || manifest.version !== latest.version)
+              throw new Error(
+                "A new app is still being published. Please try again shortly.",
+              );
+          }
+          let registration = await navigator.serviceWorker.getRegistration(
+            base.href,
           );
-          await waitForActive(registration, script.href);
+          if (registration?.scope !== base.href) registration = null;
+          let worker =
+            !repair && (await matchingWorker(registration, manifest));
+          if (worker && !(await completeDownload(manifest)))
+            throw new Error(
+              "The downloaded app is incomplete. Use Repair downloaded app below to restore it.",
+            );
+          if (!worker || repair || !(await completeDownload(manifest))) {
+            const started = Date.now();
+            const showProgress = () => {
+              status.textContent = `Downloading the current app… ${Math.floor((Date.now() - started) / 1000)} s. Keep this page open.`;
+            };
+            showProgress();
+            progress = setInterval(showProgress, 1000);
+            const script = new URL("service-worker.js", base);
+            if (repair) script.searchParams.set("refresh", crypto.randomUUID());
+            registration = await navigator.serviceWorker.register(script.href, {
+              scope: base.pathname,
+              updateViaCache: "none",
+            });
+            worker = await waitForPrepared(
+              registration,
+              manifest,
+              repair ? script.href : undefined,
+            );
+          }
           clearInterval(progress);
-          status.textContent = "Checking downloaded files…";
-          await verifyDownload(manifest);
-          // Retire narrower legacy app workers only after the replacement is ready.
-          // Never clear IndexedDB, localStorage, project folders, or other sites' workers.
+          if (repair) {
+            status.textContent = "Checking downloaded files…";
+            await verifyDownload(manifest);
+          }
+          status.textContent = "Opening the current app…";
+          await activate(worker, manifest);
+          // Retire narrower legacy workers only after verified replacement.
+          // Never clear Project files, recordings, IndexedDB or settings.
           for (const other of await navigator.serviceWorker.getRegistrations()) {
             const scope = new URL(other.scope);
             if (
@@ -216,18 +367,19 @@
             )
               await other.unregister();
           }
-          status.textContent = "Current app saved. Opening UCSBXRP…";
-          location.replace(base.href);
+          location.replace(returnUrl.href);
         } catch (error) {
           clearInterval(progress);
           status.className = "error";
           status.textContent =
             error.name === "TimeoutError" || error.name === "TypeError"
-              ? "Could not finish downloading the app. Check your internet connection and select Refresh app to retry."
+              ? "No online update could be confirmed. Your downloaded app is still available. Check your internet connection and try again."
               : error.message;
-          button.disabled = false;
+          button.disabled = repairButton.disabled = false;
         }
-      });
+      }
+      button.addEventListener("click", () => refresh());
+      repairButton.addEventListener("click", () => refresh(true));
     </script>
   </body>
 </html>
