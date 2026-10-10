@@ -9,5 +9,7 @@ from sensor_processor import SensorProcessor
 from ucsb_xrp.component_checks import run_component_checks
 
 
+print("COVERAGE · These checks exercise SensorProcessor. They do not check stopping_controller() in stopping_controller.py; evaluate that function through your Virtual XRP stopping trials.")
+
 # Exercise the project classes directly, regardless of Run selectors.
 run_component_checks(SensorProcessor)

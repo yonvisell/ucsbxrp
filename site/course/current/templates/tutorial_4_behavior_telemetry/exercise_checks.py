@@ -12,9 +12,7 @@ def _expect_value_error(function, *arguments):
     raise AssertionError("invalid input should raise ValueError")
 
 
-def _close(actual, expected, tolerance=0.000001):
-    if abs(actual - expected) > tolerance:
-        raise AssertionError("expected {}, received {}".format(expected, actual))
+from ucsb_xrp.check_support import assert_close as _close, finite_number
 
 
 def _check_phase_transitions():
@@ -48,6 +46,8 @@ def _check_motion_commands():
     for command in (approach, left, right, done):
         if not isinstance(command, MotionCommand):
             raise AssertionError("each phase should return a MotionCommand")
+        finite_number("forward_speed_mm_s", command.forward_speed_mm_s)
+        finite_number("turn_rate_rad_s", command.turn_rate_rad_s)
     actual = (
         (approach.forward_speed_mm_s, approach.turn_rate_rad_s),
         (left.forward_speed_mm_s, left.turn_rate_rad_s),
@@ -151,7 +151,7 @@ def _check_telemetry():
     if plots["wheel_distance_mm"][1] != "mm" or plots["heading_rad"][1] != "rad":
         raise AssertionError("plot signals should retain their stated units")
     _close(plots["wheel_distance_mm"][0], 150.0)
-    _close(plots["heading_rad"][0], 0.4)
+    _close(plots["heading_rad"][0], 0.4, "rad", "heading_rad")
 
     no_range = RobotState(
         Measurements(120, 0.02, 142.0, 162.0, 2.0, 2.0, 100.0, 100.0, None, False),

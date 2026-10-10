@@ -59,9 +59,7 @@ def _state_for_step(step, frozen=False):
     return RobotState(measurements, Pose(left_mm, 0.0, 0.0))
 
 
-def _close(actual, expected, tolerance=0.000001):
-    if abs(actual - expected) > tolerance:
-        raise AssertionError("expected {}, received {}".format(expected, actual))
+from ucsb_xrp.check_support import assert_close as _close, finite_number
 
 
 def _expect_value_error(function, *arguments):
@@ -101,6 +99,8 @@ def _check_robot_program():
             raise AssertionError(
                 "step {} did not receive a MotionCommand".format(index + 1)
             )
+        finite_number("forward_speed_mm_s", command.forward_speed_mm_s)
+        finite_number("turn_rate_rad_s", command.turn_rate_rad_s)
         if (command.forward_speed_mm_s, command.turn_rate_rad_s) != (80.0, 0.0):
             raise AssertionError(
                 "step {} should request 80.0 mm/s straight motion".format(

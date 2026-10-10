@@ -8,7 +8,7 @@ The MicroPython WebAssembly package omits its license file from npm, so its upst
 @monaco-editor/react 4.7.0 — MIT
 @types/trusted-types 2.0.7 — MIT
 commander 15.0.0 — MIT
-dompurify 3.4.13 — (MPL-2.0 OR Apache-2.0)
+dompurify 3.4.16 — (MPL-2.0 OR Apache-2.0)
 echarts 6.1.0 — Apache-2.0
 katex 0.18.7 — MIT
 marked 18.0.11 — MIT

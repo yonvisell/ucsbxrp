@@ -4,9 +4,7 @@ from student_work import preflight_report
 from ucsb_xrp import Measurements, Pose, RobotState
 
 
-def _close(actual, expected, tolerance=0.000001):
-    if abs(actual - expected) > tolerance:
-        raise AssertionError("expected {}, received {}".format(expected, actual))
+from ucsb_xrp.check_support import assert_close as _close
 
 
 def _state(
@@ -49,7 +47,7 @@ def _read_report():
 
 
 def _check_sample_count(report):
-    if report.get("sample_count") != 3:
+    if type(report.get("sample_count")) is not int or report.get("sample_count") != 3:
         raise AssertionError("sample_count: expected 3, received {}".format(report.get("sample_count")))
     try:
         preflight_report(())
@@ -59,7 +57,7 @@ def _check_sample_count(report):
 
 
 def _check_elapsed_time(report):
-    _close(report.get("elapsed_time_s"), 0.04)
+    _close(report.get("elapsed_time_s"), 0.04, "s", "elapsed_time_s")
 
 
 def _check_wheel_position(report):
@@ -67,7 +65,7 @@ def _check_wheel_position(report):
 
 
 def _check_range_count(report):
-    if report.get("usable_range_count") != 2:
+    if type(report.get("usable_range_count")) is not int or report.get("usable_range_count") != 2:
         raise AssertionError("expected 2, received {}".format(report.get("usable_range_count")))
 
 

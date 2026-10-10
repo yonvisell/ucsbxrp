@@ -8,9 +8,7 @@ from student_work import (
 )
 
 
-def _close(actual, expected, tolerance=0.000001):
-    if abs(actual - expected) > tolerance:
-        raise AssertionError("expected {}, received {}".format(expected, actual))
+from ucsb_xrp.check_support import assert_close as _close
 
 
 def _expect_value_error(function, *arguments):
@@ -25,8 +23,8 @@ def _check_average_speed():
     result = average_speed_mm_s(600.0, 4.0)
     if result is None:
         raise NotImplementedError("average_speed_mm_s returned no result")
-    _close(result, 150.0)
-    _close(average_speed_mm_s(125.0, 0.5), 250.0)
+    _close(result, 150.0, "mm/s", "average_speed_mm_s")
+    _close(average_speed_mm_s(125.0, 0.5), 250.0, "mm/s", "average_speed_mm_s")
     _expect_value_error(average_speed_mm_s, -1.0, 2.0)
     _expect_value_error(average_speed_mm_s, 100.0, 0.0)
     return "600.0 mm / 4.0 s -> {} mm/s (expected 150.0)".format(result)
@@ -72,11 +70,11 @@ def _check_wheel_speed_summary():
     }
     if set(result) != expected_keys:
         raise AssertionError("expected keys {}".format(sorted(expected_keys)))
-    if result["sample_count"] != 3:
+    if type(result["sample_count"]) is not int or result["sample_count"] != 3:
         raise AssertionError("sample_count should be 3")
-    _close(result["mean_left_mm_s"], 120.0)
-    _close(result["mean_right_mm_s"], 110.0)
-    _close(result["mean_difference_mm_s"], 10.0)
+    _close(result["mean_left_mm_s"], 120.0, "mm/s", "mean_left_mm_s")
+    _close(result["mean_right_mm_s"], 110.0, "mm/s", "mean_right_mm_s")
+    _close(result["mean_difference_mm_s"], 10.0, "mm/s", "mean_difference_mm_s")
     _expect_value_error(wheel_speed_summary, (), ())
     _expect_value_error(wheel_speed_summary, (100.0,), (90.0, 95.0))
     return "three paired samples -> mean difference {} mm/s (expected 10.0)".format(
