@@ -406,33 +406,57 @@ def state_snapshot():
     return None if latest is None else _expand_frame(latest)
 
 
-def buffered_state_snapshots(after_sample_seq=0):
-    """Return retained robot samples newer than ``after_sample_seq``.
-
-    Copy only requested committed frame references while holding the lock.
-    Expand their established dictionary schema afterward. Returned dictionaries
-    are consumer-owned; changing them cannot mutate retained acquisition data.
-    """
+def _buffered_frame_references(after_sample_seq, maximum=None):
     try:
         after_sample_seq = int(after_sample_seq)
     except (TypeError, ValueError):
         after_sample_seq = 0
+    if maximum is not None:
+        maximum = max(0, int(maximum))
     _acquire_snapshot()
     try:
-        if _latest is None:
-            retained = ()
-        else:
-            latest_seq = _latest[0]
-            # Sequences normally advance by one. An allocation/bridge-preparation
-            # failure can consume a sequence before its frame is committed.
-            # The sequence span is an upper bound on the number of new frames;
-            # copy that bounded suffix, then filter any older references below.
-            count = max(0, min(_buffer_count, latest_seq - after_sample_seq))
-            start = (_buffer_write_index - count) % _BUFFER_SIZE
-            retained = tuple(_buffer[(start + index) % _BUFFER_SIZE] for index in range(count))
+        retained = []
+        more = False
+        # Sequence span bounds the unread suffix, including skipped IDs. Avoid
+        # scanning old frames when a healthy sender is already caught up.
+        count = 0 if _latest is None else max(0, min(_buffer_count, _latest[0] - after_sample_seq))
+        start = (_buffer_write_index - count) % _BUFFER_SIZE
+        for index in range(count):
+            frame = _buffer[(start + index) % _BUFFER_SIZE]
+            if frame[0] <= after_sample_seq:
+                continue
+            if maximum is not None and len(retained) >= maximum:
+                more = True
+                break
+            retained.append(frame)
     finally:
         _release_snapshot()
-    return tuple(_expand_frame(frame) for frame in retained if frame[0] > after_sample_seq)
+    return retained, more
+
+
+def buffered_state_snapshots(after_sample_seq=0):
+    """Return consumer-owned dictionaries for every retained unread sample."""
+    retained, _ = _buffered_frame_references(after_sample_seq)
+    return tuple(_expand_frame(frame) for frame in retained)
+
+
+def buffered_state_snapshot_page(after_sample_seq, maximum):
+    """Expand only the oldest unread page, outside the acquisition lock.
+
+    One additional immutable reference establishes continuation without expanding
+    it. Missing sequence numbers and ring wrap do not change page ordering.
+    """
+    retained, more = _buffered_frame_references(after_sample_seq, maximum)
+    return tuple(_expand_frame(frame) for frame in retained), more
+
+
+def _buffered_state_frame_page(after_sample_seq, maximum):
+    """Select saved tuples for the service without expanding field names.
+
+    The returned references survive ring overwrite/reset. Consumers must keep
+    all conversion and encoding outside the publication lock.
+    """
+    return _buffered_frame_references(after_sample_seq, maximum)
 
 
 def clear_state():
