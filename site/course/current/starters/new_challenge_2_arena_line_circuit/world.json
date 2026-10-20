@@ -21,7 +21,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Arena circuit",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -71,7 +71,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -82,6 +82,78 @@
             {
               "x_mm": -1169,
               "y_mm": 65
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -713.97,
+              "y_mm": 65.0
+            },
+            {
+              "x_mm": -713.97,
+              "y_mm": -65.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 651.12,
+              "y_mm": 65.0
+            },
+            {
+              "x_mm": 651.12,
+              "y_mm": -65.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 651.12,
+              "y_mm": 285.0
+            },
+            {
+              "x_mm": 651.12,
+              "y_mm": 415.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -713.97,
+              "y_mm": 285.0
+            },
+            {
+              "x_mm": -713.97,
+              "y_mm": 415.0
             }
           ]
         }
@@ -98,30 +170,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 900,
-          "y_mm": 0
+          "label": "Waypoint 2",
+          "x_mm": -713.97,
+          "y_mm": 0.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1100,
-          "y_mm": 300
+          "label": "Waypoint 3",
+          "x_mm": 651.12,
+          "y_mm": 0.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -1100,
-          "y_mm": 350
+          "label": "Waypoint 4",
+          "x_mm": 651.12,
+          "y_mm": 350.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1320,
-          "y_mm": 175
+          "label": "Waypoint 5",
+          "x_mm": -713.97,
+          "y_mm": 350.0
         }
       ]
     },
@@ -145,7 +217,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 2 \u00b7 broad oval",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -283,7 +355,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -294,6 +366,78 @@
             {
               "x_mm": -690,
               "y_mm": -245
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -373.82,
+              "y_mm": -245.0
+            },
+            {
+              "x_mm": -373.82,
+              "y_mm": -375.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 574.72,
+              "y_mm": -245.0
+            },
+            {
+              "x_mm": 574.72,
+              "y_mm": -375.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 566.79,
+              "y_mm": 242.76
+            },
+            {
+              "x_mm": 567.0,
+              "y_mm": 372.76
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -526.55,
+              "y_mm": 244.54
+            },
+            {
+              "x_mm": -526.34,
+              "y_mm": 374.54
             }
           ]
         }
@@ -310,30 +454,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 810,
-          "y_mm": -310
+          "label": "Waypoint 2",
+          "x_mm": -373.82,
+          "y_mm": -310.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1120,
-          "y_mm": 0
+          "label": "Waypoint 3",
+          "x_mm": 574.72,
+          "y_mm": -310.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -810,
-          "y_mm": 310
+          "label": "Waypoint 4",
+          "x_mm": 566.9,
+          "y_mm": 307.76
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1120,
-          "y_mm": 0
+          "label": "Waypoint 5",
+          "x_mm": -526.45,
+          "y_mm": 309.54
         }
       ]
     },
@@ -357,7 +501,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 3 \u00b7 taller oval",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -495,7 +639,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -506,6 +650,78 @@
             {
               "x_mm": -590,
               "y_mm": -325
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -309.65,
+              "y_mm": -325.0
+            },
+            {
+              "x_mm": -309.65,
+              "y_mm": -455.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 531.42,
+              "y_mm": -325.0
+            },
+            {
+              "x_mm": 531.42,
+              "y_mm": -455.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 527.65,
+              "y_mm": 322.22
+            },
+            {
+              "x_mm": 527.94,
+              "y_mm": 452.22
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -477.03,
+              "y_mm": 324.48
+            },
+            {
+              "x_mm": -476.74,
+              "y_mm": 454.48
             }
           ]
         }
@@ -522,30 +738,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 710,
-          "y_mm": -390
+          "label": "Waypoint 2",
+          "x_mm": -309.65,
+          "y_mm": -390.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1100,
-          "y_mm": 0
+          "label": "Waypoint 3",
+          "x_mm": 531.42,
+          "y_mm": -390.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -710,
-          "y_mm": 390
+          "label": "Waypoint 4",
+          "x_mm": 527.79,
+          "y_mm": 387.22
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1100,
-          "y_mm": 0
+          "label": "Waypoint 5",
+          "x_mm": -476.88,
+          "y_mm": 389.48
         }
       ]
     },
@@ -569,7 +785,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 4 \u00b7 long oval",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -707,7 +923,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -718,6 +934,78 @@
             {
               "x_mm": -860,
               "y_mm": -195
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -471.71,
+              "y_mm": -194.54
+            },
+            {
+              "x_mm": -471.56,
+              "y_mm": -324.54
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 693.38,
+              "y_mm": -193.18
+            },
+            {
+              "x_mm": 693.53,
+              "y_mm": -323.18
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 649.09,
+              "y_mm": 192.8
+            },
+            {
+              "x_mm": 649.09,
+              "y_mm": 322.8
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -649.09,
+              "y_mm": 192.8
+            },
+            {
+              "x_mm": -649.09,
+              "y_mm": 322.8
             }
           ]
         }
@@ -734,30 +1022,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 980,
-          "y_mm": -260
+          "label": "Waypoint 2",
+          "x_mm": -471.64,
+          "y_mm": -259.54
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1240,
-          "y_mm": 0
+          "label": "Waypoint 3",
+          "x_mm": 693.46,
+          "y_mm": -258.18
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -980,
-          "y_mm": 260
+          "label": "Waypoint 4",
+          "x_mm": 649.09,
+          "y_mm": 257.8
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1240,
-          "y_mm": 0
+          "label": "Waypoint 5",
+          "x_mm": -649.09,
+          "y_mm": 257.8
         }
       ]
     },
@@ -781,7 +1069,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 5 \u00b7 left-offset oval",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -919,7 +1207,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -930,6 +1218,78 @@
             {
               "x_mm": -750,
               "y_mm": -245
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -436.77,
+              "y_mm": -245.0
+            },
+            {
+              "x_mm": -436.77,
+              "y_mm": -375.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 502.91,
+              "y_mm": -245.0
+            },
+            {
+              "x_mm": 502.91,
+              "y_mm": -375.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 496.05,
+              "y_mm": 282.67
+            },
+            {
+              "x_mm": 496.27,
+              "y_mm": 412.67
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -593.17,
+              "y_mm": 284.53
+            },
+            {
+              "x_mm": -592.95,
+              "y_mm": 414.53
             }
           ]
         }
@@ -946,30 +1306,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 730,
-          "y_mm": -310
+          "label": "Waypoint 2",
+          "x_mm": -436.77,
+          "y_mm": -310.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1060,
-          "y_mm": 20
+          "label": "Waypoint 3",
+          "x_mm": 502.91,
+          "y_mm": -310.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -870,
-          "y_mm": 350
+          "label": "Waypoint 4",
+          "x_mm": 496.16,
+          "y_mm": 347.67
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1200,
-          "y_mm": 20
+          "label": "Waypoint 5",
+          "x_mm": -593.06,
+          "y_mm": 349.53
         }
       ]
     },
@@ -993,7 +1353,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 6 \u00b7 undulating straights",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -1191,7 +1551,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -1202,6 +1562,78 @@
             {
               "x_mm": -710,
               "y_mm": -265
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -391.6,
+              "y_mm": -251.87
+            },
+            {
+              "x_mm": -375.75,
+              "y_mm": -380.9
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 588.47,
+              "y_mm": -267.68
+            },
+            {
+              "x_mm": 589.92,
+              "y_mm": -397.67
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 581.61,
+              "y_mm": 265.69
+            },
+            {
+              "x_mm": 583.17,
+              "y_mm": 395.68
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -539.6,
+              "y_mm": 263.51
+            },
+            {
+              "x_mm": -538.93,
+              "y_mm": 393.51
             }
           ]
         }
@@ -1218,30 +1650,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 830,
-          "y_mm": -330
+          "label": "Waypoint 2",
+          "x_mm": -383.68,
+          "y_mm": -316.38
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1160,
-          "y_mm": 0
+          "label": "Waypoint 3",
+          "x_mm": 589.19,
+          "y_mm": -332.67
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -830,
-          "y_mm": 330
+          "label": "Waypoint 4",
+          "x_mm": 582.39,
+          "y_mm": 330.69
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1160,
-          "y_mm": 0
+          "label": "Waypoint 5",
+          "x_mm": -539.27,
+          "y_mm": 328.51
         }
       ]
     },
@@ -1265,7 +1697,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 7 \u00b7 rounded rectangle",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -1399,7 +1831,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -1410,6 +1842,78 @@
             {
               "x_mm": -810,
               "y_mm": -325
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -447.9,
+              "y_mm": -325.0
+            },
+            {
+              "x_mm": -447.9,
+              "y_mm": -455.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 638.4,
+              "y_mm": -325.0
+            },
+            {
+              "x_mm": 638.4,
+              "y_mm": -455.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 628.39,
+              "y_mm": 323.11
+            },
+            {
+              "x_mm": 628.55,
+              "y_mm": 453.11
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -593.34,
+              "y_mm": 324.59
+            },
+            {
+              "x_mm": -593.18,
+              "y_mm": 454.59
             }
           ]
         }
@@ -1426,30 +1930,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 930,
-          "y_mm": -390
+          "label": "Waypoint 2",
+          "x_mm": -447.9,
+          "y_mm": -390.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1200,
-          "y_mm": 0
+          "label": "Waypoint 3",
+          "x_mm": 638.4,
+          "y_mm": -390.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -930,
-          "y_mm": 390
+          "label": "Waypoint 4",
+          "x_mm": 628.47,
+          "y_mm": 388.11
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1200,
-          "y_mm": 0
+          "label": "Waypoint 5",
+          "x_mm": -593.26,
+          "y_mm": 389.59
         }
       ]
     },
@@ -1473,7 +1977,7 @@
           "type": "line",
           "name": "arena_circuit",
           "label": "Circuit 8 \u00b7 broad square corners",
-          "width_mm": 18,
+          "width_mm": 19,
           "darkness": 1,
           "closed": true,
           "points": [
@@ -1587,7 +2091,7 @@
           "type": "line",
           "name": "finish",
           "label": "Start and finish bar",
-          "width_mm": 50,
+          "width_mm": 19,
           "darkness": 1,
           "closed": false,
           "points": [
@@ -1598,6 +2102,78 @@
             {
               "x_mm": -900,
               "y_mm": -305
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_1",
+          "label": "Waypoint 2",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -504.0,
+              "y_mm": -305.0
+            },
+            {
+              "x_mm": -504.0,
+              "y_mm": -435.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_2",
+          "label": "Waypoint 3",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 684.01,
+              "y_mm": -305.0
+            },
+            {
+              "x_mm": 684.01,
+              "y_mm": -435.0
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_3",
+          "label": "Waypoint 4",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 671.96,
+              "y_mm": 303.37
+            },
+            {
+              "x_mm": 672.09,
+              "y_mm": 433.37
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "name": "checkpoint_4",
+          "label": "Waypoint 5",
+          "width_mm": 19,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": -642.06,
+              "y_mm": 304.63
+            },
+            {
+              "x_mm": -641.94,
+              "y_mm": 434.63
             }
           ]
         }
@@ -1614,30 +2190,30 @@
         {
           "type": "waypoint",
           "name": "checkpoint_1",
-          "label": "Checkpoint 1",
-          "x_mm": 1020,
-          "y_mm": -370
+          "label": "Waypoint 2",
+          "x_mm": -504.0,
+          "y_mm": -370.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_2",
-          "label": "Checkpoint 2",
-          "x_mm": 1250,
-          "y_mm": 0
+          "label": "Waypoint 3",
+          "x_mm": 684.01,
+          "y_mm": -370.0
         },
         {
           "type": "waypoint",
           "name": "checkpoint_3",
-          "label": "Checkpoint 3",
-          "x_mm": -1020,
-          "y_mm": 370
+          "label": "Waypoint 4",
+          "x_mm": 672.03,
+          "y_mm": 368.37
         },
         {
           "type": "waypoint",
           "name": "checkpoint_4",
-          "label": "Checkpoint 4",
-          "x_mm": -1250,
-          "y_mm": 0
+          "label": "Waypoint 5",
+          "x_mm": -642.0,
+          "y_mm": 369.63
         }
       ]
     }

@@ -1029,6 +1029,22 @@ input[type="range"]:disabled {
   font-size: var(--font-xs);
 }
 
+.course-settings-notice {
+  display: block;
+  min-width: 0;
+  padding: 3px 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-settings-notice:empty,
+.course-settings-notice[hidden] {
+  display: none;
+}
+
 .landing-header .landing-orientation-link {
   flex: 0 0 auto;
   margin-left: auto;

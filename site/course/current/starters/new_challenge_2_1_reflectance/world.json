@@ -1,0 +1,79 @@
+{
+  "default_world": "white-floor",
+  "worlds": [
+    {
+      "id": "white-floor",
+      "label": "White floor",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -555,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "tracks": [
+        {
+          "type": "line",
+          "name": "black-patch",
+          "label": "Black patch",
+          "width_mm": 400,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 0,
+              "y_mm": -200
+            },
+            {
+              "x_mm": 0,
+              "y_mm": 200
+            }
+          ]
+        }
+      ],
+      "markers": []
+    },
+    {
+      "id": "black-patch",
+      "label": "Black patch",
+      "bounds": {
+        "minimum_x_mm": -1524,
+        "minimum_y_mm": -609.6,
+        "maximum_x_mm": 1524,
+        "maximum_y_mm": 609.6
+      },
+      "initial_pose": {
+        "x_mm": -55,
+        "y_mm": 0,
+        "heading_rad": 0
+      },
+      "obstacles": [],
+      "tracks": [
+        {
+          "type": "line",
+          "name": "black-patch",
+          "label": "Black patch",
+          "width_mm": 400,
+          "darkness": 1,
+          "closed": false,
+          "points": [
+            {
+              "x_mm": 0,
+              "y_mm": -200
+            },
+            {
+              "x_mm": 0,
+              "y_mm": 200
+            }
+          ]
+        }
+      ],
+      "markers": []
+    }
+  ]
+}

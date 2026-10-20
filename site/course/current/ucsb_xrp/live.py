@@ -8,6 +8,7 @@ this automatically after each measured sample.
 
 import json
 import math
+import struct
 from ._build_config import DEBUG_VALIDATION
 
 try:
@@ -311,6 +312,14 @@ class LiveParameter:
 
     def _encode(self, value):
         if self.kind == "number":
+            if self.maximum is None:
+                try:
+                    packed = struct.pack("<f", value)
+                    if not math.isfinite(struct.unpack("<f", packed)[0]):
+                        raise ValueError(self.name + " must fit a finite 32-bit float")
+                    return struct.unpack("<i", packed)[0]
+                except OverflowError:
+                    raise ValueError(self.name + " must fit a finite 32-bit float")
             return int(round((value - self.minimum) / self.step))
         if self.kind == "toggle":
             return 1 if value else 0
@@ -318,6 +327,11 @@ class LiveParameter:
 
     def _decode(self, encoded):
         if self.kind == "number":
+            if self.maximum is None:
+                value = struct.unpack("<f", struct.pack("<i", encoded))[0]
+                if not math.isfinite(value):
+                    raise ValueError(self.name + " must fit a finite 32-bit float")
+                return max(self.minimum, value)
             maximum_index = int(round((self.maximum - self.minimum) / self.step))
             index = min(maximum_index, max(0, int(encoded)))
             value = self.minimum + index * self.step
@@ -330,7 +344,9 @@ class LiveParameter:
     def _validate_value(self, value):
         if self.kind == "number":
             value = _finite_number(value, self.name)
-            if value < self.minimum or value > self.maximum:
+            if self.maximum is None and value < self.minimum:
+                raise ValueError(self.name + " must be at least " + str(self.minimum))
+            if self.maximum is not None and (value < self.minimum or value > self.maximum):
                 raise ValueError(
                     self.name
                     + " must be between "
@@ -375,19 +391,18 @@ def _declare(parameter):
 
 
 def number(name, default, minimum, maximum, step, unit="", label=None):
-    """Declare a bounded numeric parameter rendered as a compact slider."""
+    """Declare a slider, or a numeric field when maximum is None."""
     name = _clean_text(name, "name", 32, identifier=True)
     label = _clean_text(label or _default_label(name), "label", 48)
     unit = "" if unit == "" else _clean_text(unit, "unit", 16)
     minimum = _finite_number(minimum, "minimum")
-    maximum = _finite_number(maximum, "maximum")
+    maximum = None if maximum is None else _finite_number(maximum, "maximum")
     step = _finite_number(step, "step")
-    if maximum <= minimum:
+    if maximum is not None and maximum <= minimum:
         raise ValueError("maximum must be greater than minimum")
-    if step <= 0 or step > maximum - minimum:
+    if step <= 0 or (maximum is not None and step > maximum - minimum):
         raise ValueError("step must be positive and no larger than the range")
-    encoded_maximum = int(round((maximum - minimum) / step))
-    if encoded_maximum > MAX_ENCODED_VALUE:
+    if maximum is not None and int(round((maximum - minimum) / step)) > MAX_ENCODED_VALUE:
         raise ValueError("numeric parameter declares too many steps")
     parameter = LiveParameter(
         name,

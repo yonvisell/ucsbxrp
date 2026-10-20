@@ -368,6 +368,17 @@
     "published": true
   },
   {
+    "id": "demo_circle",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/demo_circle",
+    "label": "Demo \u00b7 Circle",
+    "short_label": "Circle",
+    "summary": "Drive one circle of a chosen diameter using differential-drive kinematics.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
     "id": "demo_spiral",
     "group": "demonstrations",
     "kind": "demo",
@@ -543,6 +554,17 @@
         "selection_flag": "USE_STUDENT_LINE_FOLLOWER"
       }
     ],
+    "published": true
+  },
+  {
+    "id": "new_challenge_2_1_reflectance",
+    "group": "newest-challenges",
+    "kind": "demo",
+    "source": "starters/new_challenge_2_1_reflectance",
+    "label": "Challenge 2.1: Reflectance",
+    "short_label": "Challenge 2.1: Reflectance",
+    "summary": "Record left and right floor reflectance on white and black surfaces with zero motor effort. No programming required.",
+    "entrypoint": "main.py",
     "published": true
   },
   {
