@@ -794,7 +794,7 @@ def _line_follower(component_class):
     settings = {"cruise_speed_mm_s": 90.0, "minimum_speed_mm_s": 45.0,
                 "kp_rad_s": 1.6, "ki_rad_s2": 0.0, "kd_rad": 0.025,
                 "integral_limit_s": 0.5, "maximum_turn_rate_rad_s": 1.4,
-                "turn_slowdown": 0.45}
+                "turn_slowdown": 0.45, "waypoint_dark_threshold": 0.80}
     follower = component_class(settings)
     follower.reset()
     centered = follower.update(ReflectanceReadings(0.6, 0.6), 0.02)
