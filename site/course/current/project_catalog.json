@@ -568,6 +568,29 @@
     "published": true
   },
   {
+    "id": "new_challenge_2_2_circular_driving",
+    "group": "newest-challenges",
+    "kind": "challenge",
+    "source": "starters/new_challenge_2_2_circular_driving",
+    "label": "Challenge 2.2: Circular Driving",
+    "short_label": "Challenge 2.2: Circular Driving",
+    "summary": "Implement differential drive and measure constant-speed circles at three diameters in both directions.",
+    "entrypoint": "main.py",
+    "components": [
+      {
+        "name": "SensorProcessor",
+        "file": "sensor_processor.py",
+        "selection_flag": "USE_STUDENT_SENSOR_PROCESSOR"
+      },
+      {
+        "name": "DifferentialDrive",
+        "file": "differential_drive.py",
+        "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
+      }
+    ],
+    "published": true
+  },
+  {
     "id": "new_challenge_3_waypoint_courier",
     "group": "newest-challenges",
     "kind": "challenge",
@@ -746,6 +769,18 @@
     "label": "Complete 2 \u00b7 Arena Line Circuit",
     "short_label": "Complete 2 \u00b7 Arena Line Circuit",
     "summary": "Completed implementation of Arena Line Circuit.",
+    "entrypoint": "main.py",
+    "solution_stage": 2,
+    "published": true
+  },
+  {
+    "id": "complete_new_challenge_2_2_circular_driving",
+    "group": "newest-challenges",
+    "kind": "complete-challenge",
+    "source": "starters/new_challenge_2_2_circular_driving",
+    "label": "Complete 2.2: Circular Driving",
+    "short_label": "Complete 2.2: Circular Driving",
+    "summary": "Completed differential-drive circle measurement exercise.",
     "entrypoint": "main.py",
     "solution_stage": 2,
     "published": true

@@ -70,6 +70,10 @@
       </p>
       <button id="refresh" type="button">Refresh app</button>
       <p id="status" role="status" aria-live="polite"></p>
+      <p>
+        Physical XRP setup requirements appear in the updated app. Virtual XRP
+        never needs Robot Setup.
+      </p>
       <a id="return" href="./workspace/">Return to UCSBXRP</a>
       <details>
         <summary>App still not working?</summary>
@@ -188,6 +192,33 @@
           }
         }
         return null;
+      }
+      async function robotSetupRequirements(manifest) {
+        if (!manifest) return null;
+        try {
+          const url = new URL("course/current/release.json", base).href;
+          if (
+            !manifest.assets.some(
+              (asset) => new URL(asset.url, base).href === url,
+            )
+          )
+            return null;
+          const response = await (
+            await caches.open(manifest.cache_name)
+          ).match(url);
+          if (!response) return null;
+          const release = await response.json();
+          return {
+            release_id: release.release_id,
+            compatibility: release.compatibility,
+            micropython: {
+              build_id: release.micropython?.build_id,
+              sha256: release.micropython?.sha256,
+            },
+          };
+        } catch {
+          return null;
+        }
       }
       function identity(worker) {
         if (!worker) return Promise.resolve(null);
@@ -316,6 +347,14 @@
             throw new Error(
               "Use a current version of Chrome or Edge to refresh UCSBXRP.",
             );
+          const previousIdentity = await identity(
+            navigator.serviceWorker.controller,
+          );
+          const previousRequirements = await robotSetupRequirements(
+            previousIdentity
+              ? await cachedManifest(previousIdentity.version)
+              : null,
+          );
           const latest = await networkJson("app-version.json");
           if (!/^[a-f0-9]{20}$/.test(latest?.version))
             throw new Error(
@@ -409,6 +448,19 @@
               scope.href !== base.href
             )
               await other.unregister();
+          }
+          // Keep the update notice through navigation without contacting a robot.
+          try {
+            localStorage.setItem(
+              `ucsb-xrp-robot-setup-update-v1:${base.pathname}`,
+              JSON.stringify({
+                version: manifest.version,
+                previous: previousRequirements,
+                next: await robotSetupRequirements(manifest),
+              }),
+            );
+          } catch {
+            /* Missing browser storage must not block a verified update. */
           }
           location.replace(returnUrl.href);
         } catch (error) {

@@ -1275,7 +1275,7 @@ input[type="range"]:disabled {
 .app-update-slot {
   position: relative;
   width: 151px;
-  height: 21px;
+  height: 23px;
   min-width: 151px;
   flex: 0 0 151px;
   margin-left: auto;
@@ -1283,8 +1283,8 @@ input[type="range"]:disabled {
 
 .app-header .app-update-button {
   width: 100%;
-  height: 21px;
-  min-height: 21px;
+  height: 23px;
+  min-height: 23px;
   border: 1px solid #198332;
   padding: 0 5px;
   background: #65e879;
@@ -1299,8 +1299,67 @@ input[type="range"]:disabled {
   background: #80f08f;
 }
 
-.app-update-button[hidden] {
+.app-update-button[hidden],
+.app-header .app-release-notes[hidden] {
   display: none;
+}
+
+.app-update-label,
+.app-update-setup,
+.app-release-setup {
+  display: block;
+}
+
+.app-update-setup,
+.app-release-setup {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.app-header .app-release-notes {
+  display: flex;
+  width: 100%;
+  height: 23px;
+  flex-direction: column;
+  justify-content: center;
+  border: 1px solid #8aa2ad;
+  border-radius: 2px;
+  background: #edf3f6;
+  color: #16425a;
+  text-align: center;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-header .app-release-notes:hover {
+  background: #e0edf3;
+}
+
+.app-header .app-release-notes[data-setup="required"] {
+  background: #fff2d6;
+  color: #714700;
+}
+
+/* Keep class-setting changes visible without displacing release/setup text. */
+.app-release-notes .course-settings-notice {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  padding: 0;
+  font-size: 0;
+  color: #005f58;
+}
+
+.app-release-notes .course-settings-notice:not(:empty)::before {
+  content: "●";
+  font-size: 7px;
+}
+
+.app-header .app-release-notes[aria-disabled="true"] {
+  opacity: 0.65;
 }
 
 .app-header:has(.app-update-error) {
