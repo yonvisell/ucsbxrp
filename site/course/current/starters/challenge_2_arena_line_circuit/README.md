@@ -55,17 +55,17 @@ reading **B** recorded in part 2.1. In `settings.py`:
 - Set `LEFT_LINE_VISIBLE_THRESHOLD` and `RIGHT_LINE_VISIBLE_THRESHOLD` to
   **T = W + 0.1(B − W)** for their respective sensors, as in part 2.1.
 
-The supplied code compares each raw reading with its own threshold. It also
-subtracts that sensor's floor value and rescales the remaining range before
-passing the readings to your controller:
+A sensor detects tape when its raw reading reaches its threshold T. Your
+`LineFollower.update()` receives readings calibrated automatically using that
+sensor's white-floor value W:
 
 <p><em>r</em> = (<em>r</em><sub>raw</sub> − <em>W</em>)/(1 − <em>W</em>),
 limited to 0–1.</p>
 
 Here <em>r</em><sub>raw</sub> is the recorded sensor reading and <em>r</em> is its
 calibrated value. White becomes approximately zero; black remains the larger
-value. Virtual XRP uses its supplied calibration. Waypoint bars are handled
-separately in Section 3.
+value. For Virtual XRP, retain the default calibration. Section 3 explains
+how to handle waypoint bars.
 
 ![Top view of the XRP with tape beneath its left reflectance sensor and arrows showing a left turn.](course-assets/line-follower-steering.svg)
 
