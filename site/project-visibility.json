@@ -18,7 +18,7 @@
     "new_demo_motor_characterization": false,
     "new_challenge_2_1_reflectance": true,
     "new_challenge_2_2_circular_driving": true,
-    "new_challenge_2_arena_line_circuit": false,
+    "new_challenge_2_arena_line_circuit": true,
     "new_challenge_3_waypoint_courier": false,
     "new_challenge_4_mapped_route": false,
     "new_challenge_5_out_and_back": false
