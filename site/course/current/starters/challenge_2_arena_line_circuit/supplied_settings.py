@@ -20,7 +20,7 @@ PHYSICAL_ROBOT_SETTINGS = dict(
     wheel_speed_kp=0.001,
     wheel_speed_ki=0.0,
     wheel_speed_kd=0.0,
-    max_drive_command=1.0,
+    max_drive_command=1.0,  # Reduce this value if instructed by the instructor.
 )
 VIRTUAL_ROBOT_SETTINGS = dict(
     wheel_diameter_mm=60.0,
@@ -33,7 +33,7 @@ VIRTUAL_ROBOT_SETTINGS = dict(
     wheel_speed_kp=0.001,
     wheel_speed_ki=0.0,
     wheel_speed_kd=0.0,
-    max_drive_command=0.55,
+    max_drive_command=1.0,  # Reduce this value if instructed by the instructor.
 )
 
 WAYPOINT_DARK_THRESHOLD = 0.80  # Count a bar when both raw sensor readings reach this value.

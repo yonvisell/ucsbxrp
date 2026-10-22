@@ -21,28 +21,28 @@
       "sha256": "6f50be726d34de9c8740704a56ddd939a27b61c15ace0e77264c4d8ac97efefa"
     },
     {
-      "path": "assets/AppUpdateButton-C0tGHgjb.js",
-      "url": "/ucsbxrp/assets/AppUpdateButton-C0tGHgjb.js",
+      "path": "assets/AppUpdateButton-BT18GpVZ.js",
+      "url": "/ucsbxrp/assets/AppUpdateButton-BT18GpVZ.js",
       "bytes": 216009,
-      "sha256": "778bc45ecdd0c83f5a38374b3ab7b003f98c4424a23b610c89cd1585730dc674"
+      "sha256": "375e38590c513c684099f86ffd1abef659dd6d3dd890c3d7eb05b12ce153acc7"
     },
     {
-      "path": "assets/CopyCode-uGMjnFBZ.js",
-      "url": "/ucsbxrp/assets/CopyCode-uGMjnFBZ.js",
+      "path": "assets/CopyCode-yrCz_znc.js",
+      "url": "/ucsbxrp/assets/CopyCode-yrCz_znc.js",
       "bytes": 1348,
-      "sha256": "27a6cf2c6c356ed47026b1e2430446e42a52d989429489b443aec8c1c41de671"
+      "sha256": "ab8e02dd57cd816e234ae153f23d0c9ba256ab27fd787de2fd53f11eaba79b47"
     },
     {
-      "path": "assets/CourseHeader-BmqhZf1S.js",
-      "url": "/ucsbxrp/assets/CourseHeader-BmqhZf1S.js",
+      "path": "assets/CourseHeader-DpYJ7Yrg.js",
+      "url": "/ucsbxrp/assets/CourseHeader-DpYJ7Yrg.js",
       "bytes": 737,
-      "sha256": "e9aecc5eb86c3742fcbba86b0c90a7e681cd7b7556c0f6dba9230ebae9ff7758"
+      "sha256": "2a2393297188fdbbe5a0f68dff6e25eaf7f988dc94956e07da7394454b3342bd"
     },
     {
-      "path": "assets/InstructorAccessGate-DVrxy1Fe.js",
-      "url": "/ucsbxrp/assets/InstructorAccessGate-DVrxy1Fe.js",
+      "path": "assets/InstructorAccessGate-Dv_6o-zA.js",
+      "url": "/ucsbxrp/assets/InstructorAccessGate-Dv_6o-zA.js",
       "bytes": 916,
-      "sha256": "efa5d84a79632c9029e55e2a3fffbdabf7c5bfa40a945f3928682021fefb31f8"
+      "sha256": "3c871fba67322dc993709c1721e1866225854a0f0371422e474c1ee4ff379077"
     },
     {
       "path": "assets/MarkdownArticle-CMra0kK_.js",
@@ -57,10 +57,10 @@
       "sha256": "7f2bf3277aa5de5fc6c3cb3f9b23bb7feff0e69d6fdfbcc0ec75127f399f931a"
     },
     {
-      "path": "assets/WorkspaceTargetNotice-UaSEiGya.js",
-      "url": "/ucsbxrp/assets/WorkspaceTargetNotice-UaSEiGya.js",
+      "path": "assets/WorkspaceTargetNotice-Cevi4f82.js",
+      "url": "/ucsbxrp/assets/WorkspaceTargetNotice-Cevi4f82.js",
       "bytes": 13003,
-      "sha256": "258985fb585818dba47e61b816f32edb2b75820e7653120a20a148bbb0f94089"
+      "sha256": "553db44fff6a3b23b37d3d4ad6a8fc335acfd31757f471360642fc516112707d"
     },
     {
       "path": "assets/__vite-browser-external-Cn0MOYvd.js",
@@ -81,10 +81,10 @@
       "sha256": "f77acab6f7592a54f446921de77a39876e3e1ff3697b8b971d2b39f747d40450"
     },
     {
-      "path": "assets/author-C14vBg_t.js",
-      "url": "/ucsbxrp/assets/author-C14vBg_t.js",
+      "path": "assets/author-CHY4b9ro.js",
+      "url": "/ucsbxrp/assets/author-CHY4b9ro.js",
       "bytes": 67686,
-      "sha256": "c4818044985f4d4583c8d62106ac05add67b4e18fec0e2c0cace2e8467ca1f75"
+      "sha256": "f0007d6c9c633f152d892b1e3e54c09cf6c36cf77f1a5f25990cc7062ec72447"
     },
     {
       "path": "assets/challenge_1-ep5zaMOI.mpy",
@@ -111,10 +111,10 @@
       "sha256": "a0706a07a1a708e7394b955a47f9a197540594f0e708c5913dcd494618d43f76"
     },
     {
-      "path": "assets/commission-D84udIF8.js",
-      "url": "/ucsbxrp/assets/commission-D84udIF8.js",
+      "path": "assets/commission-Dg7TMQKl.js",
+      "url": "/ucsbxrp/assets/commission-Dg7TMQKl.js",
       "bytes": 123871,
-      "sha256": "c6ed236f5668bac5f8f44fcb4d69632d4dcbb70395614d7fcc817ba7cb2aa2cf"
+      "sha256": "ac7a199db7eeb92508dd30f92655118fd027433e1ba1234f341569d980e5c45d"
     },
     {
       "path": "assets/editor-BJ215w34.css",
@@ -147,22 +147,16 @@
       "sha256": "18096efc056162b9dbb1d1e5a719ea94b901b08001fde6652f7148f99bcf1ea7"
     },
     {
-      "path": "assets/guide-CZfZx7dX.js",
-      "url": "/ucsbxrp/assets/guide-CZfZx7dX.js",
-      "bytes": 111696,
-      "sha256": "7bd20d02f88d0bb948c893c66b2d154683eca6a1ffcab1dd25483ccae57c0f22"
+      "path": "assets/guide-PIPCN7jD.js",
+      "url": "/ucsbxrp/assets/guide-PIPCN7jD.js",
+      "bytes": 111448,
+      "sha256": "cf9689373c903673043088140d2e150591138de0f53492db8a6ea0fdb714211a"
     },
     {
-      "path": "assets/home-obJaqTYh.js",
-      "url": "/ucsbxrp/assets/home-obJaqTYh.js",
+      "path": "assets/home-o1PYScP1.js",
+      "url": "/ucsbxrp/assets/home-o1PYScP1.js",
       "bytes": 3749,
-      "sha256": "472c9fcde68ac312b661fbfaa2bc2c0610abd543159ef5083fa26b050f011e81"
-    },
-    {
-      "path": "assets/ide-CVmFuoA9.js",
-      "url": "/ucsbxrp/assets/ide-CVmFuoA9.js",
-      "bytes": 1009669,
-      "sha256": "393774ea610f9600358450c00f8f0960c16a6312a9576d187728960203021d62"
+      "sha256": "7d99e6eee6ace863dbe37e94512e64a5d3b19e7956ccb890a1eb34ed354bc5dc"
     },
     {
       "path": "assets/ide-DnSq02ze.css",
@@ -171,10 +165,10 @@
       "sha256": "0710f24d1bcc808ec8cd43b05efbaeeb352e2dc69e4d87f93ecef9e63c2fdb6e"
     },
     {
-      "path": "assets/instructor-73QDigDZ.js",
-      "url": "/ucsbxrp/assets/instructor-73QDigDZ.js",
-      "bytes": 18942,
-      "sha256": "373b9e50b81b32e5cbcdc363872e1c8fc0e11aad28e8dd7461ddbaf00f97d81e"
+      "path": "assets/ide-GLrVXarM.js",
+      "url": "/ucsbxrp/assets/ide-GLrVXarM.js",
+      "bytes": 1009669,
+      "sha256": "1f2d50c595f5570f06e0a1ac6fa19f49b166f98dd60f1af8897735474c614dfe"
     },
     {
       "path": "assets/instructor-CcUp8jeQ.css",
@@ -183,16 +177,16 @@
       "sha256": "6edcd4dbccd624a707b2b5c0d9526501c5d74a96cf0a157a926f665c5b611d97"
     },
     {
+      "path": "assets/instructor-obSJEcRH.js",
+      "url": "/ucsbxrp/assets/instructor-obSJEcRH.js",
+      "bytes": 18942,
+      "sha256": "a66079aca5ddd96c1bc298ce777b00b4921eccf67284fd05bce08bc2bb5a6e50"
+    },
+    {
       "path": "assets/json.worker-HXE_mNDT.js",
       "url": "/ucsbxrp/assets/json.worker-HXE_mNDT.js",
       "bytes": 429638,
       "sha256": "834820d7bf9afb66906824fd474b4b8b92c9004b2d27d075829f8f2a8ba54be5"
-    },
-    {
-      "path": "assets/jsonMode-BK-HYgTi.js",
-      "url": "/ucsbxrp/assets/jsonMode-BK-HYgTi.js",
-      "bytes": 447120,
-      "sha256": "bfdc82bdc989c1b1f7485a6f747ecae88865a5282e39597ed9b00f0ffdc4f918"
     },
     {
       "path": "assets/jsonMode-DbpeL5iC.css",
@@ -201,16 +195,22 @@
       "sha256": "a5cbfec8d657a9e5d7e1265fa3055f77c4f79bcac0eb6c8973a8bd477546bcb1"
     },
     {
+      "path": "assets/jsonMode-XkEtL8v5.js",
+      "url": "/ucsbxrp/assets/jsonMode-XkEtL8v5.js",
+      "bytes": 447120,
+      "sha256": "593fc477c8b191d028f5c7b75a1592617f05ddbd160d99b331d15c8709c3bbce"
+    },
+    {
       "path": "assets/jsx-runtime-DE3RlOCf.js",
       "url": "/ucsbxrp/assets/jsx-runtime-DE3RlOCf.js",
       "bytes": 7899,
       "sha256": "f0bb0d14d7699757f1db9a87800869356dfb245599d8fa0f1031822a0e2e3853"
     },
     {
-      "path": "assets/line-circuit-progress-CRRYCkW6.js",
-      "url": "/ucsbxrp/assets/line-circuit-progress-CRRYCkW6.js",
+      "path": "assets/line-circuit-progress-C_5ChXOG.js",
+      "url": "/ucsbxrp/assets/line-circuit-progress-C_5ChXOG.js",
       "bytes": 4261,
-      "sha256": "9e9ddccb148a4750b87a3c7e3612d4c7bd2571f95ffd78990cfa30dbd8a86881"
+      "sha256": "4ae6b4cf972d8e98bbab7cf5f6590e3f1ea65f6fd4e08590d883b050f9f77192"
     },
     {
       "path": "assets/markdown-Cimd5fb3.js",
@@ -237,16 +237,16 @@
       "sha256": "d8d81954b526a384eacf3bb40838fc6ab2b8642b52478a80d196e09252eabe1d"
     },
     {
-      "path": "assets/monitor-DOQs_JNz.js",
-      "url": "/ucsbxrp/assets/monitor-DOQs_JNz.js",
+      "path": "assets/monitor-CHpo4aZG.js",
+      "url": "/ucsbxrp/assets/monitor-CHpo4aZG.js",
       "bytes": 1271922,
-      "sha256": "8d50ef1bd0693aefc310b7f75594793cd43f1f648bce54ed77640dc7cbbb7733"
+      "sha256": "7c01f415f177eca6721d7d31e7b62060a4825f9d282d611438414385ca3ddb18"
     },
     {
-      "path": "assets/monitor-export-Cvv6led4.js",
-      "url": "/ucsbxrp/assets/monitor-export-Cvv6led4.js",
+      "path": "assets/monitor-export-BKC3iEVU.js",
+      "url": "/ucsbxrp/assets/monitor-export-BKC3iEVU.js",
       "bytes": 10732,
-      "sha256": "d67643f2b7686d2f5743d2932b25723e9827f5b79a1aa5b874b2633be9dab59d"
+      "sha256": "945dfa178c168a483d2c69d644dce085eb2f9a31433585c1e9dc65d41d039d4a"
     },
     {
       "path": "assets/monitor-ru9BYcY1.css",
@@ -255,10 +255,10 @@
       "sha256": "cf5a2b9bc9a6a6f0c696c8646778bfa4b6bd52a4059b2879e4758540c1ebd81e"
     },
     {
-      "path": "assets/motion-summary-DGFydhX4.js",
-      "url": "/ucsbxrp/assets/motion-summary-DGFydhX4.js",
+      "path": "assets/motion-summary-DqHLFP5s.js",
+      "url": "/ucsbxrp/assets/motion-summary-DqHLFP5s.js",
       "bytes": 26081,
-      "sha256": "af1d0e1867bad483e3e34b20033a24150be69a8ff95eecc51a08b588a28b99e8"
+      "sha256": "e6eb1ee0dbde5abecc7b3361ab49865de1b54de52f963e79594cf8e4bfaaca35"
     },
     {
       "path": "assets/overview-BNSNaZwB.css",
@@ -267,16 +267,16 @@
       "sha256": "33ae6b0e92c375b88512569a2d742b9af5205c57ccda5850603f246c559162c1"
     },
     {
-      "path": "assets/overview-CWI89I_O.js",
-      "url": "/ucsbxrp/assets/overview-CWI89I_O.js",
+      "path": "assets/overview-CU9hcEuB.js",
+      "url": "/ucsbxrp/assets/overview-CU9hcEuB.js",
       "bytes": 20289,
-      "sha256": "a2cbde92d0781876ae42c5161e2e7c5cd638b4408de6447675244c690c9f7e3c"
+      "sha256": "2ed04b0081c59019d625955b922b507cdceefa1366a8f8a52dabd245b3fd3bb7"
     },
     {
-      "path": "assets/physical-target.shared-worker-5DTDwfgL.js",
-      "url": "/ucsbxrp/assets/physical-target.shared-worker-5DTDwfgL.js",
+      "path": "assets/physical-target.shared-worker-GlYeSFyp.js",
+      "url": "/ucsbxrp/assets/physical-target.shared-worker-GlYeSFyp.js",
       "bytes": 124717,
-      "sha256": "6be97bdf3bf87f326551eef71bdf5e91403a7d9cc5080b865a591d386274c373"
+      "sha256": "ffa58f778d595d8b66647378b5c4b42607a2453a734c8bbbb0a8da671cec44c8"
     },
     {
       "path": "assets/preload-helper-CjWZr7BR.js",
@@ -285,16 +285,16 @@
       "sha256": "f7832cc5b5fc0e9d459181beaa4cc63dd24c520c1cf588b8862abaf221d2008f"
     },
     {
-      "path": "assets/project-files-Db9tgHsP.js",
-      "url": "/ucsbxrp/assets/project-files-Db9tgHsP.js",
+      "path": "assets/project-files-Br0fVnew.js",
+      "url": "/ucsbxrp/assets/project-files-Br0fVnew.js",
       "bytes": 34581,
-      "sha256": "d797dea8c28e03bac2975346709ec6e0ac9b1c2d6f007352fac921281e3cecb3"
+      "sha256": "7b92d2e57117c9ca213f947627807acd556bcc308d2426766aa690018cae6209"
     },
     {
-      "path": "assets/project-folder-reader-1jXN4G-1.js",
-      "url": "/ucsbxrp/assets/project-folder-reader-1jXN4G-1.js",
+      "path": "assets/project-folder-reader-CX0b3vFX.js",
+      "url": "/ucsbxrp/assets/project-folder-reader-CX0b3vFX.js",
       "bytes": 32703,
-      "sha256": "d8915071281e8fa732e9b447f5a67e30f7bb5e22d07ace8f02dd53db34f7e117"
+      "sha256": "c694edc9aeab449bd343fe836ce7b486782197deb564cb024c712e52ef317957"
     },
     {
       "path": "assets/project-folder-reader-DLFySdPs.css",
@@ -315,10 +315,10 @@
       "sha256": "4d345161c4136d488d30d86cf603c80e2b201f264f230dc92a94b923940f049f"
     },
     {
-      "path": "assets/project-readme-JufPePqI.js",
-      "url": "/ucsbxrp/assets/project-readme-JufPePqI.js",
+      "path": "assets/project-readme-DrotpL6v.js",
+      "url": "/ucsbxrp/assets/project-readme-DrotpL6v.js",
       "bytes": 5766,
-      "sha256": "e61e2550bbfe21b142a6e4012d9b555c864098794a506265de7b2c1b9438e971"
+      "sha256": "aa2bc33f97278f8b5e2ea2a0df08931d1e504eec086cebd0537f7fb6b036af18"
     },
     {
       "path": "assets/python-BUGyj2gh.js",
@@ -327,16 +327,16 @@
       "sha256": "35231d8c434f97f87228cbcb8285b0d11f83ea2640e1bd44221cb1dca0b9d6e5"
     },
     {
+      "path": "assets/reference-CZEa3Fwv.js",
+      "url": "/ucsbxrp/assets/reference-CZEa3Fwv.js",
+      "bytes": 12573,
+      "sha256": "b57cc8069dfe028d5d2673f33c63444f1f4662b62cf931ed86f857f1d17d17f8"
+    },
+    {
       "path": "assets/reference-DQD2f7v5.css",
       "url": "/ucsbxrp/assets/reference-DQD2f7v5.css",
       "bytes": 8635,
       "sha256": "e1ee63175a742928541f939031e719f7d1b812be13394459c690864efb1b86dc"
-    },
-    {
-      "path": "assets/reference-TxTidWlj.js",
-      "url": "/ucsbxrp/assets/reference-TxTidWlj.js",
-      "bytes": 12573,
-      "sha256": "b8541dc62615194a96085058ea4388c2ad09e776b62a49722447ab4284ad523e"
     },
     {
       "path": "assets/rolldown-runtime-CbXtAM7H.js",
@@ -351,28 +351,28 @@
       "sha256": "580ad8c58061a4dde99bde0a56905e382f0568516ee2f5b84dbfb52085709021"
     },
     {
-      "path": "assets/run-export-DfrwifK4.js",
-      "url": "/ucsbxrp/assets/run-export-DfrwifK4.js",
+      "path": "assets/run-export-BmYeCQnu.js",
+      "url": "/ucsbxrp/assets/run-export-BmYeCQnu.js",
       "bytes": 8793,
-      "sha256": "b77d5c417a3c9a37752578d1d9bc48bec9c6d447177bbfc90e980da00410bee5"
+      "sha256": "19b61658507f887928673a5fcc8cca4e96705407ac47ea95836103da24f07820"
     },
     {
-      "path": "assets/run-project-snapshot-Krxd31WH.js",
-      "url": "/ucsbxrp/assets/run-project-snapshot-Krxd31WH.js",
+      "path": "assets/run-project-snapshot-zn4YIB2k.js",
+      "url": "/ucsbxrp/assets/run-project-snapshot-zn4YIB2k.js",
       "bytes": 55641,
-      "sha256": "2de91107d22df25aa60cb965c2516b60dc3e71348fc4f67675768e7aa0caccd6"
+      "sha256": "2ab6157de1f231979095f8751cb227da9636732568f4b68f7ed369ce83327723"
     },
     {
-      "path": "assets/shared-challenge-package-BB5xTnx8.js",
-      "url": "/ucsbxrp/assets/shared-challenge-package-BB5xTnx8.js",
+      "path": "assets/shared-challenge-package-C4x-6z3D.js",
+      "url": "/ucsbxrp/assets/shared-challenge-package-C4x-6z3D.js",
       "bytes": 3110,
-      "sha256": "0efb9756c70e1c03b4ee055354fdda72cc8a0b073f8f67528be6bdfe61bad7c3"
+      "sha256": "9f3d0404e7afdc8e746849d9fc33a09459e4799588ebae1e59bd42f34f4c2eaa"
     },
     {
-      "path": "assets/src-Dn2f0cD6.js",
-      "url": "/ucsbxrp/assets/src-Dn2f0cD6.js",
-      "bytes": 624323,
-      "sha256": "bffa70318bf51308a3fef6a4398ed158135634c3236e9c4ef9021e5d748c74f6"
+      "path": "assets/src-CrorsH_c.js",
+      "url": "/ucsbxrp/assets/src-CrorsH_c.js",
+      "bytes": 624430,
+      "sha256": "29038d0d30ea35359c4aa794fc922c0de550648092e876f63fcc6f419363a0bf"
     },
     {
       "path": "assets/theme-B2fVC_Wi.css",
@@ -387,10 +387,10 @@
       "sha256": "418c206484b89b68ef5f067277831e583fc9193a62aadf4de269acaaeb12a85f"
     },
     {
-      "path": "assets/use-project-file-policy-D8Uv_2xm.js",
-      "url": "/ucsbxrp/assets/use-project-file-policy-D8Uv_2xm.js",
+      "path": "assets/use-project-file-policy-B-dkFhE0.js",
+      "url": "/ucsbxrp/assets/use-project-file-policy-B-dkFhE0.js",
       "bytes": 317,
-      "sha256": "e3772db2041ee16d1f898c0c56f50cb6de9bc92f935658f76155b839b292811f"
+      "sha256": "80566464da4c5a6085ffbeaf60f9efa78e80e67990dfa52bb3ca04fc78f9beec"
     },
     {
       "path": "assets/use-workspace-location-CAu618qQ.js",
@@ -411,10 +411,10 @@
       "sha256": "a491733a016f43fa8c1d13e0f4aa4fd0ea14c97abd1d6b10eb85b44881004f03"
     },
     {
-      "path": "assets/walkthrough-tools-CBSZvgcU.js",
-      "url": "/ucsbxrp/assets/walkthrough-tools-CBSZvgcU.js",
+      "path": "assets/walkthrough-tools-WSWvmEmw.js",
+      "url": "/ucsbxrp/assets/walkthrough-tools-WSWvmEmw.js",
       "bytes": 2116,
-      "sha256": "146c4d0e7d37c3beade0f550de4703224960a1560ca37b0233a580504c50988b"
+      "sha256": "a87501384b26441f0ab13a604937294e849c770ff677b9b6330f2ff251c68cbd"
     },
     {
       "path": "assets/workspace-7kO5vwnh.css",
@@ -423,16 +423,16 @@
       "sha256": "9df335f1b8c4c83657912166b6e9411fffe70b5556ab8e808d99dd067271423e"
     },
     {
-      "path": "assets/workspace-ByUEkRx2.js",
-      "url": "/ucsbxrp/assets/workspace-ByUEkRx2.js",
+      "path": "assets/workspace-YDUl01pJ.js",
+      "url": "/ucsbxrp/assets/workspace-YDUl01pJ.js",
       "bytes": 9984,
-      "sha256": "861bbdace4097a0e16e497c60181c4e30faff16f71b5f7faf9bee80d8a954a66"
+      "sha256": "6207bd209bb2c9e09557aab6188a884f389667b037b8c8b1321f5b9c5a619123"
     },
     {
-      "path": "assets/workspace-target-preference-ga1y6gdC.js",
-      "url": "/ucsbxrp/assets/workspace-target-preference-ga1y6gdC.js",
+      "path": "assets/workspace-target-preference-BrwgdIWu.js",
+      "url": "/ucsbxrp/assets/workspace-target-preference-BrwgdIWu.js",
       "bytes": 11888,
-      "sha256": "c31fa4cfbe17400204eb09916fd5ddcff8eb1ade0f04dc31057b36a216005c04"
+      "sha256": "6d631fe60311b829f85d691e49d48102497fae3b31834da2863f44c1fcf6331d"
     },
     {
       "path": "assets/workspace-visibility-uzPnKvlu.js",
@@ -444,7 +444,7 @@
       "path": "author/index.html",
       "url": "/ucsbxrp/author/index.html",
       "bytes": 1947,
-      "sha256": "646058905cadb904b96a4d9264d66a268a94853cd845e324893c00a323c0ec87"
+      "sha256": "1d667059edabe6bace30fa1c57b1f379036ab46a36a81cb586c1e2e02e6e21b3"
     },
     {
       "path": "class-wifi.json",
@@ -456,589 +456,589 @@
       "path": "commission/index.html",
       "url": "/ucsbxrp/commission/index.html",
       "bytes": 1853,
-      "sha256": "c8856d3c71e8e20c692ddbabeff226dab8a0fc78a303c65f9f3eac111eb2e042"
+      "sha256": "5f4417873991b27a14e92bc2c8da39dbe49dc33244d52145361a47d7bf2fc9ff"
     },
     {
-      "path": "course/commissioning/releases/69/files/bootstrap/course_boot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/bootstrap/course_boot.py",
+      "path": "course/commissioning/releases/70/files/bootstrap/course_boot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/bootstrap/course_boot.py",
       "bytes": 13526,
       "sha256": "b36f74b5e3415cb77cdc75154199bc6ed9e1078141e21fbb7a39c445f7fa7f63"
     },
     {
-      "path": "course/commissioning/releases/69/files/bootstrap/main.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/bootstrap/main.py",
+      "path": "course/commissioning/releases/70/files/bootstrap/main.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/bootstrap/main.py",
       "bytes": 117,
       "sha256": "1b0adafa6e30b77ced3c05e460932c0c8feb049a8b1cf34ffb348dbe16fe77ca"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/__init__.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/__init__.py",
       "bytes": 467,
       "sha256": "04f4afd232c61c928d56372f848ae17707952e9df0f10cbec7d93708eebaeb0d"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/board.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/board.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/board.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/board.py",
       "bytes": 5344,
       "sha256": "c269c43a1db278d74bb2823834124bc46911dcb8760cb828d3dce97042bba764"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/buzzer.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/buzzer.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/buzzer.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/buzzer.py",
       "bytes": 14042,
       "sha256": "1cc64469e53497ecca9743fb88801f3cf91bca4d6c8e5b79969d92d460ad9752"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/controller.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/controller.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/controller.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/controller.py",
       "bytes": 908,
       "sha256": "aa35927f51c6f55d8f401d4265e79a5b0703eb48e60a1785290dfe289970deab"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/dashboard.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/dashboard.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/dashboard.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/dashboard.py",
       "bytes": 9033,
       "sha256": "af9155e8e835f585fdb116f415c8d1ed8d9be01ea2d9147efaafcac9a68f453a"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/defaults.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/defaults.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/defaults.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/defaults.py",
       "bytes": 1431,
       "sha256": "e00ecdb50a9a6f41a6785b1a4a11709ebe8042d8f0635e6bad7b5cd12a5edb3e"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/differential_drive.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/differential_drive.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/differential_drive.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/differential_drive.py",
       "bytes": 16051,
       "sha256": "09727192d13572d2cb43b3b520219837109fa4717f0e0e3bb3ae76de024f9f61"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/encoded_motor.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/encoded_motor.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/encoded_motor.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/encoded_motor.py",
       "bytes": 7449,
       "sha256": "edc914e1a055ef2fa07b78a49c99ab5ca12a4c7933b8597219d3caed42e1e805"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/encoder.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/encoder.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/encoder.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/encoder.py",
       "bytes": 6301,
       "sha256": "db61a4fb54874c665c5f1ee610eca13eb1d22826b09ee8a8f5e776416012c4e6"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/gamepad.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/gamepad.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/gamepad.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/gamepad.py",
       "bytes": 5299,
       "sha256": "f490c5ea8c769096c393c3a35f62f149af2722ce017931df0257625aebc89172"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/imu.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/imu.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/imu.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/imu.py",
       "bytes": 20436,
       "sha256": "edfdbdaec5e4acc91188218789815c131158f3c073302369929b84eb9645445f"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/imu_defs.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/imu_defs.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/imu_defs.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/imu_defs.py",
       "bytes": 2025,
       "sha256": "3c92d316e91b274ffc6ca2d74a186c01bcc0b9d9f1ecf9888761881e16d25116"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/motor.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/motor.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/motor.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/motor.py",
       "bytes": 3308,
       "sha256": "68f92f3f45e7d694df395f46356a0eceedeb3cdc4a8d20c63cadc36f1ef6685b"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/motor_group.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/motor_group.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/motor_group.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/motor_group.py",
       "bytes": 3059,
       "sha256": "63c0c7ca188bfc94ac28a12a83cb59c0447f8cdae9fecc1c9198e56ef47571ed"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/pid.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/pid.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/pid.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/pid.py",
       "bytes": 4363,
       "sha256": "03fae5a6a73cf9672457bd67db98cae44b9798e59da9dd9c37adde51a0346680"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/puppet.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/puppet.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/puppet.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/puppet.py",
       "bytes": 32725,
       "sha256": "e96f858a078a22f9db630ae430cdd0b50a113b82f74bbc03908b5120f6480b79"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/rangefinder.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/rangefinder.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/rangefinder.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/rangefinder.py",
       "bytes": 3798,
       "sha256": "d8c62a6f3754d2b734220a3f5816e6f516bd67f3f9187d5b57e2c06bbb92e907"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/reflectance.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/reflectance.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/reflectance.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/reflectance.py",
       "bytes": 2735,
       "sha256": "371e26316ee84b9477ee04d742960a6d60dac260d8ca85e1c2de44e1d8805880"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/resetbot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/resetbot.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/resetbot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/resetbot.py",
       "bytes": 2634,
       "sha256": "ca13fd1d8324fdcb75bc33d8847e5547df284f0073e6373bdee2eed21a945d37"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/servo.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/servo.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/servo.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/servo.py",
       "bytes": 2437,
       "sha256": "d0fb33c76dee9a55256e426184fb1270c419e6237f8a6a8d937223931d870015"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/timeout.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/timeout.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/timeout.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/timeout.py",
       "bytes": 651,
       "sha256": "916cb93f16944288efba9ad2df7489137bae2162d2bc33d2b002633c725f294b"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/webserver.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/webserver.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/XRPLib/webserver.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/XRPLib/webserver.py",
       "bytes": 12213,
       "sha256": "9b574dccbd7eaee7134eb6c9714dbbd67e4590c863d700a3b42c721a9913a3fa"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/phew/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/__init__.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/phew/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/phew/__init__.py",
       "bytes": 2092,
       "sha256": "40b53231c3853ae89271bfc42b23728146cba5c7cd4089ab6c9712462ef4846f"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/phew/dns.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/dns.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/phew/dns.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/phew/dns.py",
       "bytes": 1357,
       "sha256": "a1b66fda0057a5ee586024b793a1a1203b71996f62815d89f086361995b0efd4"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/phew/logging.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/logging.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/phew/logging.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/phew/logging.py",
       "bytes": 3065,
       "sha256": "3f91106bb64bd14893804eb5df038613cc5d1e0873181a71557e22df5d2c4a41"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/phew/server.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/server.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/phew/server.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/phew/server.py",
       "bytes": 11505,
       "sha256": "a2c4b99d383bad880d5a7583c3e5e282f3de3feeb5ddc5dc758c36b02bcc75f7"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/phew/template.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/template.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/phew/template.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/phew/template.py",
       "bytes": 1974,
       "sha256": "a512940fd29f6c03fe6a4325b1c7ad0551f94f4e5d8a1120da594c93e344ba21"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/__init__.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/__init__.py",
       "bytes": 2125,
       "sha256": "305b38aba1c18bed1bfe3f12f6ae0dcb3ef14dd9b52ac88c991d10f83cb43132"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_build_config.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_build_config.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_build_config.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_build_config.py",
       "bytes": 338,
       "sha256": "0ab8398209338b74606fc62b29bb891008be3a6dd0c57dc4cbae99095e6dff97"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_hardware.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_hardware.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_hardware.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_hardware.py",
       "bytes": 3428,
       "sha256": "2ed2a8fe28bceae4c24ac1fc365b60ac6f65e33f808780265f0db25158faa869"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_range.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_range.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_range.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_range.py",
       "bytes": 2583,
       "sha256": "a76e286ed1ed3b27b5b8dc4567138e9a485c786496f22f5dc3831a3511dff9f4"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_run_control.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_run_control.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_run_control.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_run_control.py",
       "bytes": 438,
       "sha256": "cd87ed8ff14273c9765677abdb49bdc209a0fb05fca74dce348e919be07571b8"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_telemetry.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_telemetry.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_telemetry.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_telemetry.py",
       "bytes": 18467,
       "sha256": "b730456538cceebaa9b1f3f22e06364bd11233ce657fae798c56925dd3683ad3"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_validation.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_validation.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_validation.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/_validation.py",
       "bytes": 1736,
       "sha256": "266b1e145ba0c6d090ddb39b3458a5413adbabe0562ab8a87ef340467e8fa5dc"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/check_support.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/check_support.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/check_support.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/check_support.py",
       "bytes": 2468,
       "sha256": "e6cddcb8f69187b47b3388c50c21480e3446a567d7a6a2f61b0becb40773fcf7"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/component_checks.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/component_checks.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/component_checks.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/component_checks.py",
       "bytes": 73285,
       "sha256": "8b0c8e1727db36988ebb06fc562c20351bfa6cf9c250a3994bb2d3830b27cd90"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/config.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/config.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/config.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/config.py",
       "bytes": 11021,
       "sha256": "f0a08e162efbec1be8b05c9e59d8c4eae3ae22f72f5355f9713f7bb671fa9814"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/live.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/live.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/live.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/live.py",
       "bytes": 23888,
       "sha256": "ab8622687d5ca527c2e0cfffe24e7472953cdc44d5558d9eaee9c274095fb488"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/maps.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/maps.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/maps.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/maps.py",
       "bytes": 10576,
       "sha256": "7a747b754809038af1fe1333daf6e480c8a945d03a84275a4f4e4c1c538a9d4f"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/mission.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/mission.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/mission.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/mission.py",
       "bytes": 9945,
       "sha256": "0af9fe4f6ab8ad0f347f405f83d19c29df1aae9c9cd260c745f8b8c5990928a6"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/records.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/records.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/records.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/records.py",
       "bytes": 14526,
       "sha256": "f610d58538cfdf55aa68adeb89361e1604e768878303f6234c7c9a54049e34c9"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/robot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/robot.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/robot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/robot.py",
       "bytes": 13217,
       "sha256": "b5a18bd73a054dcc59a2119e8d785025604f20b67cf767dad929143370b0696b"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_line.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_line.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/straight_line.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/straight_line.py",
       "bytes": 2658,
       "sha256": "beca7506d1009183d6c2b541d710ea0bcc7acc0a3e1807136b08c2978cbf5a74"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_trial.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_trial.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/straight_trial.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/straight_trial.py",
       "bytes": 4313,
       "sha256": "e58afae2c3f13b93f9ec9dfe7eff6e2283f6b26987bdadf709394ea7b026861e"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/student_api.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/student_api.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/student_api.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/student_api.py",
       "bytes": 11413,
       "sha256": "bfae1d8cc27888d05b6950a8b8a5c94468498971385f29d6979f7726b6b2331c"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/utils.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/utils.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/utils.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/utils.py",
       "bytes": 2970,
       "sha256": "ead18b880c5db692c720af707c2d4efdabab750a0304e51ab45e3cdf85e90949"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/world.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/world.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/world.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/world.py",
       "bytes": 6122,
       "sha256": "d7ce431198f3c7e6d9b1c65915b2750a009f65fcb08e8adf68f9c75728429f8d"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/xrpbot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/xrpbot.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/xrpbot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp/xrpbot.py",
       "bytes": 13225,
       "sha256": "de1cbae79d971e031c12b54eea885cf0c142e05d78ed2101bfdfd4113dd641fc"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
       "bytes": 424,
       "sha256": "0ccf0e57073268d47d184f119ba56af333d65f0264485a0db359c415f59deb01"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
       "bytes": 4213,
       "sha256": "ce95c6e5b44d9b0fb26122e32db8f06580d091f76ef3cacc1d0a1deec9904be2"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
       "bytes": 1614,
       "sha256": "7fad35be2bc10044afbdb4357fc71b12ed20e02e5079381d026da37da2b667c6"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
       "bytes": 1930,
       "sha256": "2a0c300a84786662517d2c4afafe027e6af41caf97e9d3292476fb6ad855f9b3"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
       "bytes": 639,
       "sha256": "6498a5593c1f96741e37fb5acabdae0e6623e52da0d5495c2ff9843be3eb69eb"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
       "bytes": 853,
       "sha256": "4f8d474266df637e586dbc35f11493e1bea0d2ab83d4ae7169a362480a6eaf89"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
       "bytes": 1460,
       "sha256": "e1651593c3ddd1ccbc4d41e20e93dd093fcbed0281f13eb4537b2e795af5b097"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
       "bytes": 1399,
       "sha256": "b8fe42140d4716526179402017446dadb54fc626725f145c12c17c8fddbb0c0f"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
       "bytes": 1621,
       "sha256": "40a7e819f7d4b8f08660c10ae9bd6ce004f2407efb0aab4053b9d3380ed38f14"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/__init__.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/__init__.py",
       "bytes": 496,
       "sha256": "fad1d674de7a281c41b29af103e147a368de40e0d5d2338232f53b9bfdbf6b5b"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
       "bytes": 5520,
       "sha256": "f772bcf3f4d4e03c89ebd184d324a5714c6c408d4a27e4675382cb7193c33f59"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/http_admission.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/http_admission.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/http_admission.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/http_admission.py",
       "bytes": 21143,
       "sha256": "f0fcb99c9d1867c738da3f57a4e17286f0de5bf9ef2a40231c069dbd83afb5d2"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/networking.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/networking.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/networking.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/networking.py",
       "bytes": 24233,
       "sha256": "5a850cc3bc3a6040fa72db5bba2834d3f53d631cda109d55c3aabd6bdd705d8f"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/protocol.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/protocol.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/protocol.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/protocol.py",
       "bytes": 6228,
       "sha256": "3585afcef650bfc505380d5febeb6025464aa6551b9d2d065f5965d49d26f759"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/service.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/service.py",
+      "path": "course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/service.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/lib/ucsb_xrp_service/service.py",
       "bytes": 125321,
       "sha256": "bd399ca549d62bf2c45f156bea77beff3e8994d78765b4eba19fef8ba407f52f"
     },
     {
-      "path": "course/commissioning/releases/69/files/runtime/runtime-manifest.json",
-      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/runtime-manifest.json",
+      "path": "course/commissioning/releases/70/files/runtime/runtime-manifest.json",
+      "url": "/ucsbxrp/course/commissioning/releases/70/files/runtime/runtime-manifest.json",
       "bytes": 8300,
-      "sha256": "5293857d1fb978fbf7126b9211216b1227631f7549f2b50cb7be5e5bbb949e38"
+      "sha256": "a88983f7ea84005d66de7dd461c9e80d8ecec247f579b79be930b2d8819475f6"
     },
     {
-      "path": "course/commissioning/releases/69/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
+      "path": "course/commissioning/releases/70/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
       "bytes": 1789952,
       "sha256": "8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a"
     },
     {
-      "path": "course/commissioning/releases/69/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
+      "path": "course/commissioning/releases/70/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
       "bytes": 114688,
       "sha256": "f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
+      "path": "course/commissioning/releases/70/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
       "bytes": 11387,
       "sha256": "d00d4a30303933d4d13703dcaedcb49e5458bcd338338ebe5f3b24d4bfa2026e"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/HISTORICAL_DIAGNOSTIC.md",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/HISTORICAL_DIAGNOSTIC.md",
+      "path": "course/commissioning/releases/70/firmware-source/docs/firmware/HISTORICAL_DIAGNOSTIC.md",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/docs/firmware/HISTORICAL_DIAGNOSTIC.md",
       "bytes": 1991,
       "sha256": "0167e8b00341d41d2ea8cea852c902dbf56fedf317090a309453b1c89ef74bca"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
+      "path": "course/commissioning/releases/70/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
       "bytes": 3526,
       "sha256": "cf815a3c67d6710987c61d73cb67ae33afc368ab6f0c93d062fa17377e0c032b"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
+      "path": "course/commissioning/releases/70/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
       "bytes": 5032,
       "sha256": "0e4e9ffc26835bb71acf749820ae94e27ecbbd2770505d309b2c45437bf50dce"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/index.html",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/index.html",
+      "path": "course/commissioning/releases/70/firmware-source/index.html",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/index.html",
       "bytes": 4938,
       "sha256": "3228846d06479925f929dea7e45614872c9308bb3153601fb69d656fe8c33162"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/build.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/build.py",
+      "path": "course/commissioning/releases/70/firmware-source/scripts/firmware/build.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/scripts/firmware/build.py",
       "bytes": 18333,
       "sha256": "83293d953bfc926355ec82c26ce3f8e2df64b6dce76aecb1dd1199837ff2c5a3"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/compiler-compat.cmake",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/compiler-compat.cmake",
+      "path": "course/commissioning/releases/70/firmware-source/scripts/firmware/compiler-compat.cmake",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/scripts/firmware/compiler-compat.cmake",
       "bytes": 514,
       "sha256": "3c0602b0f45ef2fc897c52f5faff4e2ad9409cb55b6355e57c618e3e194af326"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/gcsync-port.patch",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/gcsync-port.patch",
+      "path": "course/commissioning/releases/70/firmware-source/scripts/firmware/gcsync-port.patch",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/scripts/firmware/gcsync-port.patch",
       "bytes": 22157,
       "sha256": "a100318739c5d9eeaa7365d8a901b2c38b9ea7e90b5d2689785616cafa62e1ff"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/recipe.json",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/recipe.json",
+      "path": "course/commissioning/releases/70/firmware-source/scripts/firmware/recipe.json",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/scripts/firmware/recipe.json",
       "bytes": 9720,
       "sha256": "2483aef85a4f4ce4e6ba129dd52d8f45a26ba7abddaa72d667ef93071730a61d"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/test_build.py",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/test_build.py",
+      "path": "course/commissioning/releases/70/firmware-source/scripts/firmware/test_build.py",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/scripts/firmware/test_build.py",
       "bytes": 8624,
       "sha256": "5ebd27dc263a0f47a24fcd385bf4b920899ac538a954745c55ebcb51fb423651"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/current/firmware/README.md",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/current/firmware/README.md",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/current/firmware/README.md",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/current/firmware/README.md",
       "bytes": 7203,
       "sha256": "a92dff820a40e7032a66b08fd74acb3d8108646b15dc70872b86a080cfdcaddb"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/current/release.json",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/current/release.json",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/current/release.json",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/current/release.json",
       "bytes": 5396,
-      "sha256": "0aae011124663740708c0b1958b7c8db34e13c1b40ef8fca54f3e7478b60ade2"
+      "sha256": "ca8bf117876846515b295d20351dc3c4c0eef8f7460184cfb9168d2a893a13c1"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
       "bytes": 3419,
       "sha256": "80d3459978572b5bbb1dd274a98b01a625aeff467588ad69cefdf7eb607c1306"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
       "bytes": 1489,
       "sha256": "483f865953435b66c443dee7558debe3cc3cf8fcbb6a112fd9fc6a795d53f1f6"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/README.md",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/README.md",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/README.md",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/README.md",
       "bytes": 1967,
       "sha256": "86eb0e6bec89e7b4afd95c028f6afb5283dc107fe61b93c022e3e17c5f6b6378"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
       "bytes": 1721,
       "sha256": "10aa5f952979a9fa2f58bf63c1390c9795b41f8eca405ab975ab926e4d14fc5a"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
       "bytes": 1654,
       "sha256": "0ce42360898b7c3f168317b559d4783b55c892751580c2a12c76b548aa5858fb"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
       "bytes": 1789,
       "sha256": "67aca4f10d9edf489871f64cd8f0dcd6c5df3e4ce75bd39e1914fc54f99e40b3"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
       "bytes": 1367,
       "sha256": "ef8f2117d35be65bc7153877cfca827f08ed7110c8b6b7efc058ae4c8489fb0b"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/lwip/COPYING",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/lwip/COPYING",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/lwip/COPYING",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/lwip/COPYING",
       "bytes": 1425,
       "sha256": "ef4aac92e05e87cd1cdc140870ed52206ba03d4a7fe46c1e11d7ffa6c87d252b"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/manifest.json",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/manifest.json",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/manifest.json",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/manifest.json",
       "bytes": 3786,
       "sha256": "8f2c19331cc777c82d59b316134d0454f32f8996bdc93037ae11ece0cba930d7"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
       "bytes": 29852,
       "sha256": "9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
       "bytes": 14363,
       "sha256": "a38cf48836aa313254cdcf3de9fb7c24da4a2eab75ead2cc0cecd998336e7800"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
       "bytes": 1489,
       "sha256": "483f865953435b66c443dee7558debe3cc3cf8fcbb6a112fd9fc6a795d53f1f6"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
       "bytes": 11357,
       "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
       "bytes": 2281,
       "sha256": "3b9280bbfedf57d9f7793d2f9af7beb5d5c45f16b587fa3c3568aaedd16fedf4"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
       "bytes": 1080,
       "sha256": "3fd3a80a06465d0b4affa1d1a16e18a8d2ef42a52eb52060109ae12f1f878f72"
     },
     {
-      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
+      "path": "course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/70/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
       "bytes": 1094,
       "sha256": "f878d62e47e693ea64160218edb1b9b4755f4839a3179e5bef4a6b0359399431"
     },
     {
-      "path": "course/commissioning/releases/69/manifest.json",
-      "url": "/ucsbxrp/course/commissioning/releases/69/manifest.json",
+      "path": "course/commissioning/releases/70/manifest.json",
+      "url": "/ucsbxrp/course/commissioning/releases/70/manifest.json",
       "bytes": 28339,
-      "sha256": "ea87daf83a4acb49c12fc903da157ceb5b22fec98e8bb459a89b7b5bd24662ef"
+      "sha256": "c4e10b8403f461a7c720bca1e7577f9c59485d68f045ad2f240cbee1ba6b6add"
     },
     {
       "path": "course/current/examples/README.md",
@@ -1134,7 +1134,7 @@
       "path": "course/current/release.json",
       "url": "/ucsbxrp/course/current/release.json",
       "bytes": 5396,
-      "sha256": "0aae011124663740708c0b1958b7c8db34e13c1b40ef8fca54f3e7478b60ade2"
+      "sha256": "ca8bf117876846515b295d20351dc3c4c0eef8f7460184cfb9168d2a893a13c1"
     },
     {
       "path": "course/current/starters/challenge_1_robot_curling/README.md",
@@ -1331,8 +1331,8 @@
     {
       "path": "course/current/starters/challenge_2_arena_line_circuit/supplied_settings.py",
       "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/supplied_settings.py",
-      "bytes": 2806,
-      "sha256": "4ee7e9271e842bd2d114e3c85ceb2937d40a00f16f6051fd47cdd8857c79c656"
+      "bytes": 2913,
+      "sha256": "de44cf3e0040c5e3f06c496293296e68f334a7f85b2d565d4c9a276a4ce00416"
     },
     {
       "path": "course/current/starters/challenge_2_arena_line_circuit/world.json",
@@ -2568,7 +2568,7 @@
       "path": "guide/index.html",
       "url": "/ucsbxrp/guide/index.html",
       "bytes": 2007,
-      "sha256": "6563e98dc140d74f2e2ceb3ba6187f1a9df1b06bf6ed94ad500577cae98e2802"
+      "sha256": "8168249bd07e610f466a758099a7a7c6b3edf05daf44c3b24ac440d3a67f527f"
     },
     {
       "path": "guide-figures/01-create-project.png",
@@ -2670,121 +2670,121 @@
       "path": "ide/index.html",
       "url": "/ucsbxrp/ide/index.html",
       "bytes": 3439,
-      "sha256": "991b65ab27924bc85cc2f40e6f746e833b978808e499f7bf07a5fe15b554d74d"
+      "sha256": "7a26a15342ca9f1a369c7435642c048e9f8057ba59a29614b84b4e0347e7cb00"
     },
     {
       "path": "index.html",
       "url": "/ucsbxrp/index.html",
       "bytes": 4218,
-      "sha256": "027be6add30061f3d873c3c1ba461b8970ae54192ba6b015e46e50f89120f0ef"
+      "sha256": "17e21767e3d3494cf6f3c4e7e6481c0cb60782ba4559bb08d6f6bbc05312c106"
     },
     {
       "path": "instructor/index.html",
       "url": "/ucsbxrp/instructor/index.html",
       "bytes": 1932,
-      "sha256": "edfd6a26e3807d17efe81d6099625478a89156282ccbb3f9e2e39ad81511eb61"
+      "sha256": "3a6a90cfa0067f9d0ae44619dd1cf3c145fe26231adba8f50d1f54c73df9b871"
     },
     {
       "path": "instructor/package.enc.json",
       "url": "/ucsbxrp/instructor/package.enc.json",
-      "bytes": 2271591,
-      "sha256": "271bdf5fec2fab03482f965bb3854b03841e714a702a48acf882ec1a3b48bb87"
+      "bytes": 2272187,
+      "sha256": "e83538b5b24e974b6189957411fd81361920b0693317a4a41bd22b5d82b8f171"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/01_robot_curling-activity.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling.html",
       "url": "/ucsbxrp/instructor/walkthroughs/01_robot_curling.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/02_arena_line_circuit-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/02_arena_line_circuit-activity.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/02_arena_line_circuit.html",
       "url": "/ucsbxrp/instructor/walkthroughs/02_arena_line_circuit.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/03_waypoint_courier-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/03_waypoint_courier-activity.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/03_waypoint_courier.html",
       "url": "/ucsbxrp/instructor/walkthroughs/03_waypoint_courier.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/04_mapped_route-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/04_mapped_route-activity.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/04_mapped_route.html",
       "url": "/ucsbxrp/instructor/walkthroughs/04_mapped_route.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/05_out_and_back-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/05_out_and_back-activity.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/05_out_and_back.html",
       "url": "/ucsbxrp/instructor/walkthroughs/05_out_and_back.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/VALIDATION.html",
       "url": "/ucsbxrp/instructor/walkthroughs/VALIDATION.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/code/01_robot_curling/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/01_robot_curling/index.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/code/02_arena_line_circuit/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/02_arena_line_circuit/index.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/code/03_waypoint_courier/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/03_waypoint_courier/index.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/code/04_mapped_route/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/04_mapped_route/index.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/code/05_out_and_back/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/05_out_and_back/index.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/course-assets/arena-line-circuit.svg",
@@ -2850,7 +2850,7 @@
       "path": "instructor/walkthroughs/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/index.html",
       "bytes": 373,
-      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
+      "sha256": "a78fd9bc23021c80f7a735017b3550d75ded9f3294375a6f42844a0e8e867400"
     },
     {
       "path": "instructor/walkthroughs/katex/fonts/KaTeX_AMS-Regular.ttf",
@@ -3240,7 +3240,7 @@
       "path": "monitor/index.html",
       "url": "/ucsbxrp/monitor/index.html",
       "bytes": 2729,
-      "sha256": "bd7680a7f03b6f6cde7908cf09544cd7f1b8262c9b8233c088ea9fea08ab8f4c"
+      "sha256": "887e085e4c56ddd53aa48334933c1305d4d8ce4874a7a524c130b8b51e6dfe73"
     },
     {
       "path": "orientation/figures/check-results.png",
@@ -3384,13 +3384,13 @@
       "path": "overview/index.html",
       "url": "/ucsbxrp/overview/index.html",
       "bytes": 1494,
-      "sha256": "fc4d7ad8d49d82caec4903462950382477b345d18046e5a3dc4dd11af87b98a3"
+      "sha256": "3832f85be9893f2340c9b0befe803550110e21e15a06c621f2b1880a367930c4"
     },
     {
       "path": "reference/index.html",
       "url": "/ucsbxrp/reference/index.html",
       "bytes": 1826,
-      "sha256": "e39f0d731fcb3ae87ffd0a7822718008a39f4cf8d7c5b614bc72b0f526df3033"
+      "sha256": "e88d1cbb872227ab17af4f5930725c2308be1eb054868514c3b82b7e9a5d61de"
     },
     {
       "path": "refresh.html",
@@ -3642,9 +3642,9 @@
       "path": "workspace/index.html",
       "url": "/ucsbxrp/workspace/index.html",
       "bytes": 2104,
-      "sha256": "eed71483d7f407d9061b86126a45d639c2c677507086de3f66aacf85ad0564c0"
+      "sha256": "0c8cf44d301aaa54b20b6bb86c4b24e035c22c2a9f879b76746db3d2df809ee3"
     }
   ],
-  "version": "bffcc361ae0d6af5475d",
-  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-bffcc361ae0d6af5475d"
+  "version": "6d0efe2538a3c9b1c9e2",
+  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-6d0efe2538a3c9b1c9e2"
 }
