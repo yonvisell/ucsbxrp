@@ -21,28 +21,28 @@
       "sha256": "6f50be726d34de9c8740704a56ddd939a27b61c15ace0e77264c4d8ac97efefa"
     },
     {
-      "path": "assets/AppUpdateButton-hW9UAvJ-.js",
-      "url": "/ucsbxrp/assets/AppUpdateButton-hW9UAvJ-.js",
-      "bytes": 216114,
-      "sha256": "88b963e22030893043060417afa554a7d326d74065c2d43246ca7872f71e0b93"
+      "path": "assets/AppUpdateButton-C0tGHgjb.js",
+      "url": "/ucsbxrp/assets/AppUpdateButton-C0tGHgjb.js",
+      "bytes": 216009,
+      "sha256": "778bc45ecdd0c83f5a38374b3ab7b003f98c4424a23b610c89cd1585730dc674"
     },
     {
-      "path": "assets/CopyCode-Dd0qdJ4u.js",
-      "url": "/ucsbxrp/assets/CopyCode-Dd0qdJ4u.js",
+      "path": "assets/CopyCode-uGMjnFBZ.js",
+      "url": "/ucsbxrp/assets/CopyCode-uGMjnFBZ.js",
       "bytes": 1348,
-      "sha256": "b132a75af568605855c7714761b2755e2f960872b5cc698396e5c750dce93bbe"
+      "sha256": "27a6cf2c6c356ed47026b1e2430446e42a52d989429489b443aec8c1c41de671"
     },
     {
-      "path": "assets/CourseHeader-BL1FRvlU.js",
-      "url": "/ucsbxrp/assets/CourseHeader-BL1FRvlU.js",
+      "path": "assets/CourseHeader-BmqhZf1S.js",
+      "url": "/ucsbxrp/assets/CourseHeader-BmqhZf1S.js",
       "bytes": 737,
-      "sha256": "f6a6a803690c96166a443fbb0430b0f19616d9f9921da6690af2843dd0142905"
+      "sha256": "e9aecc5eb86c3742fcbba86b0c90a7e681cd7b7556c0f6dba9230ebae9ff7758"
     },
     {
-      "path": "assets/InstructorAccessGate-C-q3gx7r.js",
-      "url": "/ucsbxrp/assets/InstructorAccessGate-C-q3gx7r.js",
+      "path": "assets/InstructorAccessGate-DVrxy1Fe.js",
+      "url": "/ucsbxrp/assets/InstructorAccessGate-DVrxy1Fe.js",
       "bytes": 916,
-      "sha256": "c91bb2c507ef71ff53b6aaf85466c5045e4b35b7ba26302d4952446560fff753"
+      "sha256": "efa5d84a79632c9029e55e2a3fffbdabf7c5bfa40a945f3928682021fefb31f8"
     },
     {
       "path": "assets/MarkdownArticle-CMra0kK_.js",
@@ -57,10 +57,10 @@
       "sha256": "7f2bf3277aa5de5fc6c3cb3f9b23bb7feff0e69d6fdfbcc0ec75127f399f931a"
     },
     {
-      "path": "assets/WorkspaceTargetNotice-BxByinVZ.js",
-      "url": "/ucsbxrp/assets/WorkspaceTargetNotice-BxByinVZ.js",
-      "bytes": 13023,
-      "sha256": "286839662fb146a04253c8902bf3cd2d38bfceccea3032d525a6d2c813d969b6"
+      "path": "assets/WorkspaceTargetNotice-UaSEiGya.js",
+      "url": "/ucsbxrp/assets/WorkspaceTargetNotice-UaSEiGya.js",
+      "bytes": 13003,
+      "sha256": "258985fb585818dba47e61b816f32edb2b75820e7653120a20a148bbb0f94089"
     },
     {
       "path": "assets/__vite-browser-external-Cn0MOYvd.js",
@@ -69,10 +69,10 @@
       "sha256": "73dc21f16e67af3bd7beecd0558923d15231ceaa23967d7f7c3c1641b9cc6399"
     },
     {
-      "path": "assets/app-update-view-DktUDh6X.js",
-      "url": "/ucsbxrp/assets/app-update-view-DktUDh6X.js",
-      "bytes": 101280,
-      "sha256": "f2cf139282e0dc452a29016ecd0b9ac096ff86a27204229a616d963401cc5acc"
+      "path": "assets/app-update-view-DrtkQohe.js",
+      "url": "/ucsbxrp/assets/app-update-view-DrtkQohe.js",
+      "bytes": 101873,
+      "sha256": "38f8df4ef92afb8a0ed30f93799bfda778e8ddd883a6971dfa01ce8c2bb8aaae"
     },
     {
       "path": "assets/author-BPBjpM32.css",
@@ -81,10 +81,10 @@
       "sha256": "f77acab6f7592a54f446921de77a39876e3e1ff3697b8b971d2b39f747d40450"
     },
     {
-      "path": "assets/author-BQlzI2cr.js",
-      "url": "/ucsbxrp/assets/author-BQlzI2cr.js",
-      "bytes": 78481,
-      "sha256": "aa74aa6d076a368215ec7d6542c24e0f0d0534a935680531d446b58af38adcdf"
+      "path": "assets/author-C14vBg_t.js",
+      "url": "/ucsbxrp/assets/author-C14vBg_t.js",
+      "bytes": 67686,
+      "sha256": "c4818044985f4d4583c8d62106ac05add67b4e18fec0e2c0cace2e8467ca1f75"
     },
     {
       "path": "assets/challenge_1-ep5zaMOI.mpy",
@@ -93,10 +93,10 @@
       "sha256": "ce95c6e5b44d9b0fb26122e32db8f06580d091f76ef3cacc1d0a1deec9904be2"
     },
     {
-      "path": "assets/class-wifi-profile-Cz4L8L8x.js",
-      "url": "/ucsbxrp/assets/class-wifi-profile-Cz4L8L8x.js",
-      "bytes": 16397,
-      "sha256": "af9e32184d180977a54ccc70b3a9b8573147cf2aa01e8936f3753d5347d251fe"
+      "path": "assets/class-wifi-profile-CKfaDIx2.js",
+      "url": "/ucsbxrp/assets/class-wifi-profile-CKfaDIx2.js",
+      "bytes": 16402,
+      "sha256": "c4fdd5d60af22ca248e40fcf3ea59ac609eacf39d1cc9825cd74c17c0745e342"
     },
     {
       "path": "assets/codicon-Brq4_Ui5.ttf",
@@ -105,16 +105,16 @@
       "sha256": "cc2472e239e17062e7760af87f8f5997720cc0d94aa014a615c418baaf6333a8"
     },
     {
-      "path": "assets/commission-BIcurjqQ.js",
-      "url": "/ucsbxrp/assets/commission-BIcurjqQ.js",
-      "bytes": 124047,
-      "sha256": "d8ecd2fe2f9d0f1fe97afe1596492aacf239b59329b3e64f846ca5f29feb5a96"
-    },
-    {
       "path": "assets/commission-Bd-y_COM.css",
       "url": "/ucsbxrp/assets/commission-Bd-y_COM.css",
       "bytes": 10477,
       "sha256": "a0706a07a1a708e7394b955a47f9a197540594f0e708c5913dcd494618d43f76"
+    },
+    {
+      "path": "assets/commission-D84udIF8.js",
+      "url": "/ucsbxrp/assets/commission-D84udIF8.js",
+      "bytes": 123871,
+      "sha256": "c6ed236f5668bac5f8f44fcb4d69632d4dcbb70395614d7fcc817ba7cb2aa2cf"
     },
     {
       "path": "assets/editor-BJ215w34.css",
@@ -141,40 +141,40 @@
       "sha256": "7cb08c390f143b21afb84e4774a9754d27fde5ddcace11658df9010e42c639c7"
     },
     {
-      "path": "assets/guide-B7ijpT28.js",
-      "url": "/ucsbxrp/assets/guide-B7ijpT28.js",
-      "bytes": 111859,
-      "sha256": "6f272d711bdf9a9eebbb1396a625b1c89a882c25daf3755cbaea8e8b4528e574"
-    },
-    {
       "path": "assets/guide-BjapirOm.css",
       "url": "/ucsbxrp/assets/guide-BjapirOm.css",
       "bytes": 10285,
       "sha256": "18096efc056162b9dbb1d1e5a719ea94b901b08001fde6652f7148f99bcf1ea7"
     },
     {
-      "path": "assets/home-C7a7oWVf.js",
-      "url": "/ucsbxrp/assets/home-C7a7oWVf.js",
+      "path": "assets/guide-CZfZx7dX.js",
+      "url": "/ucsbxrp/assets/guide-CZfZx7dX.js",
+      "bytes": 111696,
+      "sha256": "7bd20d02f88d0bb948c893c66b2d154683eca6a1ffcab1dd25483ccae57c0f22"
+    },
+    {
+      "path": "assets/home-obJaqTYh.js",
+      "url": "/ucsbxrp/assets/home-obJaqTYh.js",
       "bytes": 3749,
-      "sha256": "52b02cb08d223be9e19334fc996ac8d456e30d7e66e7ec0ee310c744d0ba4b0e"
+      "sha256": "472c9fcde68ac312b661fbfaa2bc2c0610abd543159ef5083fa26b050f011e81"
     },
     {
-      "path": "assets/ide-C2tXPNcb.js",
-      "url": "/ucsbxrp/assets/ide-C2tXPNcb.js",
-      "bytes": 1009267,
-      "sha256": "bd845c11a6eeb22fc6d92e5f587b0c3dcbb6b788c2880f47ce93c0f4e6eaf422"
+      "path": "assets/ide-CVmFuoA9.js",
+      "url": "/ucsbxrp/assets/ide-CVmFuoA9.js",
+      "bytes": 1009669,
+      "sha256": "393774ea610f9600358450c00f8f0960c16a6312a9576d187728960203021d62"
     },
     {
-      "path": "assets/ide-Ykswu0yB.css",
-      "url": "/ucsbxrp/assets/ide-Ykswu0yB.css",
-      "bytes": 88302,
-      "sha256": "97d41942660c3fbd4fd043b4459fce9f6065c2709ccf1b6543d7028a78644bab"
+      "path": "assets/ide-DnSq02ze.css",
+      "url": "/ucsbxrp/assets/ide-DnSq02ze.css",
+      "bytes": 88772,
+      "sha256": "0710f24d1bcc808ec8cd43b05efbaeeb352e2dc69e4d87f93ecef9e63c2fdb6e"
     },
     {
-      "path": "assets/instructor-BCfpiLBQ.js",
-      "url": "/ucsbxrp/assets/instructor-BCfpiLBQ.js",
-      "bytes": 19340,
-      "sha256": "0380bba0c391c297c7ac95e5a94f08b2faebe478b8e2531d32eed63fa8fea488"
+      "path": "assets/instructor-73QDigDZ.js",
+      "url": "/ucsbxrp/assets/instructor-73QDigDZ.js",
+      "bytes": 18942,
+      "sha256": "373b9e50b81b32e5cbcdc363872e1c8fc0e11aad28e8dd7461ddbaf00f97d81e"
     },
     {
       "path": "assets/instructor-CcUp8jeQ.css",
@@ -189,10 +189,10 @@
       "sha256": "834820d7bf9afb66906824fd474b4b8b92c9004b2d27d075829f8f2a8ba54be5"
     },
     {
-      "path": "assets/jsonMode-CRWqCv9O.js",
-      "url": "/ucsbxrp/assets/jsonMode-CRWqCv9O.js",
+      "path": "assets/jsonMode-BK-HYgTi.js",
+      "url": "/ucsbxrp/assets/jsonMode-BK-HYgTi.js",
       "bytes": 447120,
-      "sha256": "312dfd5a35cac0ebe0288b63417ec761dd491bab14812c635f6083cab4225ac0"
+      "sha256": "bfdc82bdc989c1b1f7485a6f747ecae88865a5282e39597ed9b00f0ffdc4f918"
     },
     {
       "path": "assets/jsonMode-DbpeL5iC.css",
@@ -207,10 +207,10 @@
       "sha256": "f0bb0d14d7699757f1db9a87800869356dfb245599d8fa0f1031822a0e2e3853"
     },
     {
-      "path": "assets/line-circuit-progress-CiIgmvzb.js",
-      "url": "/ucsbxrp/assets/line-circuit-progress-CiIgmvzb.js",
+      "path": "assets/line-circuit-progress-CRRYCkW6.js",
+      "url": "/ucsbxrp/assets/line-circuit-progress-CRRYCkW6.js",
       "bytes": 4261,
-      "sha256": "6829fc4a6541650ff3482196c005d3f7247595390d67c85bb15039ce529fd05f"
+      "sha256": "9e9ddccb148a4750b87a3c7e3612d4c7bd2571f95ffd78990cfa30dbd8a86881"
     },
     {
       "path": "assets/markdown-Cimd5fb3.js",
@@ -231,34 +231,34 @@
       "sha256": "3f705482c97498cb24c90275b33038d9a2d1868439d8216002d90a75bdd28997"
     },
     {
-      "path": "assets/micropython.worker-X2OG9kuU.js",
-      "url": "/ucsbxrp/assets/micropython.worker-X2OG9kuU.js",
-      "bytes": 363058,
-      "sha256": "5c795c9b6b9a4b4365dce0c8dd7c3c69a76f165ae174d9524989c043e63eb3d5"
+      "path": "assets/micropython.worker-DHAnFxZj.js",
+      "url": "/ucsbxrp/assets/micropython.worker-DHAnFxZj.js",
+      "bytes": 364218,
+      "sha256": "d8d81954b526a384eacf3bb40838fc6ab2b8642b52478a80d196e09252eabe1d"
     },
     {
-      "path": "assets/monitor-Dm_Fz_oZ.css",
-      "url": "/ucsbxrp/assets/monitor-Dm_Fz_oZ.css",
-      "bytes": 22675,
-      "sha256": "e3ad31663d2544471dd515e4b40581673420aafd9de4d976e7efc920fa9c9660"
+      "path": "assets/monitor-DOQs_JNz.js",
+      "url": "/ucsbxrp/assets/monitor-DOQs_JNz.js",
+      "bytes": 1271922,
+      "sha256": "8d50ef1bd0693aefc310b7f75594793cd43f1f648bce54ed77640dc7cbbb7733"
     },
     {
-      "path": "assets/monitor-It9UkcvM.js",
-      "url": "/ucsbxrp/assets/monitor-It9UkcvM.js",
-      "bytes": 1269816,
-      "sha256": "910ce27c5b265efe6341e5b24e1529062ec3f7845f8bf792ff5452f1c85570c4"
-    },
-    {
-      "path": "assets/monitor-export-DlaElVV7.js",
-      "url": "/ucsbxrp/assets/monitor-export-DlaElVV7.js",
+      "path": "assets/monitor-export-Cvv6led4.js",
+      "url": "/ucsbxrp/assets/monitor-export-Cvv6led4.js",
       "bytes": 10732,
-      "sha256": "bafe803f2137a604fa91a1eb672d3d9ac589e438fede264518f1c4ddcff3239c"
+      "sha256": "d67643f2b7686d2f5743d2932b25723e9827f5b79a1aa5b874b2633be9dab59d"
     },
     {
-      "path": "assets/motion-summary-aOIQLmJ3.js",
-      "url": "/ucsbxrp/assets/motion-summary-aOIQLmJ3.js",
+      "path": "assets/monitor-ru9BYcY1.css",
+      "url": "/ucsbxrp/assets/monitor-ru9BYcY1.css",
+      "bytes": 22432,
+      "sha256": "cf5a2b9bc9a6a6f0c696c8646778bfa4b6bd52a4059b2879e4758540c1ebd81e"
+    },
+    {
+      "path": "assets/motion-summary-DGFydhX4.js",
+      "url": "/ucsbxrp/assets/motion-summary-DGFydhX4.js",
       "bytes": 26081,
-      "sha256": "0fe3102e159ffeba38ffa0858bdf9786a9e3b3efa0ab0973e8cd46627db7b8d9"
+      "sha256": "af1d0e1867bad483e3e34b20033a24150be69a8ff95eecc51a08b588a28b99e8"
     },
     {
       "path": "assets/overview-BNSNaZwB.css",
@@ -267,16 +267,16 @@
       "sha256": "33ae6b0e92c375b88512569a2d742b9af5205c57ccda5850603f246c559162c1"
     },
     {
-      "path": "assets/overview-CerWRd1j.js",
-      "url": "/ucsbxrp/assets/overview-CerWRd1j.js",
+      "path": "assets/overview-CWI89I_O.js",
+      "url": "/ucsbxrp/assets/overview-CWI89I_O.js",
       "bytes": 20289,
-      "sha256": "c3c5c0570bcc4a2ee76ac4c76f0ce268aa367c4e8456bbd60dd870650894d075"
+      "sha256": "a2cbde92d0781876ae42c5161e2e7c5cd638b4408de6447675244c690c9f7e3c"
     },
     {
-      "path": "assets/physical-target.shared-worker-D1fDQgvu.js",
-      "url": "/ucsbxrp/assets/physical-target.shared-worker-D1fDQgvu.js",
-      "bytes": 123264,
-      "sha256": "97174deeeae9eab3e752a14bb7037b86e4861f5240f487a7dd7c411b3dfd391c"
+      "path": "assets/physical-target.shared-worker-5DTDwfgL.js",
+      "url": "/ucsbxrp/assets/physical-target.shared-worker-5DTDwfgL.js",
+      "bytes": 124717,
+      "sha256": "6be97bdf3bf87f326551eef71bdf5e91403a7d9cc5080b865a591d386274c373"
     },
     {
       "path": "assets/preload-helper-CjWZr7BR.js",
@@ -285,10 +285,16 @@
       "sha256": "f7832cc5b5fc0e9d459181beaa4cc63dd24c520c1cf588b8862abaf221d2008f"
     },
     {
-      "path": "assets/project-files-hy7O05M-.js",
-      "url": "/ucsbxrp/assets/project-files-hy7O05M-.js",
-      "bytes": 34491,
-      "sha256": "78b19840c9143870c5902e2688a2773bc17d5686ff586787a4cf40d1319f1e92"
+      "path": "assets/project-files-Db9tgHsP.js",
+      "url": "/ucsbxrp/assets/project-files-Db9tgHsP.js",
+      "bytes": 34581,
+      "sha256": "d797dea8c28e03bac2975346709ec6e0ac9b1c2d6f007352fac921281e3cecb3"
+    },
+    {
+      "path": "assets/project-folder-reader-1jXN4G-1.js",
+      "url": "/ucsbxrp/assets/project-folder-reader-1jXN4G-1.js",
+      "bytes": 32703,
+      "sha256": "d8915071281e8fa732e9b447f5a67e30f7bb5e22d07ace8f02dd53db34f7e117"
     },
     {
       "path": "assets/project-folder-reader-DLFySdPs.css",
@@ -297,28 +303,22 @@
       "sha256": "ac2e4febe12a2d0f93c0e2b1c93e99cce4c3292600af20f04bb867135c1734d0"
     },
     {
-      "path": "assets/project-folder-reader-DNjizpHv.js",
-      "url": "/ucsbxrp/assets/project-folder-reader-DNjizpHv.js",
-      "bytes": 32484,
-      "sha256": "4e6a748ac8d7cdade6d78af3a6e0c16065142cd38f8b1c146244b4a73df01f73"
-    },
-    {
-      "path": "assets/project-native-write-DvSTzTRJ.js",
-      "url": "/ucsbxrp/assets/project-native-write-DvSTzTRJ.js",
+      "path": "assets/project-native-write-C3o45f-b.js",
+      "url": "/ucsbxrp/assets/project-native-write-C3o45f-b.js",
       "bytes": 9218,
-      "sha256": "7b989f777f0d92cf8d03ada109bc62cc7db753aec0e78644fa842067bcbe8c39"
+      "sha256": "c35b39524050deb7bb1963d5f959d17e550dc99e71e50d37c2877a6b87963a45"
     },
     {
-      "path": "assets/project-readme-DU49RdEt.js",
-      "url": "/ucsbxrp/assets/project-readme-DU49RdEt.js",
-      "bytes": 5752,
-      "sha256": "7a54d290d4df410ece049f2e4e641a53454f09a2c6015bb1cde3b0c9a22726a2"
+      "path": "assets/project-readme-Bsg6CG99.css",
+      "url": "/ucsbxrp/assets/project-readme-Bsg6CG99.css",
+      "bytes": 3442,
+      "sha256": "4d345161c4136d488d30d86cf603c80e2b201f264f230dc92a94b923940f049f"
     },
     {
-      "path": "assets/project-readme-h5jU8FEL.css",
-      "url": "/ucsbxrp/assets/project-readme-h5jU8FEL.css",
-      "bytes": 3357,
-      "sha256": "d4ca7c3b74b215a69a56c34d376bbe05a6f7124fb64b8837db788c449b2a4458"
+      "path": "assets/project-readme-JufPePqI.js",
+      "url": "/ucsbxrp/assets/project-readme-JufPePqI.js",
+      "bytes": 5766,
+      "sha256": "e61e2550bbfe21b142a6e4012d9b555c864098794a506265de7b2c1b9438e971"
     },
     {
       "path": "assets/python-BUGyj2gh.js",
@@ -327,16 +327,16 @@
       "sha256": "35231d8c434f97f87228cbcb8285b0d11f83ea2640e1bd44221cb1dca0b9d6e5"
     },
     {
-      "path": "assets/reference-BX3vBnG_.js",
-      "url": "/ucsbxrp/assets/reference-BX3vBnG_.js",
-      "bytes": 12573,
-      "sha256": "dbb2229575d54c6c785ae7faf49c38b352f82920a6386fd12d2593da93d36be4"
-    },
-    {
       "path": "assets/reference-DQD2f7v5.css",
       "url": "/ucsbxrp/assets/reference-DQD2f7v5.css",
       "bytes": 8635,
       "sha256": "e1ee63175a742928541f939031e719f7d1b812be13394459c690864efb1b86dc"
+    },
+    {
+      "path": "assets/reference-TxTidWlj.js",
+      "url": "/ucsbxrp/assets/reference-TxTidWlj.js",
+      "bytes": 12573,
+      "sha256": "b8541dc62615194a96085058ea4388c2ad09e776b62a49722447ab4284ad523e"
     },
     {
       "path": "assets/rolldown-runtime-CbXtAM7H.js",
@@ -351,52 +351,52 @@
       "sha256": "580ad8c58061a4dde99bde0a56905e382f0568516ee2f5b84dbfb52085709021"
     },
     {
-      "path": "assets/run-export-CF_UdzTP.js",
-      "url": "/ucsbxrp/assets/run-export-CF_UdzTP.js",
+      "path": "assets/run-export-DfrwifK4.js",
+      "url": "/ucsbxrp/assets/run-export-DfrwifK4.js",
       "bytes": 8793,
-      "sha256": "7c8e4edcdeb67548eeaf181d5d81f26231f62eb98b5a29b04841fa18e01b68e2"
+      "sha256": "b77d5c417a3c9a37752578d1d9bc48bec9c6d447177bbfc90e980da00410bee5"
     },
     {
-      "path": "assets/run-project-snapshot-DqN_17gZ.js",
-      "url": "/ucsbxrp/assets/run-project-snapshot-DqN_17gZ.js",
+      "path": "assets/run-project-snapshot-Krxd31WH.js",
+      "url": "/ucsbxrp/assets/run-project-snapshot-Krxd31WH.js",
       "bytes": 55641,
-      "sha256": "970e048e5b93a85db5bcf3f7cc50b66b8d42c53d17b1decc4c627f5bac4d9990"
+      "sha256": "2de91107d22df25aa60cb965c2516b60dc3e71348fc4f67675768e7aa0caccd6"
     },
     {
-      "path": "assets/shared-challenge-package-BFiZqVBz.js",
-      "url": "/ucsbxrp/assets/shared-challenge-package-BFiZqVBz.js",
+      "path": "assets/shared-challenge-package-BB5xTnx8.js",
+      "url": "/ucsbxrp/assets/shared-challenge-package-BB5xTnx8.js",
       "bytes": 3110,
-      "sha256": "7065d9fe6eaa2961f8d18fbad860653c82668e9c3cacfed24fab2155e72ed2da"
+      "sha256": "0efb9756c70e1c03b4ee055354fdda72cc8a0b073f8f67528be6bdfe61bad7c3"
     },
     {
-      "path": "assets/src-Ds0dd2DW.js",
-      "url": "/ucsbxrp/assets/src-Ds0dd2DW.js",
-      "bytes": 865794,
-      "sha256": "3a3541f291c2bc66cded10088e55de17ada09a526fd5c822995b5dab17ad66af"
+      "path": "assets/src-Dn2f0cD6.js",
+      "url": "/ucsbxrp/assets/src-Dn2f0cD6.js",
+      "bytes": 624323,
+      "sha256": "bffa70318bf51308a3fef6a4398ed158135634c3236e9c4ef9021e5d748c74f6"
     },
     {
-      "path": "assets/theme-B38L66tB.js",
-      "url": "/ucsbxrp/assets/theme-B38L66tB.js",
+      "path": "assets/theme-B2fVC_Wi.css",
+      "url": "/ucsbxrp/assets/theme-B2fVC_Wi.css",
+      "bytes": 20593,
+      "sha256": "2c0a391aed1503423c0ea6a449a595585e752f4c9ca68e1c249e8a807762a253"
+    },
+    {
+      "path": "assets/theme-Bbr5z_nm.js",
+      "url": "/ucsbxrp/assets/theme-Bbr5z_nm.js",
       "bytes": 670,
       "sha256": "418c206484b89b68ef5f067277831e583fc9193a62aadf4de269acaaeb12a85f"
     },
     {
-      "path": "assets/theme-CHL-_1sX.css",
-      "url": "/ucsbxrp/assets/theme-CHL-_1sX.css",
-      "bytes": 20358,
-      "sha256": "5822494d37e7daad218dc6e4608d396edd680c530bec1ec31812337705fcb888"
-    },
-    {
-      "path": "assets/use-project-file-policy-BSzr4Ib8.js",
-      "url": "/ucsbxrp/assets/use-project-file-policy-BSzr4Ib8.js",
+      "path": "assets/use-project-file-policy-D8Uv_2xm.js",
+      "url": "/ucsbxrp/assets/use-project-file-policy-D8Uv_2xm.js",
       "bytes": 317,
-      "sha256": "870e9c1fd8b87adda2bdaf6e58dabee6b34d564b3d0624ad7280a0d32b3bd00b"
+      "sha256": "e3772db2041ee16d1f898c0c56f50cb6de9bc92f935658f76155b839b292811f"
     },
     {
-      "path": "assets/use-workspace-location-Dy2C7VLx.js",
-      "url": "/ucsbxrp/assets/use-workspace-location-Dy2C7VLx.js",
+      "path": "assets/use-workspace-location-CAu618qQ.js",
+      "url": "/ucsbxrp/assets/use-workspace-location-CAu618qQ.js",
       "bytes": 779,
-      "sha256": "ad7dd9de685723c0ebddc448b5fe55dded4c7f20f8dc20af0117cd97329b3c6b"
+      "sha256": "da6354a546fa7ef24190b41ab5e3f35f4ae2fc3d8acc113f62fa72f6706b8029"
     },
     {
       "path": "assets/useHashTarget-41-70X4C.js",
@@ -405,16 +405,16 @@
       "sha256": "8764c7488c7ccd5d8db9e743903158bc93807e8aaac1ce2735ee7971fab2b7bc"
     },
     {
-      "path": "assets/virtual-target.shared-worker-Umf8IkOs.js",
-      "url": "/ucsbxrp/assets/virtual-target.shared-worker-Umf8IkOs.js",
-      "bytes": 43535,
-      "sha256": "27f6f3f7d926232bfdf578aa5035ad7550b299dc20689ee0d833af9e3b054b13"
+      "path": "assets/virtual-target.shared-worker-B06FFY54.js",
+      "url": "/ucsbxrp/assets/virtual-target.shared-worker-B06FFY54.js",
+      "bytes": 43884,
+      "sha256": "a491733a016f43fa8c1d13e0f4aa4fd0ea14c97abd1d6b10eb85b44881004f03"
     },
     {
-      "path": "assets/walkthrough-tools-oq8Nnm6Y.js",
-      "url": "/ucsbxrp/assets/walkthrough-tools-oq8Nnm6Y.js",
+      "path": "assets/walkthrough-tools-CBSZvgcU.js",
+      "url": "/ucsbxrp/assets/walkthrough-tools-CBSZvgcU.js",
       "bytes": 2116,
-      "sha256": "fb4a48cab09724236d7207f440c4955925b8fe21a6e3a7bdb569b15aa5b7d2ad"
+      "sha256": "146c4d0e7d37c3beade0f550de4703224960a1560ca37b0233a580504c50988b"
     },
     {
       "path": "assets/workspace-7kO5vwnh.css",
@@ -423,16 +423,16 @@
       "sha256": "9df335f1b8c4c83657912166b6e9411fffe70b5556ab8e808d99dd067271423e"
     },
     {
-      "path": "assets/workspace-Dg0wCxIr.js",
-      "url": "/ucsbxrp/assets/workspace-Dg0wCxIr.js",
+      "path": "assets/workspace-ByUEkRx2.js",
+      "url": "/ucsbxrp/assets/workspace-ByUEkRx2.js",
       "bytes": 9984,
-      "sha256": "330661995c6c6af4b8176779f091930650ae4d210670b11452752745d5ded27d"
+      "sha256": "861bbdace4097a0e16e497c60181c4e30faff16f71b5f7faf9bee80d8a954a66"
     },
     {
-      "path": "assets/workspace-target-preference-3gjjcUcO.js",
-      "url": "/ucsbxrp/assets/workspace-target-preference-3gjjcUcO.js",
+      "path": "assets/workspace-target-preference-ga1y6gdC.js",
+      "url": "/ucsbxrp/assets/workspace-target-preference-ga1y6gdC.js",
       "bytes": 11888,
-      "sha256": "4d0837305398b637ba74a1b55f8492cff36cb566e4c955274113c90c3f7d3b9c"
+      "sha256": "c31fa4cfbe17400204eb09916fd5ddcff8eb1ade0f04dc31057b36a216005c04"
     },
     {
       "path": "assets/workspace-visibility-uzPnKvlu.js",
@@ -444,7 +444,7 @@
       "path": "author/index.html",
       "url": "/ucsbxrp/author/index.html",
       "bytes": 1947,
-      "sha256": "481d5a105dddae4cf2f480a429a8b9b7d4d5b00c0f0e3ff7a5bc7166c9164876"
+      "sha256": "646058905cadb904b96a4d9264d66a268a94853cd845e324893c00a323c0ec87"
     },
     {
       "path": "class-wifi.json",
@@ -456,583 +456,589 @@
       "path": "commission/index.html",
       "url": "/ucsbxrp/commission/index.html",
       "bytes": 1853,
-      "sha256": "6dfc9b854b7f87ff2896e0930aeb0f076204e448829293eb27d3ee2b29f25bd6"
+      "sha256": "c8856d3c71e8e20c692ddbabeff226dab8a0fc78a303c65f9f3eac111eb2e042"
     },
     {
-      "path": "course/commissioning/releases/66/files/bootstrap/course_boot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/bootstrap/course_boot.py",
+      "path": "course/commissioning/releases/69/files/bootstrap/course_boot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/bootstrap/course_boot.py",
       "bytes": 13526,
       "sha256": "b36f74b5e3415cb77cdc75154199bc6ed9e1078141e21fbb7a39c445f7fa7f63"
     },
     {
-      "path": "course/commissioning/releases/66/files/bootstrap/main.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/bootstrap/main.py",
+      "path": "course/commissioning/releases/69/files/bootstrap/main.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/bootstrap/main.py",
       "bytes": 117,
       "sha256": "1b0adafa6e30b77ced3c05e460932c0c8feb049a8b1cf34ffb348dbe16fe77ca"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/__init__.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/__init__.py",
       "bytes": 467,
       "sha256": "04f4afd232c61c928d56372f848ae17707952e9df0f10cbec7d93708eebaeb0d"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/board.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/board.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/board.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/board.py",
       "bytes": 5344,
       "sha256": "c269c43a1db278d74bb2823834124bc46911dcb8760cb828d3dce97042bba764"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/buzzer.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/buzzer.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/buzzer.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/buzzer.py",
       "bytes": 14042,
       "sha256": "1cc64469e53497ecca9743fb88801f3cf91bca4d6c8e5b79969d92d460ad9752"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/controller.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/controller.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/controller.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/controller.py",
       "bytes": 908,
       "sha256": "aa35927f51c6f55d8f401d4265e79a5b0703eb48e60a1785290dfe289970deab"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/dashboard.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/dashboard.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/dashboard.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/dashboard.py",
       "bytes": 9033,
       "sha256": "af9155e8e835f585fdb116f415c8d1ed8d9be01ea2d9147efaafcac9a68f453a"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/defaults.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/defaults.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/defaults.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/defaults.py",
       "bytes": 1431,
       "sha256": "e00ecdb50a9a6f41a6785b1a4a11709ebe8042d8f0635e6bad7b5cd12a5edb3e"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/differential_drive.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/differential_drive.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/differential_drive.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/differential_drive.py",
       "bytes": 16051,
       "sha256": "09727192d13572d2cb43b3b520219837109fa4717f0e0e3bb3ae76de024f9f61"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/encoded_motor.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/encoded_motor.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/encoded_motor.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/encoded_motor.py",
       "bytes": 7449,
       "sha256": "edc914e1a055ef2fa07b78a49c99ab5ca12a4c7933b8597219d3caed42e1e805"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/encoder.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/encoder.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/encoder.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/encoder.py",
       "bytes": 6301,
       "sha256": "db61a4fb54874c665c5f1ee610eca13eb1d22826b09ee8a8f5e776416012c4e6"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/gamepad.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/gamepad.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/gamepad.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/gamepad.py",
       "bytes": 5299,
       "sha256": "f490c5ea8c769096c393c3a35f62f149af2722ce017931df0257625aebc89172"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/imu.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/imu.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/imu.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/imu.py",
       "bytes": 20436,
       "sha256": "edfdbdaec5e4acc91188218789815c131158f3c073302369929b84eb9645445f"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/imu_defs.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/imu_defs.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/imu_defs.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/imu_defs.py",
       "bytes": 2025,
       "sha256": "3c92d316e91b274ffc6ca2d74a186c01bcc0b9d9f1ecf9888761881e16d25116"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/motor.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/motor.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/motor.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/motor.py",
       "bytes": 3308,
       "sha256": "68f92f3f45e7d694df395f46356a0eceedeb3cdc4a8d20c63cadc36f1ef6685b"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/motor_group.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/motor_group.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/motor_group.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/motor_group.py",
       "bytes": 3059,
       "sha256": "63c0c7ca188bfc94ac28a12a83cb59c0447f8cdae9fecc1c9198e56ef47571ed"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/pid.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/pid.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/pid.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/pid.py",
       "bytes": 4363,
       "sha256": "03fae5a6a73cf9672457bd67db98cae44b9798e59da9dd9c37adde51a0346680"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/puppet.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/puppet.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/puppet.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/puppet.py",
       "bytes": 32725,
       "sha256": "e96f858a078a22f9db630ae430cdd0b50a113b82f74bbc03908b5120f6480b79"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/rangefinder.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/rangefinder.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/rangefinder.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/rangefinder.py",
       "bytes": 3798,
       "sha256": "d8c62a6f3754d2b734220a3f5816e6f516bd67f3f9187d5b57e2c06bbb92e907"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/reflectance.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/reflectance.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/reflectance.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/reflectance.py",
       "bytes": 2735,
       "sha256": "371e26316ee84b9477ee04d742960a6d60dac260d8ca85e1c2de44e1d8805880"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/resetbot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/resetbot.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/resetbot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/resetbot.py",
       "bytes": 2634,
       "sha256": "ca13fd1d8324fdcb75bc33d8847e5547df284f0073e6373bdee2eed21a945d37"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/servo.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/servo.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/servo.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/servo.py",
       "bytes": 2437,
       "sha256": "d0fb33c76dee9a55256e426184fb1270c419e6237f8a6a8d937223931d870015"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/timeout.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/timeout.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/timeout.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/timeout.py",
       "bytes": 651,
       "sha256": "916cb93f16944288efba9ad2df7489137bae2162d2bc33d2b002633c725f294b"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/XRPLib/webserver.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/XRPLib/webserver.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/XRPLib/webserver.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/XRPLib/webserver.py",
       "bytes": 12213,
       "sha256": "9b574dccbd7eaee7134eb6c9714dbbd67e4590c863d700a3b42c721a9913a3fa"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/phew/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/phew/__init__.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/phew/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/__init__.py",
       "bytes": 2092,
       "sha256": "40b53231c3853ae89271bfc42b23728146cba5c7cd4089ab6c9712462ef4846f"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/phew/dns.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/phew/dns.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/phew/dns.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/dns.py",
       "bytes": 1357,
       "sha256": "a1b66fda0057a5ee586024b793a1a1203b71996f62815d89f086361995b0efd4"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/phew/logging.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/phew/logging.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/phew/logging.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/logging.py",
       "bytes": 3065,
       "sha256": "3f91106bb64bd14893804eb5df038613cc5d1e0873181a71557e22df5d2c4a41"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/phew/server.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/phew/server.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/phew/server.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/server.py",
       "bytes": 11505,
       "sha256": "a2c4b99d383bad880d5a7583c3e5e282f3de3feeb5ddc5dc758c36b02bcc75f7"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/phew/template.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/phew/template.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/phew/template.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/phew/template.py",
       "bytes": 1974,
       "sha256": "a512940fd29f6c03fe6a4325b1c7ad0551f94f4e5d8a1120da594c93e344ba21"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/__init__.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/__init__.py",
       "bytes": 2125,
       "sha256": "305b38aba1c18bed1bfe3f12f6ae0dcb3ef14dd9b52ac88c991d10f83cb43132"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_build_config.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_build_config.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_build_config.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_build_config.py",
       "bytes": 338,
       "sha256": "0ab8398209338b74606fc62b29bb891008be3a6dd0c57dc4cbae99095e6dff97"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_hardware.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_hardware.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_hardware.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_hardware.py",
       "bytes": 3428,
       "sha256": "2ed2a8fe28bceae4c24ac1fc365b60ac6f65e33f808780265f0db25158faa869"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_range.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_range.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_range.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_range.py",
       "bytes": 2583,
       "sha256": "a76e286ed1ed3b27b5b8dc4567138e9a485c786496f22f5dc3831a3511dff9f4"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_run_control.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_run_control.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_run_control.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_run_control.py",
       "bytes": 438,
       "sha256": "cd87ed8ff14273c9765677abdb49bdc209a0fb05fca74dce348e919be07571b8"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_telemetry.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_telemetry.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_telemetry.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_telemetry.py",
       "bytes": 18467,
       "sha256": "b730456538cceebaa9b1f3f22e06364bd11233ce657fae798c56925dd3683ad3"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_validation.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/_validation.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_validation.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/_validation.py",
       "bytes": 1736,
       "sha256": "266b1e145ba0c6d090ddb39b3458a5413adbabe0562ab8a87ef340467e8fa5dc"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/check_support.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/check_support.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/check_support.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/check_support.py",
       "bytes": 2468,
       "sha256": "e6cddcb8f69187b47b3388c50c21480e3446a567d7a6a2f61b0becb40773fcf7"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/component_checks.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/component_checks.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/component_checks.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/component_checks.py",
       "bytes": 73285,
       "sha256": "8b0c8e1727db36988ebb06fc562c20351bfa6cf9c250a3994bb2d3830b27cd90"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/config.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/config.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/config.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/config.py",
       "bytes": 11021,
       "sha256": "f0a08e162efbec1be8b05c9e59d8c4eae3ae22f72f5355f9713f7bb671fa9814"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/live.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/live.py",
-      "bytes": 23152,
-      "sha256": "7deaa5fab9658d221f6bf997e6f03219f6baf32565b769d72669dd7fdf66076e"
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/live.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/live.py",
+      "bytes": 23888,
+      "sha256": "ab8622687d5ca527c2e0cfffe24e7472953cdc44d5558d9eaee9c274095fb488"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/maps.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/maps.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/maps.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/maps.py",
       "bytes": 10576,
       "sha256": "7a747b754809038af1fe1333daf6e480c8a945d03a84275a4f4e4c1c538a9d4f"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/mission.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/mission.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/mission.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/mission.py",
       "bytes": 9945,
       "sha256": "0af9fe4f6ab8ad0f347f405f83d19c29df1aae9c9cd260c745f8b8c5990928a6"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/records.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/records.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/records.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/records.py",
       "bytes": 14526,
       "sha256": "f610d58538cfdf55aa68adeb89361e1604e768878303f6234c7c9a54049e34c9"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/robot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/robot.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/robot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/robot.py",
       "bytes": 13217,
       "sha256": "b5a18bd73a054dcc59a2119e8d785025604f20b67cf767dad929143370b0696b"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/straight_line.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/straight_line.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_line.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_line.py",
       "bytes": 2658,
       "sha256": "beca7506d1009183d6c2b541d710ea0bcc7acc0a3e1807136b08c2978cbf5a74"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/straight_trial.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/straight_trial.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_trial.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/straight_trial.py",
       "bytes": 4313,
       "sha256": "e58afae2c3f13b93f9ec9dfe7eff6e2283f6b26987bdadf709394ea7b026861e"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/student_api.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/student_api.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/student_api.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/student_api.py",
       "bytes": 11413,
       "sha256": "bfae1d8cc27888d05b6950a8b8a5c94468498971385f29d6979f7726b6b2331c"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/utils.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/utils.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/utils.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/utils.py",
       "bytes": 2970,
       "sha256": "ead18b880c5db692c720af707c2d4efdabab750a0304e51ab45e3cdf85e90949"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/world.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/world.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/world.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/world.py",
       "bytes": 6122,
       "sha256": "d7ce431198f3c7e6d9b1c65915b2750a009f65fcb08e8adf68f9c75728429f8d"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/xrpbot.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp/xrpbot.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/xrpbot.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp/xrpbot.py",
       "bytes": 13225,
       "sha256": "de1cbae79d971e031c12b54eea885cf0c142e05d78ed2101bfdfd4113dd641fc"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/__init__.mpy",
       "bytes": 424,
       "sha256": "0ccf0e57073268d47d184f119ba56af333d65f0264485a0db359c415f59deb01"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_1.mpy",
       "bytes": 4213,
       "sha256": "ce95c6e5b44d9b0fb26122e32db8f06580d091f76ef3cacc1d0a1deec9904be2"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_2.mpy",
       "bytes": 1614,
       "sha256": "7fad35be2bc10044afbdb4357fc71b12ed20e02e5079381d026da37da2b667c6"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_3.mpy",
       "bytes": 1930,
       "sha256": "2a0c300a84786662517d2c4afafe027e6af41caf97e9d3292476fb6ad855f9b3"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_4.mpy",
       "bytes": 639,
       "sha256": "6498a5593c1f96741e37fb5acabdae0e6623e52da0d5495c2ff9843be3eb69eb"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_6.mpy",
       "bytes": 853,
       "sha256": "4f8d474266df637e586dbc35f11493e1bea0d2ab83d4ae7169a362480a6eaf89"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_7.mpy",
       "bytes": 1460,
       "sha256": "e1651593c3ddd1ccbc4d41e20e93dd093fcbed0281f13eb4537b2e795af5b097"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_8.mpy",
       "bytes": 1399,
       "sha256": "b8fe42140d4716526179402017446dadb54fc626725f145c12c17c8fddbb0c0f"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
-      "bytes": 1538,
-      "sha256": "10a49aef1eb266729e044daa624ed628c6c97f7484d75bfd374b18a367deb2c1"
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_reference/challenge_9.mpy",
+      "bytes": 1621,
+      "sha256": "40a7e819f7d4b8f08660c10ae9bd6ce004f2407efb0aab4053b9d3380ed38f14"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/__init__.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/__init__.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/__init__.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/__init__.py",
       "bytes": 496,
       "sha256": "fad1d674de7a281c41b29af103e147a368de40e0d5d2338232f53b9bfdbf6b5b"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/diagnostics.py",
       "bytes": 5520,
       "sha256": "f772bcf3f4d4e03c89ebd184d324a5714c6c408d4a27e4675382cb7193c33f59"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/http_admission.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/http_admission.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/http_admission.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/http_admission.py",
       "bytes": 21143,
       "sha256": "f0fcb99c9d1867c738da3f57a4e17286f0de5bf9ef2a40231c069dbd83afb5d2"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/networking.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/networking.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/networking.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/networking.py",
       "bytes": 24233,
       "sha256": "5a850cc3bc3a6040fa72db5bba2834d3f53d631cda109d55c3aabd6bdd705d8f"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/protocol.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/protocol.py",
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/protocol.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/protocol.py",
       "bytes": 6228,
       "sha256": "3585afcef650bfc505380d5febeb6025464aa6551b9d2d065f5965d49d26f759"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/service.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/lib/ucsb_xrp_service/service.py",
-      "bytes": 124996,
-      "sha256": "cebd8dfeb63d1497b27cd26626c46f06a5e1af6d2046444235a0eb7611ec0000"
+      "path": "course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/service.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/lib/ucsb_xrp_service/service.py",
+      "bytes": 125321,
+      "sha256": "bd399ca549d62bf2c45f156bea77beff3e8994d78765b4eba19fef8ba407f52f"
     },
     {
-      "path": "course/commissioning/releases/66/files/runtime/runtime-manifest.json",
-      "url": "/ucsbxrp/course/commissioning/releases/66/files/runtime/runtime-manifest.json",
+      "path": "course/commissioning/releases/69/files/runtime/runtime-manifest.json",
+      "url": "/ucsbxrp/course/commissioning/releases/69/files/runtime/runtime-manifest.json",
       "bytes": 8300,
-      "sha256": "68511f9e56fdbfa32eb8f34fe1663e4b93881289e32bb902181b13f5b832dd6e"
+      "sha256": "5293857d1fb978fbf7126b9211216b1227631f7549f2b50cb7be5e5bbb949e38"
     },
     {
-      "path": "course/commissioning/releases/66/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
+      "path": "course/commissioning/releases/69/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware/sha256/8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a/UCSBXRP_SPARKFUN_XRP_CONTROLLER-20260930-v1.29.0-gcsync1.uf2",
       "bytes": 1789952,
       "sha256": "8512b307d1043bccd9fbff7a5cc203d2c68451a6673b51126e3e4996556d177a"
     },
     {
-      "path": "course/commissioning/releases/66/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
+      "path": "course/commissioning/releases/69/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware/sha256/f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d/nuke_universal.uf2",
       "bytes": 114688,
       "sha256": "f3c3b6a62d2d7e944f336bc2ec73393f00adfbb56b6fa7440ba7ee3d5ad5b49d"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
-      "bytes": 11520,
-      "sha256": "d0a38a93c3975f3d547048ce334746e61492de48b2d488bbf958d0199fb52b3d"
+      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/BUILD_PROVENANCE.md",
+      "bytes": 11387,
+      "sha256": "d00d4a30303933d4d13703dcaedcb49e5458bcd338338ebe5f3b24d4bfa2026e"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
-      "bytes": 3628,
-      "sha256": "91dd3267c221536788c0630349da894f3c9d8ddb7bd9101ae425c92cd70ac6a1"
+      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/HISTORICAL_DIAGNOSTIC.md",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/HISTORICAL_DIAGNOSTIC.md",
+      "bytes": 1991,
+      "sha256": "0167e8b00341d41d2ea8cea852c902dbf56fedf317090a309453b1c89ef74bca"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
+      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/NATIVE_QUALIFICATION.json",
+      "bytes": 3526,
+      "sha256": "cf815a3c67d6710987c61d73cb67ae33afc368ab6f0c93d062fa17377e0c032b"
+    },
+    {
+      "path": "course/commissioning/releases/69/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/docs/firmware/UPSTREAM_NOTICES.md",
       "bytes": 5032,
       "sha256": "0e4e9ffc26835bb71acf749820ae94e27ecbbd2770505d309b2c45437bf50dce"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/index.html",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/index.html",
-      "bytes": 4823,
-      "sha256": "5bd0efbffddb95132283861d6fdb28933abd37a6d0337f96d9b203b273bfe80f"
+      "path": "course/commissioning/releases/69/firmware-source/index.html",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/index.html",
+      "bytes": 4938,
+      "sha256": "3228846d06479925f929dea7e45614872c9308bb3153601fb69d656fe8c33162"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/scripts/firmware/build.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/scripts/firmware/build.py",
+      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/build.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/build.py",
       "bytes": 18333,
       "sha256": "83293d953bfc926355ec82c26ce3f8e2df64b6dce76aecb1dd1199837ff2c5a3"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/scripts/firmware/compiler-compat.cmake",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/scripts/firmware/compiler-compat.cmake",
+      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/compiler-compat.cmake",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/compiler-compat.cmake",
       "bytes": 514,
       "sha256": "3c0602b0f45ef2fc897c52f5faff4e2ad9409cb55b6355e57c618e3e194af326"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/scripts/firmware/gcsync-port.patch",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/scripts/firmware/gcsync-port.patch",
+      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/gcsync-port.patch",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/gcsync-port.patch",
       "bytes": 22157,
       "sha256": "a100318739c5d9eeaa7365d8a901b2c38b9ea7e90b5d2689785616cafa62e1ff"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/scripts/firmware/recipe.json",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/scripts/firmware/recipe.json",
-      "bytes": 9855,
-      "sha256": "6e6c6f899da86055f2118dc31fa4eddf06a3dc7e94de09add79ea57b0f96e213"
+      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/recipe.json",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/recipe.json",
+      "bytes": 9720,
+      "sha256": "2483aef85a4f4ce4e6ba129dd52d8f45a26ba7abddaa72d667ef93071730a61d"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/scripts/firmware/test_build.py",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/scripts/firmware/test_build.py",
+      "path": "course/commissioning/releases/69/firmware-source/scripts/firmware/test_build.py",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/scripts/firmware/test_build.py",
       "bytes": 8624,
       "sha256": "5ebd27dc263a0f47a24fcd385bf4b920899ac538a954745c55ebcb51fb423651"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/current/firmware/README.md",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/current/firmware/README.md",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/current/firmware/README.md",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/current/firmware/README.md",
       "bytes": 7203,
       "sha256": "a92dff820a40e7032a66b08fd74acb3d8108646b15dc70872b86a080cfdcaddb"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/current/release.json",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/current/release.json",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/current/release.json",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/current/release.json",
       "bytes": 5396,
-      "sha256": "daee146f1f75d16b78424470d29177e5f44b9c00950f57c07d2a9f06f8328991"
+      "sha256": "0aae011124663740708c0b1958b7c8db34e13c1b40ef8fca54f3e7478b60ade2"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/MicroPython-v1.29.0-LICENSE.txt",
       "bytes": 3419,
       "sha256": "80d3459978572b5bbb1dd274a98b01a625aeff467588ad69cefdf7eb607c1306"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/Pico-SDK-BSD-3-Clause-LICENSE.txt",
       "bytes": 1489,
       "sha256": "483f865953435b66c443dee7558debe3cc3cf8fcbb6a112fd9fc6a795d53f1f6"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/README.md",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/README.md",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/README.md",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/README.md",
       "bytes": 1967,
       "sha256": "86eb0e6bec89e7b4afd95c028f6afb5283dc107fe61b93c022e3e17c5f6b6378"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/btstack/LICENSE",
       "bytes": 1721,
       "sha256": "10aa5f952979a9fa2f58bf63c1390c9795b41f8eca405ab975ab926e4d14fc5a"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE",
       "bytes": 1654,
       "sha256": "0ce42360898b7c3f168317b559d4783b55c892751580c2a12c76b548aa5858fb"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/LICENSE.RP",
       "bytes": 1789,
       "sha256": "67aca4f10d9edf489871f64cd8f0dcd6c5df3e4ce75bd39e1914fc54f99e40b3"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/cyw43-driver/firmware/README.md",
       "bytes": 1367,
       "sha256": "ef8f2117d35be65bc7153877cfca827f08ed7110c8b6b7efc058ae4c8489fb0b"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/lwip/COPYING",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/lwip/COPYING",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/lwip/COPYING",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/lwip/COPYING",
       "bytes": 1425,
       "sha256": "ef4aac92e05e87cd1cdc140870ed52206ba03d4a7fe46c1e11d7ffa6c87d252b"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/manifest.json",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/manifest.json",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/manifest.json",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/manifest.json",
       "bytes": 3786,
       "sha256": "8f2c19331cc777c82d59b316134d0454f32f8996bdc93037ae11ece0cba930d7"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/mbedtls/LICENSE",
       "bytes": 29852,
       "sha256": "9b405ef4c89342f5eae1dd828882f931747f71001cfba7d114801039b52ad09b"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/micropython-lib/LICENSE",
       "bytes": 14363,
       "sha256": "a38cf48836aa313254cdcf3de9fb7c24da4a2eab75ead2cc0cecd998336e7800"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/LICENSE.TXT",
       "bytes": 1489,
       "sha256": "483f865953435b66c443dee7558debe3cc3cf8fcbb6a112fd9fc6a795d53f1f6"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/cmsis/stub/CMSIS/LICENSE.txt",
       "bytes": 11357,
       "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_btstack/LICENSE.RP",
       "bytes": 2281,
       "sha256": "3b9280bbfedf57d9f7793d2f9af7beb5d5c45f16b587fa3c3568aaedd16fedf4"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/pico-sdk/src/rp2_common/pico_printf/LICENSE",
       "bytes": 1080,
       "sha256": "3fd3a80a06465d0b4affa1d1a16e18a8d2ef42a52eb52060109ae12f1f878f72"
     },
     {
-      "path": "course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
-      "url": "/ucsbxrp/course/commissioning/releases/66/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
+      "path": "course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
+      "url": "/ucsbxrp/course/commissioning/releases/69/firmware-source/vendor/licenses/firmware/tinyusb/LICENSE",
       "bytes": 1094,
       "sha256": "f878d62e47e693ea64160218edb1b9b4755f4839a3179e5bef4a6b0359399431"
     },
     {
-      "path": "course/commissioning/releases/66/manifest.json",
-      "url": "/ucsbxrp/course/commissioning/releases/66/manifest.json",
-      "bytes": 28081,
-      "sha256": "3dc6703164934c1b739776521ee3e6644605c93e656b721aeaf319db2eaa9562"
+      "path": "course/commissioning/releases/69/manifest.json",
+      "url": "/ucsbxrp/course/commissioning/releases/69/manifest.json",
+      "bytes": 28339,
+      "sha256": "ea87daf83a4acb49c12fc903da157ceb5b22fec98e8bb459a89b7b5bd24662ef"
     },
     {
       "path": "course/current/examples/README.md",
@@ -1067,8 +1073,8 @@
     {
       "path": "course/current/project_catalog.json",
       "url": "/ucsbxrp/course/current/project_catalog.json",
-      "bytes": 26604,
-      "sha256": "f0c77eac9f405fa7551df8ec2c7e1f0fc45e871c1b5035caf193eada2c371cc0"
+      "bytes": 15819,
+      "sha256": "ee622649cd80ec63618c9055a81be3aaed61757eb1967bea09fe9ae2ad158606"
     },
     {
       "path": "course/current/reference_mpy/ucsb_xrp_reference/__init__.mpy",
@@ -1121,1104 +1127,480 @@
     {
       "path": "course/current/reference_mpy/ucsb_xrp_reference/challenge_9.mpy",
       "url": "/ucsbxrp/course/current/reference_mpy/ucsb_xrp_reference/challenge_9.mpy",
-      "bytes": 1538,
-      "sha256": "10a49aef1eb266729e044daa624ed628c6c97f7484d75bfd374b18a367deb2c1"
+      "bytes": 1621,
+      "sha256": "40a7e819f7d4b8f08660c10ae9bd6ce004f2407efb0aab4053b9d3380ed38f14"
     },
     {
       "path": "course/current/release.json",
       "url": "/ucsbxrp/course/current/release.json",
       "bytes": 5396,
-      "sha256": "daee146f1f75d16b78424470d29177e5f44b9c00950f57c07d2a9f06f8328991"
+      "sha256": "0aae011124663740708c0b1958b7c8db34e13c1b40ef8fca54f3e7478b60ade2"
     },
     {
-      "path": "course/current/starters/challenge_1/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/README.md",
-      "bytes": 5445,
-      "sha256": "a6217ec9c1eaf7769cb7da7ac78d7c9f3ca23e03442c0892753798be2d689c86"
-    },
-    {
-      "path": "course/current/starters/challenge_1/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/challenge.py",
-      "bytes": 586,
-      "sha256": "d2e3a8d724611fa63e34e612d047cb0ef351c3ace6f6df81101a3a74ce9b40cc"
-    },
-    {
-      "path": "course/current/starters/challenge_1/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/component_checks.py",
-      "bytes": 645,
-      "sha256": "3ed7750ee665061a4fe13530ae4be053e54cd9e5d8e75d5bd77e2a41aad4ebd2"
-    },
-    {
-      "path": "course/current/starters/challenge_1/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/main.py",
-      "bytes": 2750,
-      "sha256": "21c0fa288b4be32ddd70c8d6c4dd562dcab127d59508e27c4418552e06035991"
-    },
-    {
-      "path": "course/current/starters/challenge_1/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/robot_setup.py",
-      "bytes": 3360,
-      "sha256": "cdf51172ce10af8887c13939667526467f10749499e5eefff42040254de1580e"
-    },
-    {
-      "path": "course/current/starters/challenge_1/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_1/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_1/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_1/world.json",
-      "bytes": 718,
-      "sha256": "cc7fe7a22a118543c1f1c32dac5c7877c8877b5249b1add5b19b6fb88e02329c"
-    },
-    {
-      "path": "course/current/starters/challenge_2/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/README.md",
-      "bytes": 5121,
-      "sha256": "6ac0b3ecddaaa7682b58c777e875ba02ef43e5cd49a89a4dbf2f6d0f30698042"
-    },
-    {
-      "path": "course/current/starters/challenge_2/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/challenge.py",
-      "bytes": 832,
-      "sha256": "ff5bb86fe4eb747c2277b01ec4f79cbf653bd8cbfe3c95f4500da1c676c00405"
-    },
-    {
-      "path": "course/current/starters/challenge_2/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/component_checks.py",
-      "bytes": 772,
-      "sha256": "cc569d0f80afa42a10d54cb5754b7a365d7cfddbf7d104094b879f0a97f9c0de"
-    },
-    {
-      "path": "course/current/starters/challenge_2/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_2/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/main.py",
-      "bytes": 3657,
-      "sha256": "ccfd0ed1951339ca19e75b062b5b92267703d0ffe189640d1440a71d693a7d97"
-    },
-    {
-      "path": "course/current/starters/challenge_2/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_2/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/robot_setup.py",
-      "bytes": 3819,
-      "sha256": "9713e3d1ebdd6474cab7b2ddc8030d767cd54209ea2f9a08162e8e67cbe6ab9d"
-    },
-    {
-      "path": "course/current/starters/challenge_2/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_2/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_2/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_2/world.json",
-      "bytes": 809,
-      "sha256": "750cd82c82fa8c2ea0439a541d0d8f890800ce23d39204920a78870b92358a32"
-    },
-    {
-      "path": "course/current/starters/challenge_3/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/README.md",
-      "bytes": 5309,
-      "sha256": "f1d8c0f182a8e750b7e5d1e740fb6438bf8b78bda62ac922a985f1ff18fa8d4b"
-    },
-    {
-      "path": "course/current/starters/challenge_3/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/challenge.py",
-      "bytes": 256,
-      "sha256": "954a726067c0a1d4abdcbc3f89634aecdc9b24185c9596a6ba8b86c0197d78f2"
-    },
-    {
-      "path": "course/current/starters/challenge_3/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/component_checks.py",
-      "bytes": 853,
-      "sha256": "4ade98b1bade26ee119aabab16f0bdcce060c0f1a7846910b30e4e39bbcf9ea5"
-    },
-    {
-      "path": "course/current/starters/challenge_3/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_3/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/main.py",
-      "bytes": 2212,
-      "sha256": "a14aa14adfc79ad2174a300939a9f75b4b682ab3f41f8cba3faa6b32be2668eb"
-    },
-    {
-      "path": "course/current/starters/challenge_3/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/navigation_controller.py",
-      "bytes": 2905,
-      "sha256": "3e430530da157da97db13a98f625a8af8cead200f5ddc8962d54096775dfee1e"
-    },
-    {
-      "path": "course/current/starters/challenge_3/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_3/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/robot_setup.py",
-      "bytes": 4259,
-      "sha256": "54bff125d0b0194d1ee9597589473670edd342280a3dee6d8c7838ace3c3997d"
-    },
-    {
-      "path": "course/current/starters/challenge_3/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_3/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_3/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_3/world.json",
-      "bytes": 1087,
-      "sha256": "45b35ab49d005fcde4c2b34d68387a8a45ddc1fa30d459f8a528a965483b1c98"
-    },
-    {
-      "path": "course/current/starters/challenge_4/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/README.md",
-      "bytes": 5790,
-      "sha256": "ffdddf58dc36cdbfc480b9619650384e67f324e2d504e5bc220c67bceb64e2c5"
-    },
-    {
-      "path": "course/current/starters/challenge_4/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/challenge.py",
-      "bytes": 574,
-      "sha256": "04e4dd83ca46239dbb720f00645bdd08aa8b0b536adecf011d0853cab7e90031"
-    },
-    {
-      "path": "course/current/starters/challenge_4/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/component_checks.py",
-      "bytes": 907,
-      "sha256": "85ba71b3f0b8afad5fbff6ccdb9ef628113bdc3a6e98b57e71c0db7dc4fbb185"
-    },
-    {
-      "path": "course/current/starters/challenge_4/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_4/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/grid_planner.py",
-      "bytes": 1072,
-      "sha256": "ea9ae47ef16c9647de008fc13c5809d46ea16b08059d8ee9c04e21da638e2727"
-    },
-    {
-      "path": "course/current/starters/challenge_4/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/main.py",
-      "bytes": 3386,
-      "sha256": "314a5d10141c883614a7c1fad6d34d01ef312e4739032667c7b60e8ed7a0780f"
-    },
-    {
-      "path": "course/current/starters/challenge_4/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/navigation_controller.py",
-      "bytes": 2905,
-      "sha256": "3e430530da157da97db13a98f625a8af8cead200f5ddc8962d54096775dfee1e"
-    },
-    {
-      "path": "course/current/starters/challenge_4/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_4/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/robot_setup.py",
-      "bytes": 4588,
-      "sha256": "df8dbcd95984ee36038e9d62518bc92f437e17c5c986a6b62effa6d172769465"
-    },
-    {
-      "path": "course/current/starters/challenge_4/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_4/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_4/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_4/world.json",
-      "bytes": 2941,
-      "sha256": "291fee042b1e717c3c788ae891dc7fa09f2b1f870699b833de6d02a21f0bddb3"
-    },
-    {
-      "path": "course/current/starters/challenge_5/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/README.md",
-      "bytes": 5894,
-      "sha256": "c657c3c6bdd62fc993497635118551f9d417952c643caef7716081e8d155b5b8"
-    },
-    {
-      "path": "course/current/starters/challenge_5/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/challenge.py",
-      "bytes": 1422,
-      "sha256": "f9c6f63b99b94e32e47f91289355d58682fcc97bbb12ef0b0d79448f11d97592"
-    },
-    {
-      "path": "course/current/starters/challenge_5/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/component_checks.py",
-      "bytes": 957,
-      "sha256": "fbb8257a69ba7a2bfbf4cd59dcbe630e0419ac9da7a7db165973fe4527055036"
-    },
-    {
-      "path": "course/current/starters/challenge_5/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_5/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/grid_planner.py",
-      "bytes": 1072,
-      "sha256": "ea9ae47ef16c9647de008fc13c5809d46ea16b08059d8ee9c04e21da638e2727"
-    },
-    {
-      "path": "course/current/starters/challenge_5/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/main.py",
-      "bytes": 1627,
-      "sha256": "ab4a174fd1a7a1375ad91e0725c670886787a74e3b0c488db839d5502919bf80"
-    },
-    {
-      "path": "course/current/starters/challenge_5/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/navigation_controller.py",
-      "bytes": 2905,
-      "sha256": "3e430530da157da97db13a98f625a8af8cead200f5ddc8962d54096775dfee1e"
-    },
-    {
-      "path": "course/current/starters/challenge_5/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_5/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/robot_setup.py",
-      "bytes": 4588,
-      "sha256": "df8dbcd95984ee36038e9d62518bc92f437e17c5c986a6b62effa6d172769465"
-    },
-    {
-      "path": "course/current/starters/challenge_5/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_5/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_5/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_5/world.json",
-      "bytes": 2526,
-      "sha256": "629423b81dbaac43a0d5ed9052c5063bbfe1c991a27decfd5157bc22a34c0d34"
-    },
-    {
-      "path": "course/current/starters/challenge_6/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/README.md",
-      "bytes": 5765,
-      "sha256": "cf734cb25902c0e1b5d2f6abefed336fc9cbfc9792fee61937c820156af62ce4"
-    },
-    {
-      "path": "course/current/starters/challenge_6/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/challenge.py",
-      "bytes": 1562,
-      "sha256": "dbc420468dd02fe1772d34000fe3753407ad7be72ba9a4bc8f96ecf380912f00"
-    },
-    {
-      "path": "course/current/starters/challenge_6/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/component_checks.py",
-      "bytes": 763,
-      "sha256": "6354cf04645713354094731a738d23b8c33e1f679a067d1f66ca18a80f8c245e"
-    },
-    {
-      "path": "course/current/starters/challenge_6/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_6/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/grid_planner.py",
-      "bytes": 1072,
-      "sha256": "ea9ae47ef16c9647de008fc13c5809d46ea16b08059d8ee9c04e21da638e2727"
-    },
-    {
-      "path": "course/current/starters/challenge_6/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/live_variables.py",
-      "bytes": 811,
-      "sha256": "2f6f2a062fae5a5fb42f8bc9665c1c37b0e7c48cf375296d89ea4ff3c374ccda"
-    },
-    {
-      "path": "course/current/starters/challenge_6/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/main.py",
-      "bytes": 5591,
-      "sha256": "097a1ecd40ba74dc4b49697b8e805222d6ee6fbce0a1934f2b9c29cc213bb9c5"
-    },
-    {
-      "path": "course/current/starters/challenge_6/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/navigation_controller.py",
-      "bytes": 2905,
-      "sha256": "3e430530da157da97db13a98f625a8af8cead200f5ddc8962d54096775dfee1e"
-    },
-    {
-      "path": "course/current/starters/challenge_6/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_6/range_safety_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/range_safety_controller.py",
-      "bytes": 1184,
-      "sha256": "880696a2082cdf0826c9258318fd6e412c1446ed9c0ada01babf2fae87cce7de"
-    },
-    {
-      "path": "course/current/starters/challenge_6/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/robot_setup.py",
-      "bytes": 5049,
-      "sha256": "5a563bd1c1ef6faf5158904d0eca83dbecd25801df4ba3180265302270332f63"
-    },
-    {
-      "path": "course/current/starters/challenge_6/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_6/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_6/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_6/world.json",
-      "bytes": 2901,
-      "sha256": "4a672355d533452137a12c2e4126d630cf02e8c6fe782f06b40e2b82ca692ae3"
-    },
-    {
-      "path": "course/current/starters/challenge_7/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/README.md",
-      "bytes": 4842,
-      "sha256": "cc15d0395405df45ffd489fcbfa39b86bb4180be007e46b71e67a6ce2fada840"
-    },
-    {
-      "path": "course/current/starters/challenge_7/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/challenge.py",
-      "bytes": 1687,
-      "sha256": "fd08ca7f725d6b778d3b5f97fdfbe5babc90cd3b5880e485b6f011b75fd8c2fa"
-    },
-    {
-      "path": "course/current/starters/challenge_7/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/component_checks.py",
-      "bytes": 712,
-      "sha256": "396eadfc8b5084ca4364166ed566940de77d010a83e0fd861bbe66b5eb4b1a13"
-    },
-    {
-      "path": "course/current/starters/challenge_7/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_7/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/grid_planner.py",
-      "bytes": 1072,
-      "sha256": "ea9ae47ef16c9647de008fc13c5809d46ea16b08059d8ee9c04e21da638e2727"
-    },
-    {
-      "path": "course/current/starters/challenge_7/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/main.py",
-      "bytes": 5462,
-      "sha256": "e57c47bb34ce352375780a0146afb6d627f866be277d58cd294294f2a67aace2"
-    },
-    {
-      "path": "course/current/starters/challenge_7/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/navigation_controller.py",
-      "bytes": 2905,
-      "sha256": "3e430530da157da97db13a98f625a8af8cead200f5ddc8962d54096775dfee1e"
-    },
-    {
-      "path": "course/current/starters/challenge_7/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_7/pose_corrector.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/pose_corrector.py",
-      "bytes": 2500,
-      "sha256": "ae346b75227a58cd282cb40e88b1cbc3dc8a6056f9bdd425903cb3306d6b71a3"
-    },
-    {
-      "path": "course/current/starters/challenge_7/range_safety_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/range_safety_controller.py",
-      "bytes": 1184,
-      "sha256": "880696a2082cdf0826c9258318fd6e412c1446ed9c0ada01babf2fae87cce7de"
-    },
-    {
-      "path": "course/current/starters/challenge_7/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/robot_setup.py",
-      "bytes": 5444,
-      "sha256": "5dd688d4839ba41607adca641028acf32b9025261b93c010fa84b91fb3137d8d"
-    },
-    {
-      "path": "course/current/starters/challenge_7/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_7/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_7/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_7/world.json",
-      "bytes": 2682,
-      "sha256": "9ae958c84413f020577b8cf7e6d32b028b3905092e0b4795e4441c9633b1cbfc"
-    },
-    {
-      "path": "course/current/starters/challenge_8/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/README.md",
-      "bytes": 3665,
-      "sha256": "66df869aeba7cad55aa7402089434577deeb9601fb3b84f28ebea1b3485b6f66"
-    },
-    {
-      "path": "course/current/starters/challenge_8/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/challenge.py",
-      "bytes": 1005,
-      "sha256": "0f9bd7d71ec86010580f9d80763e9171134dafc013741d7a92a9277b1c03484c"
-    },
-    {
-      "path": "course/current/starters/challenge_8/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/component_checks.py",
-      "bytes": 739,
-      "sha256": "478e9ae1dbc2277fd80394612c69bb87f35aa63ed783627b64fbb57e9b6e3764"
-    },
-    {
-      "path": "course/current/starters/challenge_8/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
-    },
-    {
-      "path": "course/current/starters/challenge_8/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/grid_planner.py",
-      "bytes": 1072,
-      "sha256": "ea9ae47ef16c9647de008fc13c5809d46ea16b08059d8ee9c04e21da638e2727"
-    },
-    {
-      "path": "course/current/starters/challenge_8/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/main.py",
-      "bytes": 5012,
-      "sha256": "ec8cf3577341eec7c90dff04c113e16c7ff42450e8612f192ed9be8312be9d96"
-    },
-    {
-      "path": "course/current/starters/challenge_8/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/navigation_controller.py",
-      "bytes": 2905,
-      "sha256": "3e430530da157da97db13a98f625a8af8cead200f5ddc8962d54096775dfee1e"
-    },
-    {
-      "path": "course/current/starters/challenge_8/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/odometry.py",
-      "bytes": 1751,
-      "sha256": "808dc7726127403d79af26005dfc3d520d8e594570eed20d28ae282966ac005c"
-    },
-    {
-      "path": "course/current/starters/challenge_8/pose_corrector.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/pose_corrector.py",
-      "bytes": 2500,
-      "sha256": "ae346b75227a58cd282cb40e88b1cbc3dc8a6056f9bdd425903cb3306d6b71a3"
-    },
-    {
-      "path": "course/current/starters/challenge_8/range_safety_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/range_safety_controller.py",
-      "bytes": 1184,
-      "sha256": "880696a2082cdf0826c9258318fd6e412c1446ed9c0ada01babf2fae87cce7de"
-    },
-    {
-      "path": "course/current/starters/challenge_8/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/robot_setup.py",
-      "bytes": 6045,
-      "sha256": "17659076f4189c6ede92f212f62d54a3f832c8508ca20774603a6b7df3936baf"
-    },
-    {
-      "path": "course/current/starters/challenge_8/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/sensor_processor.py",
-      "bytes": 2136,
-      "sha256": "4dab2b02b8d88c66f9fc7252bb158683127ddb8864da705aa6a2a9b6693c2406"
-    },
-    {
-      "path": "course/current/starters/challenge_8/visit_order_planner.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/visit_order_planner.py",
-      "bytes": 1079,
-      "sha256": "c269eaefa9c42826e7b64e2536d8fe3c0507509398fb4a9b4252090bf202d8cc"
-    },
-    {
-      "path": "course/current/starters/challenge_8/wheel_speed_controller.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/wheel_speed_controller.py",
-      "bytes": 1271,
-      "sha256": "4ee56e49b4bedd7cdbcedb11b2a9da59b76837b8f03c45407803f524e7a6b1e0"
-    },
-    {
-      "path": "course/current/starters/challenge_8/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_8/world.json",
-      "bytes": 2766,
-      "sha256": "c93171ee99979631d5a83f65ccbe31337f64361a84a2e381c76a7c7cdbe9a2a7"
-    },
-    {
-      "path": "course/current/starters/challenge_9/README.md",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/README.md",
-      "bytes": 4379,
-      "sha256": "7a2da1bb4c784bd4097d81decbdc7701b227f162884a767886c8cc8c1c6beec5"
-    },
-    {
-      "path": "course/current/starters/challenge_9/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/challenge.py",
-      "bytes": 169,
-      "sha256": "a57b67d3a962214ad6f2d367c41ff733f5608108fc001d90888a081289404659"
-    },
-    {
-      "path": "course/current/starters/challenge_9/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/component_checks.py",
-      "bytes": 287,
-      "sha256": "e17fb3d3d3ab4cc897b88f1a133738790ba6b7963b4e589da861e8204d91f366"
-    },
-    {
-      "path": "course/current/starters/challenge_9/lap_progress.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/lap_progress.py",
-      "bytes": 1657,
-      "sha256": "4aa7ad94ebb991914597d9437b04c7540ce8d4ca52e6ba410c9f8e231f0f9e29"
-    },
-    {
-      "path": "course/current/starters/challenge_9/line_follower.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/line_follower.py",
-      "bytes": 700,
-      "sha256": "ecb181bca8a5e1b39e1623c153cffa3fb6165ab57a9e6d90d12063d2e7c3ebc5"
-    },
-    {
-      "path": "course/current/starters/challenge_9/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/live_variables.py",
-      "bytes": 884,
-      "sha256": "b883ffd844093ac1807d69e87b521f309a8841115fdd726d4a7332f0d4cdaba8"
-    },
-    {
-      "path": "course/current/starters/challenge_9/main.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/main.py",
-      "bytes": 2693,
-      "sha256": "8742f0b11b120f8eb62ed27ee1a1115d8c53420be892bdcd6cabe3416e3c74d8"
-    },
-    {
-      "path": "course/current/starters/challenge_9/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/robot_setup.py",
-      "bytes": 3393,
-      "sha256": "678f3c1e0c99cae319e4607dffefd79141a848028fde4781aff3440d4d88e603"
-    },
-    {
-      "path": "course/current/starters/challenge_9/world.json",
-      "url": "/ucsbxrp/course/current/starters/challenge_9/world.json",
-      "bytes": 1619,
-      "sha256": "d81e1390dd65f511d027b45b6ea46e621bcac601b071a6e55b7cd7d257ca658d"
-    },
-    {
-      "path": "course/current/starters/new_challenge_1_robot_curling/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/README.md",
+      "path": "course/current/starters/challenge_1_robot_curling/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/README.md",
       "bytes": 25531,
       "sha256": "84f4b1f28e0502a65d9675430ce0a925a1786242c2eb069046a7870b2f0bd3a2"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/challenge.py",
+      "path": "course/current/starters/challenge_1_robot_curling/challenge.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/challenge.py",
       "bytes": 915,
       "sha256": "e0d3f44e1a34fc5a4cb7ef82244866ae36adbb420676da78aea84386218e660d"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/component_checks.py",
+      "path": "course/current/starters/challenge_1_robot_curling/component_checks.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/component_checks.py",
       "bytes": 759,
       "sha256": "c41c7f0cba9aafe099c8239c9927aaff09e4142babda4c9ff7f456715de3ed45"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/live_variables.py",
+      "path": "course/current/starters/challenge_1_robot_curling/live_variables.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/live_variables.py",
       "bytes": 2005,
       "sha256": "4f430c54655ecf1c5a1f4f7f15b61406936c51aba1bdcb0461eb7585785f4d82"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/main.py",
+      "path": "course/current/starters/challenge_1_robot_curling/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/main.py",
       "bytes": 3201,
       "sha256": "fa14ae8c0292d9df823b004620242bfdcf7545474206bb176b7360b4399a6384"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/motion_timer.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/motion_timer.py",
+      "path": "course/current/starters/challenge_1_robot_curling/motion_timer.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/motion_timer.py",
       "bytes": 1791,
       "sha256": "cc7b7661ddaae9f1f5ab13a6347a643cda63630dd855d4fdf8889b1b1d185503"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/robot_setup.py",
+      "path": "course/current/starters/challenge_1_robot_curling/robot_setup.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/robot_setup.py",
       "bytes": 2229,
       "sha256": "7e0177ebc7680db94183f1083c18266aa53ec88d1424646baa3c0ab7bdfca61c"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/sensor_processor.py",
+      "path": "course/current/starters/challenge_1_robot_curling/sensor_processor.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/sensor_processor.py",
       "bytes": 2296,
       "sha256": "c61c1e4c9bca5417ddde24c30837e1f63a40aadfe931e1d8006f45e41a378fd9"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/stopping_controller.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/stopping_controller.py",
+      "path": "course/current/starters/challenge_1_robot_curling/stopping_controller.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/stopping_controller.py",
       "bytes": 1390,
       "sha256": "ac758d68d5e56690fb515745b71e3ccc864a65b33e826729ed966fe555fa1e14"
     },
     {
-      "path": "course/current/starters/new_challenge_1_robot_curling/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_1_robot_curling/world.json",
+      "path": "course/current/starters/challenge_1_robot_curling/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_1_robot_curling/world.json",
       "bytes": 760,
       "sha256": "714a3a768b60fe767fd4af0daf613004995c865f417c412cf49295234a59ef24"
     },
     {
-      "path": "course/current/starters/new_challenge_2_1_reflectance/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_1_reflectance/README.md",
+      "path": "course/current/starters/challenge_2_1_reflectance/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_1_reflectance/README.md",
       "bytes": 1349,
       "sha256": "363c57e1837ec824fbf4f721ec15b0bf4d4b066ab7fb8d138274c406a7346b60"
     },
     {
-      "path": "course/current/starters/new_challenge_2_1_reflectance/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_1_reflectance/main.py",
-      "bytes": 1602,
-      "sha256": "b605c6079f7986aae9747973bb7442b2ca570a66eaf7a39c42c4ae8bfa2bfa9d"
+      "path": "course/current/starters/challenge_2_1_reflectance/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_1_reflectance/main.py",
+      "bytes": 1243,
+      "sha256": "1f8dc070aef28bf5c29ff6af012bc76cca4cb8e0b6723c0f5cc020fedac350d7"
     },
     {
-      "path": "course/current/starters/new_challenge_2_1_reflectance/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_1_reflectance/world.json",
+      "path": "course/current/starters/challenge_2_1_reflectance/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_1_reflectance/world.json",
       "bytes": 1604,
       "sha256": "412a2457e85ba3a9062bd406e03b8f148989684fbb018574864af3e0a9486963"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/README.md",
+      "path": "course/current/starters/challenge_2_2_circular_driving/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/README.md",
       "bytes": 4254,
       "sha256": "1f707a48dcb1afc7c81ca225936d3d6b250685d80d76357bc2e257e607d24ba2"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/challenge.py",
-      "bytes": 1000,
-      "sha256": "62f5d403412ce30879eb6cf8544003b69ae345f11b30fe37d4b37cbd4e6c6690"
+      "path": "course/current/starters/challenge_2_2_circular_driving/challenge.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/challenge.py",
+      "bytes": 941,
+      "sha256": "69dfac87f9f77f0454e977718a1200c719f4e275123c63decda0beab18f624d5"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/component_checks.py",
+      "path": "course/current/starters/challenge_2_2_circular_driving/component_checks.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/component_checks.py",
       "bytes": 363,
       "sha256": "a954323e1b295846ce6c7a169321a6fcdc1dd81f5ce2d7336cfa7c80590f5812"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/differential_drive.py",
-      "bytes": 686,
-      "sha256": "77244f53d60e6dae884da8e6f487ca2cfdca51a856142237a31404ebf7c8fc24"
+      "path": "course/current/starters/challenge_2_2_circular_driving/differential_drive.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/differential_drive.py",
+      "bytes": 721,
+      "sha256": "282e95de6d230974f5ff144db5c7ad1e43d99fc462e6b679419838b0b9fec4bf"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/main.py",
-      "bytes": 1367,
-      "sha256": "94c4bc12440a743321eb131806505a926ae1ca24fa1e953ff19b4c6fb8f70472"
+      "path": "course/current/starters/challenge_2_2_circular_driving/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/main.py",
+      "bytes": 1063,
+      "sha256": "1f9b493addc963d334995e1dd85cfeeaa8a01073f7419da9939ecb0af3aaa3d0"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/robot_setup.py",
-      "bytes": 3005,
-      "sha256": "27ebfcff3660cd5980789fb92f44bd3c3da199e913d935108f0f15f1d4c72a9a"
+      "path": "course/current/starters/challenge_2_2_circular_driving/robot_setup.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/robot_setup.py",
+      "bytes": 2657,
+      "sha256": "5c13900a70456e27a33d411ccf3bcb29853fc2a93cc18b0a7b9e9bd20195f652"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/sensor_processor.py",
-      "bytes": 913,
-      "sha256": "1869b4b09ef1282fafc9720e9a2bbe6cdd6322cbf4a4a2d0c5549899f1fb9206"
+      "path": "course/current/starters/challenge_2_2_circular_driving/sensor_processor.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/sensor_processor.py",
+      "bytes": 1209,
+      "sha256": "451f11816885de294812eb91fb897ff816ae6935a51113286b96a2fff4f68103"
     },
     {
-      "path": "course/current/starters/new_challenge_2_2_circular_driving/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_2_circular_driving/world.json",
+      "path": "course/current/starters/challenge_2_2_circular_driving/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_2_circular_driving/world.json",
       "bytes": 385,
       "sha256": "b47e921546c0c0c0fdce5ac7598d09f6a90edca6095b8e29e3fd5e7eb4f770cf"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/README.md",
-      "bytes": 10722,
-      "sha256": "db92af3c007f836d3d7b7bdf231714111712811b97486062e8c886957d92d5c3"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/README.md",
+      "bytes": 16071,
+      "sha256": "fd01f7ce8cb81d2a9142bb1c6ead6cee538010c356f82eed1fb39d0811ec269a"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/challenge.py",
-      "bytes": 332,
-      "sha256": "f12053dd9d6b2f43ed338a2b25a7c2c30f26a52fba2b23cc06b7acb22b32d899"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/challenge.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/challenge.py",
+      "bytes": 329,
+      "sha256": "c89af08279893783048e5726f582bc7d7e2bb916b69f3b59305d4d8eb8f2858c"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/component_checks.py",
+      "path": "course/current/starters/challenge_2_arena_line_circuit/component_checks.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/component_checks.py",
       "bytes": 601,
       "sha256": "95079ca688b3a0cc962fd91ff652c676eb8339de4004d91d80af84944afabf6b"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/differential_drive.py",
-      "bytes": 1118,
-      "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/differential_drive.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/differential_drive.py",
+      "bytes": 700,
+      "sha256": "782f3e165ddb66195aec40a91086738849e2f632b762aada00e5cdfb1b4827d4"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/lap_progress.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/lap_progress.py",
-      "bytes": 1406,
-      "sha256": "45ee8454adb35e24d377770a107d4902bd7394039500069cee737010608dcab9"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/lap_progress.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/lap_progress.py",
+      "bytes": 3284,
+      "sha256": "527cc9952d1c79bf02daaea6a3db27690af4e5120c56276e35669ba151a30f45"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/line_follower.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/line_follower.py",
-      "bytes": 1914,
-      "sha256": "1a2e0ecd193d462982f13e144bfa970f5f3b81fed084b05d2fe0af362f06ee39"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/line_follower.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/line_follower.py",
+      "bytes": 1711,
+      "sha256": "cf882cb916e2cd645f7272a0f5d844c765ca17011e5c28790208a924510a1122"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/live_variables.py",
-      "bytes": 1935,
-      "sha256": "721d4c00fed5d789a8eb7f8df58b5e43504b13b2b88cc2b7ad52f2bdd8c71bf3"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/live_variables.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/live_variables.py",
+      "bytes": 1887,
+      "sha256": "be54119b983c6e51b0e55968925a12d26ca3f6cf927de4cb9f89c3b7ac7ee1b4"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/main.py",
-      "bytes": 2533,
-      "sha256": "5f4b29a32dee6dc80e1a33a880541bb2d4a1ed2434776dba7fe5ca3dff33515a"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/main.py",
+      "bytes": 1834,
+      "sha256": "24c09e8f60f66822f4713057de3e89ce7e1d56cbaebe738bd14d9c58171ea9ff"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/robot_setup.py",
-      "bytes": 2999,
-      "sha256": "9fac4ce362378d0eb6f789b2e7cadf517f4559ddcf9c95bc867abe42231b5876"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/robot_setup.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/robot_setup.py",
+      "bytes": 3043,
+      "sha256": "39ff916547612a5a7aee966bb7ec0b06888c5b7001569d444c5428439ea574bb"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/sensor_processor.py",
-      "bytes": 2296,
-      "sha256": "c61c1e4c9bca5417ddde24c30837e1f63a40aadfe931e1d8006f45e41a378fd9"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/sensor_processor.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/sensor_processor.py",
+      "bytes": 1474,
+      "sha256": "5e2c1ae2f1627647952d1eb59e2dc1578cce392fdf2f86af96d21cf7a47c6da0"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/supplied_settings.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/supplied_settings.py",
-      "bytes": 2322,
-      "sha256": "468c861c6eb05b2db56feeb04a5b573fce526c71e3e96938d1c20fc8c337e8da"
+      "path": "course/current/starters/challenge_2_arena_line_circuit/settings.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/settings.py",
+      "bytes": 2284,
+      "sha256": "da45a5aa9523335edc95c24a2956fd852c4956489461e742345f62bb958fffc8"
     },
     {
-      "path": "course/current/starters/new_challenge_2_arena_line_circuit/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_2_arena_line_circuit/world.json",
+      "path": "course/current/starters/challenge_2_arena_line_circuit/supplied_settings.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/supplied_settings.py",
+      "bytes": 2806,
+      "sha256": "4ee7e9271e842bd2d114e3c85ceb2937d40a00f16f6051fd47cdd8857c79c656"
+    },
+    {
+      "path": "course/current/starters/challenge_2_arena_line_circuit/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_2_arena_line_circuit/world.json",
       "bytes": 49520,
       "sha256": "13911df71564b461e12ce18d782c15ea04ba7fe8569046983b47fc67a0e5f6eb"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/README.md",
+      "path": "course/current/starters/challenge_3_waypoint_courier/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/README.md",
       "bytes": 15763,
       "sha256": "1b0135659b2a71f11563e6545b792bc3322786036191843d60defb8fd1c88ca7"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/challenge.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/challenge.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/challenge.py",
       "bytes": 343,
       "sha256": "d237c5263065e30789c1699fa6c2dde649507899f79813081ba8317e8a4f130e"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/component_checks.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/component_checks.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/component_checks.py",
       "bytes": 770,
       "sha256": "4eb9895412e23fa1891dfbb9df863f00b576872c01a5c62d69d21d6d0603f916"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/differential_drive.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/differential_drive.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/differential_drive.py",
       "bytes": 1118,
       "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/live_variables.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/live_variables.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/live_variables.py",
       "bytes": 1117,
       "sha256": "9867fce8eb77fd27083992fb4fed488e8e4148f2c41a7350ce1bc7f59a0ebe9c"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/main.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/main.py",
       "bytes": 1979,
       "sha256": "c8cc85f1408413cbba15e92e06d9a8ddffa93010820d9bc01d7aab343dc7f0a9"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/navigation_controller.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/navigation_controller.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/navigation_controller.py",
       "bytes": 3302,
       "sha256": "8f037773aa7d3b6c30e2e367671b00936c5460e9647e9d45e897caec1d091f70"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/odometry.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/odometry.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/odometry.py",
       "bytes": 1846,
       "sha256": "0c5d7611261ff187b5520135176e6d2e917f0c033f258e3e1993006e571c8547"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/robot_setup.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/robot_setup.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/robot_setup.py",
       "bytes": 4950,
       "sha256": "15f8e9860375d3b1b60d1063d7657d5b391956dafbd1aa2dddbf77f0e68ef40f"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/route_progress.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/route_progress.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/route_progress.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/route_progress.py",
       "bytes": 1157,
       "sha256": "1d632651f7cd8b94f6cc1c81c485d7287bb5b9366ff611d1209082bd33fd2d40"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/sensor_processor.py",
+      "path": "course/current/starters/challenge_3_waypoint_courier/sensor_processor.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/sensor_processor.py",
       "bytes": 2296,
       "sha256": "c61c1e4c9bca5417ddde24c30837e1f63a40aadfe931e1d8006f45e41a378fd9"
     },
     {
-      "path": "course/current/starters/new_challenge_3_waypoint_courier/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_3_waypoint_courier/world.json",
+      "path": "course/current/starters/challenge_3_waypoint_courier/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_3_waypoint_courier/world.json",
       "bytes": 1126,
       "sha256": "35d31606fb338a74c4c34d3d45646bf8529bd263748c9af054c9f82426ccfec6"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/README.md",
+      "path": "course/current/starters/challenge_4_mapped_route/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/README.md",
       "bytes": 15620,
       "sha256": "a1ab88b22ffcd6e48dc8aac3b8522631a8a9a0cd277e69253b1e05983fcef41c"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/challenge.py",
+      "path": "course/current/starters/challenge_4_mapped_route/challenge.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/challenge.py",
       "bytes": 553,
       "sha256": "bcf4d0afa1d71ab20248adec542a32c963a3f239977b1a4f7ce3ead607f6731c"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/component_checks.py",
+      "path": "course/current/starters/challenge_4_mapped_route/component_checks.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/component_checks.py",
       "bytes": 824,
       "sha256": "8728a4de867388de4758337909e49eee89c0327a47ba85e9ba23027ed6ea0af0"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/differential_drive.py",
+      "path": "course/current/starters/challenge_4_mapped_route/differential_drive.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/differential_drive.py",
       "bytes": 1118,
       "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/grid_display.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/grid_display.py",
+      "path": "course/current/starters/challenge_4_mapped_route/grid_display.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/grid_display.py",
       "bytes": 1648,
       "sha256": "eab29f018383b603d7916cfe0709645ecc9f28770a8d98f8f92838867617d5e7"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/grid_planner.py",
+      "path": "course/current/starters/challenge_4_mapped_route/grid_planner.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/grid_planner.py",
       "bytes": 1082,
       "sha256": "199fbbddafec6d6456315c1caa310534b05e8fdf10b95aa6954090fe1fe60e94"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/live_variables.py",
+      "path": "course/current/starters/challenge_4_mapped_route/live_variables.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/live_variables.py",
       "bytes": 946,
       "sha256": "ed226c85822dd2df5190eaf52c81d69d3f7008aba1e37e8e09307a1046ca0c47"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/main.py",
+      "path": "course/current/starters/challenge_4_mapped_route/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/main.py",
       "bytes": 2233,
       "sha256": "bf83bf2c73afde1e94311053b68c7cdd51ed9136c485f212492b6c1b4a02d14e"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/navigation_controller.py",
+      "path": "course/current/starters/challenge_4_mapped_route/navigation_controller.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/navigation_controller.py",
       "bytes": 3438,
       "sha256": "31dcb773535b9869710937cd2cf3823eb54fffa811812cce85f8a0e088f863a5"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/odometry.py",
+      "path": "course/current/starters/challenge_4_mapped_route/odometry.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/odometry.py",
       "bytes": 1846,
       "sha256": "0c5d7611261ff187b5520135176e6d2e917f0c033f258e3e1993006e571c8547"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/robot_setup.py",
+      "path": "course/current/starters/challenge_4_mapped_route/robot_setup.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/robot_setup.py",
       "bytes": 5252,
       "sha256": "1920707e02287e486c4880a24334c3026b0d902ee75ab6eadd4ff63e56e14f73"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/route_runner.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/route_runner.py",
+      "path": "course/current/starters/challenge_4_mapped_route/route_runner.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/route_runner.py",
       "bytes": 1795,
       "sha256": "42aa3ec6fcced1c4c32682bdae42fa9252bad39ae3cfcdb6aba595f022e22c94"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/route_validation.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/route_validation.py",
+      "path": "course/current/starters/challenge_4_mapped_route/route_validation.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/route_validation.py",
       "bytes": 1436,
       "sha256": "26c901bf69dd4ebeb1f07cc3cc05504cf4e5fc95271fe8840fc84df51cb48d38"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/sensor_processor.py",
+      "path": "course/current/starters/challenge_4_mapped_route/sensor_processor.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/sensor_processor.py",
       "bytes": 2296,
       "sha256": "c61c1e4c9bca5417ddde24c30837e1f63a40aadfe931e1d8006f45e41a378fd9"
     },
     {
-      "path": "course/current/starters/new_challenge_4_mapped_route/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_4_mapped_route/world.json",
+      "path": "course/current/starters/challenge_4_mapped_route/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_4_mapped_route/world.json",
       "bytes": 3028,
       "sha256": "7d8074b87a66a2c113aa567036ca04989e7fef82ba11f60fd6cdb4f9f10f505a"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/README.md",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/README.md",
+      "path": "course/current/starters/challenge_5_out_and_back/README.md",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/README.md",
       "bytes": 18269,
       "sha256": "d2ceb7f9e030de7f5eee80b64ac876377c34ee880fc7c1b576c88f8f8904ef90"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/challenge.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/challenge.py",
+      "path": "course/current/starters/challenge_5_out_and_back/challenge.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/challenge.py",
       "bytes": 1650,
       "sha256": "fd1ab5275d57700b7ec51da0e198e42828db4562e7a9dead0d33641fa5d6c8bd"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/component_checks.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/component_checks.py",
+      "path": "course/current/starters/challenge_5_out_and_back/component_checks.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/component_checks.py",
       "bytes": 874,
       "sha256": "1de19485eb7d18a1f9cadbec84721fdb44f192c0b8ecef6210c781a6bcd330e4"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/differential_drive.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/differential_drive.py",
+      "path": "course/current/starters/challenge_5_out_and_back/differential_drive.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/differential_drive.py",
       "bytes": 1118,
       "sha256": "4974348d43d4c7dbea20916b5265ccad5e64101af8e094ee61404f357a8fdc1a"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/experiment_range_readout.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/experiment_range_readout.py",
+      "path": "course/current/starters/challenge_5_out_and_back/experiment_range_readout.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/experiment_range_readout.py",
       "bytes": 733,
       "sha256": "4c4f64ebe4d60dc962850c837a3abaa49d979af660a08c62470c8070c77404b0"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/grid_planner.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/grid_planner.py",
+      "path": "course/current/starters/challenge_5_out_and_back/grid_planner.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/grid_planner.py",
       "bytes": 1072,
       "sha256": "ea9ae47ef16c9647de008fc13c5809d46ea16b08059d8ee9c04e21da638e2727"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/live_variables.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/live_variables.py",
+      "path": "course/current/starters/challenge_5_out_and_back/live_variables.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/live_variables.py",
       "bytes": 1505,
       "sha256": "2746787731f8e90e12371a055ef1e4267b96bebc126bd6d0fe8e2effea6c9dac"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/main.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/main.py",
+      "path": "course/current/starters/challenge_5_out_and_back/main.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/main.py",
       "bytes": 3310,
       "sha256": "87f6e599918c63802c8c1b9334efa20d89b31592e2b5e910fb35ef37145d4bcb"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/mission_policy.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/mission_policy.py",
+      "path": "course/current/starters/challenge_5_out_and_back/mission_policy.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/mission_policy.py",
       "bytes": 340,
       "sha256": "4e1ab1f1c35a5706658fca57a79900d277aec4831d78b11135abb6cc8811cc10"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/mission_steps.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/mission_steps.py",
+      "path": "course/current/starters/challenge_5_out_and_back/mission_steps.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/mission_steps.py",
       "bytes": 1593,
       "sha256": "b1a4f5f6acf620fdf32d5d4b930a566256a26e0c55e9710d389701e96ef55f49"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/navigation_controller.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/navigation_controller.py",
+      "path": "course/current/starters/challenge_5_out_and_back/navigation_controller.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/navigation_controller.py",
       "bytes": 3438,
       "sha256": "31dcb773535b9869710937cd2cf3823eb54fffa811812cce85f8a0e088f863a5"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/odometry.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/odometry.py",
+      "path": "course/current/starters/challenge_5_out_and_back/odometry.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/odometry.py",
       "bytes": 1846,
       "sha256": "0c5d7611261ff187b5520135176e6d2e917f0c033f258e3e1993006e571c8547"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/return_route.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/return_route.py",
+      "path": "course/current/starters/challenge_5_out_and_back/return_route.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/return_route.py",
       "bytes": 1896,
       "sha256": "a03405b1414691a6749ae330dd6497c12ecd44095e6df18c90a58ff3e2198c9f"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/robot_setup.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/robot_setup.py",
+      "path": "course/current/starters/challenge_5_out_and_back/robot_setup.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/robot_setup.py",
       "bytes": 5252,
       "sha256": "1920707e02287e486c4880a24334c3026b0d902ee75ab6eadd4ff63e56e14f73"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/sensor_processor.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/sensor_processor.py",
+      "path": "course/current/starters/challenge_5_out_and_back/sensor_processor.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/sensor_processor.py",
       "bytes": 2296,
       "sha256": "c61c1e4c9bca5417ddde24c30837e1f63a40aadfe931e1d8006f45e41a378fd9"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/stationary_observation.py",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/stationary_observation.py",
+      "path": "course/current/starters/challenge_5_out_and_back/stationary_observation.py",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/stationary_observation.py",
       "bytes": 1205,
       "sha256": "8ad8abef0ad03a4ec9aa18195874775a61a9282cd8bd8c9c735216b3d25cbbb2"
     },
     {
-      "path": "course/current/starters/new_challenge_5_out_and_back/world.json",
-      "url": "/ucsbxrp/course/current/starters/new_challenge_5_out_and_back/world.json",
+      "path": "course/current/starters/challenge_5_out_and_back/world.json",
+      "url": "/ucsbxrp/course/current/starters/challenge_5_out_and_back/world.json",
       "bytes": 3822,
       "sha256": "007d30a6a077bb4cb431f5e05140d7c7e22057647e56099e86c8c7ea1ec64aa3"
     },
@@ -2861,8 +2243,8 @@
     {
       "path": "course/current/ucsb_xrp/live.py",
       "url": "/ucsbxrp/course/current/ucsb_xrp/live.py",
-      "bytes": 23152,
-      "sha256": "7deaa5fab9658d221f6bf997e6f03219f6baf32565b769d72669dd7fdf66076e"
+      "bytes": 23888,
+      "sha256": "ab8622687d5ca527c2e0cfffe24e7472953cdc44d5558d9eaee9c274095fb488"
     },
     {
       "path": "course/current/ucsb_xrp/maps.py",
@@ -3095,8 +2477,8 @@
     {
       "path": "course-assets/arena-line-circuit.svg",
       "url": "/ucsbxrp/course-assets/arena-line-circuit.svg",
-      "bytes": 3296,
-      "sha256": "916e72c864ea2ac9b37fd50939d046c79c6914e9827ff0643a98611ca5ce9fc7"
+      "bytes": 3316,
+      "sha256": "d6f9b6b8352233acf7ab143e38df51cffbae62a41675cb530d7e844a419ddf6d"
     },
     {
       "path": "course-assets/curling-distance-measurement.svg",
@@ -3121,6 +2503,12 @@
       "url": "/ucsbxrp/course-assets/curling-main-stop.svg",
       "bytes": 2689,
       "sha256": "963d7fbc2a57282dd5aacfdbd1f9e5a247421ea19ca419d962412a6c73023528"
+    },
+    {
+      "path": "course-assets/line-follower-steering.svg",
+      "url": "/ucsbxrp/course-assets/line-follower-steering.svg",
+      "bytes": 2809,
+      "sha256": "d17e6a1c33e02ebe4c10c2ae5c1b8e0d857767466e722bca4e29a590591f8b81"
     },
     {
       "path": "course-assets/mapped-route.svg",
@@ -3180,7 +2568,7 @@
       "path": "guide/index.html",
       "url": "/ucsbxrp/guide/index.html",
       "bytes": 2007,
-      "sha256": "44d6c66bb074bc7634aee856748459398d08b3902c5abfafbf2839089c9c49df"
+      "sha256": "6563e98dc140d74f2e2ceb3ba6187f1a9df1b06bf6ed94ad500577cae98e2802"
     },
     {
       "path": "guide-figures/01-create-project.png",
@@ -3282,127 +2670,127 @@
       "path": "ide/index.html",
       "url": "/ucsbxrp/ide/index.html",
       "bytes": 3439,
-      "sha256": "5953a839ab72aa9cd37d55707f3fca9b077a034b3fd692e1c8f1c4eacf98dc62"
+      "sha256": "991b65ab27924bc85cc2f40e6f746e833b978808e499f7bf07a5fe15b554d74d"
     },
     {
       "path": "index.html",
       "url": "/ucsbxrp/index.html",
       "bytes": 4218,
-      "sha256": "377e4adf704dbe49ed5683925b645173333bec052030fdc3d82b58fcf45d0449"
+      "sha256": "027be6add30061f3d873c3c1ba461b8970ae54192ba6b015e46e50f89120f0ef"
     },
     {
       "path": "instructor/index.html",
       "url": "/ucsbxrp/instructor/index.html",
       "bytes": 1932,
-      "sha256": "5a5bb1766b7d290ff21c66b2eb5a6bbf64691b309b5fc4c199823f2959fc2ebd"
+      "sha256": "edfd6a26e3807d17efe81d6099625478a89156282ccbb3f9e2e39ad81511eb61"
     },
     {
       "path": "instructor/package.enc.json",
       "url": "/ucsbxrp/instructor/package.enc.json",
-      "bytes": 1821047,
-      "sha256": "eb97f0e0c4451f80cba5c9d70a0e1c28b82cea75a90bdab6778e89a4f7ec4920"
+      "bytes": 2271591,
+      "sha256": "271bdf5fec2fab03482f965bb3854b03841e714a702a48acf882ec1a3b48bb87"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/01_robot_curling-activity.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/01_robot_curling.html",
       "url": "/ucsbxrp/instructor/walkthroughs/01_robot_curling.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/02_arena_line_circuit-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/02_arena_line_circuit-activity.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/02_arena_line_circuit.html",
       "url": "/ucsbxrp/instructor/walkthroughs/02_arena_line_circuit.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/03_waypoint_courier-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/03_waypoint_courier-activity.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/03_waypoint_courier.html",
       "url": "/ucsbxrp/instructor/walkthroughs/03_waypoint_courier.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/04_mapped_route-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/04_mapped_route-activity.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/04_mapped_route.html",
       "url": "/ucsbxrp/instructor/walkthroughs/04_mapped_route.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/05_out_and_back-activity.html",
       "url": "/ucsbxrp/instructor/walkthroughs/05_out_and_back-activity.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/05_out_and_back.html",
       "url": "/ucsbxrp/instructor/walkthroughs/05_out_and_back.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/VALIDATION.html",
       "url": "/ucsbxrp/instructor/walkthroughs/VALIDATION.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/code/01_robot_curling/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/01_robot_curling/index.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/code/02_arena_line_circuit/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/02_arena_line_circuit/index.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/code/03_waypoint_courier/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/03_waypoint_courier/index.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/code/04_mapped_route/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/04_mapped_route/index.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/code/05_out_and_back/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/code/05_out_and_back/index.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/course-assets/arena-line-circuit.svg",
       "url": "/ucsbxrp/instructor/walkthroughs/course-assets/arena-line-circuit.svg",
-      "bytes": 3296,
-      "sha256": "916e72c864ea2ac9b37fd50939d046c79c6914e9827ff0643a98611ca5ce9fc7"
+      "bytes": 3316,
+      "sha256": "d6f9b6b8352233acf7ab143e38df51cffbae62a41675cb530d7e844a419ddf6d"
     },
     {
       "path": "instructor/walkthroughs/course-assets/curling-distance-measurement.svg",
@@ -3427,6 +2815,12 @@
       "url": "/ucsbxrp/instructor/walkthroughs/course-assets/curling-main-stop.svg",
       "bytes": 2689,
       "sha256": "963d7fbc2a57282dd5aacfdbd1f9e5a247421ea19ca419d962412a6c73023528"
+    },
+    {
+      "path": "instructor/walkthroughs/course-assets/line-follower-steering.svg",
+      "url": "/ucsbxrp/instructor/walkthroughs/course-assets/line-follower-steering.svg",
+      "bytes": 2809,
+      "sha256": "d17e6a1c33e02ebe4c10c2ae5c1b8e0d857767466e722bca4e29a590591f8b81"
     },
     {
       "path": "instructor/walkthroughs/course-assets/mapped-route.svg",
@@ -3456,7 +2850,7 @@
       "path": "instructor/walkthroughs/index.html",
       "url": "/ucsbxrp/instructor/walkthroughs/index.html",
       "bytes": 373,
-      "sha256": "4073c5f243ae89ede221b57a2552a4bfc973a963f04ff96cc78135391abf571c"
+      "sha256": "e64f84a2d238706044c10aff39804a57d407ac81ec5cde7002d80fa089f6287d"
     },
     {
       "path": "instructor/walkthroughs/katex/fonts/KaTeX_AMS-Regular.ttf",
@@ -3827,8 +3221,8 @@
     {
       "path": "instructor/walkthroughs/theme.css",
       "url": "/ucsbxrp/instructor/walkthroughs/theme.css",
-      "bytes": 25784,
-      "sha256": "14c7325b67c90f8bbe54cf5084b75a5fa51343e386c726501127a4349655d852"
+      "bytes": 26083,
+      "sha256": "3afeca9a86d7cea8dd52af2d4e9f4c82d2b1e8cb77d5543f1b1a65f019534bc9"
     },
     {
       "path": "instructor/walkthroughs/walkthrough.css",
@@ -3846,7 +3240,7 @@
       "path": "monitor/index.html",
       "url": "/ucsbxrp/monitor/index.html",
       "bytes": 2729,
-      "sha256": "c9cc3056d5ecb8f8e3c607ad4b821e56ff2a8dcf1582c05d6907c46bb5f602a0"
+      "sha256": "bd7680a7f03b6f6cde7908cf09544cd7f1b8262c9b8233c088ea9fea08ab8f4c"
     },
     {
       "path": "orientation/figures/check-results.png",
@@ -3990,13 +3384,13 @@
       "path": "overview/index.html",
       "url": "/ucsbxrp/overview/index.html",
       "bytes": 1494,
-      "sha256": "4da0b3046c2448b9c6d96e06a2c5f5affb515fc597589f314f5ce44d786ae79a"
+      "sha256": "fc4d7ad8d49d82caec4903462950382477b345d18046e5a3dc4dd11af87b98a3"
     },
     {
       "path": "reference/index.html",
       "url": "/ucsbxrp/reference/index.html",
       "bytes": 1826,
-      "sha256": "de599c3b674c2e6baf37c13f863aba8766031c9cf4176512bbd5a657b0027f88"
+      "sha256": "e39f0d731fcb3ae87ffd0a7822718008a39f4cf8d7c5b614bc72b0f526df3033"
     },
     {
       "path": "refresh.html",
@@ -4248,9 +3642,9 @@
       "path": "workspace/index.html",
       "url": "/ucsbxrp/workspace/index.html",
       "bytes": 2104,
-      "sha256": "5b8cb0bf5db90cdbfebfb6547535c9e2f4c46ee6ccc7f1c51183375ba79ae57b"
+      "sha256": "eed71483d7f407d9061b86126a45d639c2c677507086de3f66aacf85ad0564c0"
     }
   ],
-  "version": "9da089c6003d262f4806",
-  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-9da089c6003d262f4806"
+  "version": "bffcc361ae0d6af5475d",
+  "cache_name": "ucsb-xrp-course-shell-e0caa25a45-bffcc361ae0d6af5475d"
 }

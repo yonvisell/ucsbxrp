@@ -31,6 +31,7 @@ MAX_ENCODED_VALUE = 2147483647
 
 _parameters = []
 _parameters_by_name = {}
+_initial_parameters = None
 _watches = []
 _watches_by_name = {}
 _plots = []
@@ -184,6 +185,7 @@ def _parameter_record(parameter):
         "label": parameter.label,
         "kind": parameter.kind,
         "value": parameter.value,
+        "defaultValue": parameter.default_value,
     }
     if parameter.unit:
         record["unit"] = parameter.unit
@@ -280,6 +282,7 @@ class LiveParameter:
         "step",
         "options",
         "value",
+        "default_value",
         "_pending",
         "_slot",
         "_encoded",
@@ -306,6 +309,7 @@ class LiveParameter:
         self.step = step
         self.options = tuple(options)
         self.value = value
+        self.default_value = value
         self._pending = None
         self._slot = -1
         self._encoded = self._encode(value)
@@ -373,6 +377,13 @@ def _declare(parameter):
             raise ValueError("live parameter already exists: " + parameter.name)
         if len(_parameters) >= MAX_PARAMETERS:
             raise ValueError("at most " + str(MAX_PARAMETERS) + " live parameters may be declared")
+        parameter.default_value = parameter.value
+        if _initial_parameters is not None and parameter.name in _initial_parameters:
+            try:
+                parameter.value = parameter._validate_value(_initial_parameters[parameter.name])
+            except (TypeError, ValueError):
+                pass  # Use the declared default if an edited parameter no longer accepts its saved value.
+            parameter._encoded = parameter._encode(parameter.value)
         if _bridge is not None:
             descriptor = _parameter_record(parameter)
             parameter._slot = int(
@@ -619,15 +630,17 @@ def _plot_sample_snapshot():
         _release()
 
 
-def clear():
-    """Clear state before a new physical project starts."""
+def clear(initial_parameters=None):
+    """Clear run state and supply saved values to subsequent parameter declarations."""
     global _revision, _snapshot_dirty, _sample_plots, _sample_plots_dirty
     global _plot_schema, _watch_schema, _plot_schema_dirty, _watch_schema_dirty
     global _parameter_records_dirty
+    global _initial_parameters
     _acquire()
     try:
         _parameters[:] = []
         _parameters_by_name.clear()
+        _initial_parameters = initial_parameters
         _watches[:] = []
         _watches_by_name.clear()
         _plots[:] = []

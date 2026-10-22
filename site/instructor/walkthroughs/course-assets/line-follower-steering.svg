@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="360" viewBox="0 0 520 360" role="img" aria-labelledby="title desc">
+  <title id="title">Steering toward the tape</title>
+  <desc id="desc">Robot viewed from above, facing upward. Its left infrared reflectance sensor is over black tape and its right sensor is over white floor. The curved arrow indicates a left turn. The longer forward arrow at the right drive wheel indicates that it moves faster than the left wheel. The drawing is schematic.</desc>
+  <defs>
+    <marker id="motion-arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0 0 L11 5.5 L0 11 Z" fill="#0f766e"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family:Arial,Helvetica,sans-serif; font-size:22px; fill:#17334a; }
+    .surface { font-size:20px; fill:#425b6d; }
+    .leader { fill:none; stroke:#627b8a; stroke-width:1.5; }
+    .motion { fill:none; stroke:#0f766e; stroke-width:4; stroke-linecap:round; marker-end:url(#motion-arrow); }
+    .wheel { fill:#263540; stroke:#fff; stroke-width:1; }
+  </style>
+  <rect width="520" height="360" fill="#fff"/>
+  <rect x="6" y="6" width="508" height="348" rx="6" fill="#f4f7fb" stroke="#c5d1d9"/>
+  <rect x="223" y="79" width="24" height="230" fill="#20262a"/>
+  <text x="25" y="48">Black tape</text>
+  <path class="leader" d="M135 44 L205 98 H221"/>
+
+  <path d="M185 129 H335 V301 H185 Z M198 169 V284 H322 V169 Z" fill="#e3edf4" stroke="#526e82" stroke-width="2" fill-rule="evenodd"/>
+  <rect x="218" y="192" width="85" height="53" rx="5" fill="#bb504b"/>
+  <rect x="227" y="258" width="65" height="28" rx="4" fill="#526e82"/>
+  <path d="M176 235 H344" stroke="#526e82" stroke-width="4"/>
+  <rect class="wheel" x="155" y="215" width="27" height="63" rx="5"/>
+  <rect class="wheel" x="340" y="215" width="27" height="63" rx="5"/>
+  <path d="M220 145 H300" stroke="#526e82" stroke-width="7"/>
+  <circle cx="235" cy="145" r="11" fill="#20262a" stroke="#e9a227" stroke-width="4"/>
+  <circle cx="285" cy="145" r="11" fill="#fff" stroke="#e9a227" stroke-width="4"/>
+
+  <text x="25" y="126">Left sensor</text>
+  <text class="surface" x="25" y="151">on tape</text>
+  <path class="leader" d="M141 124 H191 L220 141"/>
+  <text x="375" y="126">Right sensor</text>
+  <text class="surface" x="375" y="151">on floor</text>
+  <path class="leader" d="M369 124 H327 L300 141"/>
+
+  <path class="motion" d="M168.5 205 V177"/>
+  <path class="motion" d="M353.5 205 V159"/>
+  <path class="motion" d="M285 108 C281 74 246 60 208 73"/>
+  <text x="304" y="76">Left turn</text>
+  <text x="168" y="325" text-anchor="middle">Left wheel</text>
+  <text x="354" y="325" text-anchor="middle">Right wheel</text>
+  <text class="surface" x="354" y="349" text-anchor="middle">faster</text>
+</svg>
