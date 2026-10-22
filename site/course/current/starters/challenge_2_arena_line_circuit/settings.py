@@ -6,7 +6,7 @@ WHEEL_DIAMETER_MM = 60.0  # Enter the rolling wheel diameter [mm].
 ENCODER_COUNTS_PER_REVOLUTION = 585.0  # Enter encoder counts for one wheel revolution.
 TRACK_WIDTH_MM = 155.0  # Enter the effective separation between the drive wheels [mm].
 # Starting effort compensates motor friction; its sign follows the requested wheel direction.
-LEFT_START_COMMAND = 0.12  # Left effort offset for every nonzero wheel-speed request.
+LEFT_START_COMMAND = 0.13  # Left effort offset for every nonzero wheel-speed request.
 RIGHT_START_COMMAND = 0.13  # Right effort offset for every nonzero wheel-speed request.
 LEFT_SPEED_COMMAND_GAIN = 0.0025  # Convert requested left wheel speed to motor effort [s/mm].
 RIGHT_SPEED_COMMAND_GAIN = 0.0025  # Convert requested right wheel speed to motor effort [s/mm].

@@ -1,0 +1,1 @@
+import{r as e}from"./rolldown-runtime-hePW80VL.js";import{n as t}from"./jsx-runtime-DE3RlOCf.js";import{g as n,m as r,p as i}from"./AppUpdateButton-BuWhO-dW.js";var a=e(t(),1);function o(){let[e,t]=(0,a.useState)(r);return(0,a.useEffect)(()=>{let e=()=>t(r()),a=n(e);return i().then(e,()=>{}),a},[]),e}export{o as t};
