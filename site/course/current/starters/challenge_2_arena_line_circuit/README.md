@@ -23,8 +23,10 @@ and the differential drive controller you implemented in part 2.2.
 Prepare the following:
 
 - Import [sensor_processor.py](sensor_processor.py), which you developed in
-  Challenge 1, into this Project. Its `Measurements.reflectance` must retain the
-  left and right readings from `raw.reflectance` in both `reset()` and `update()`.
+  Challenge 1, into this Project. In both `reset()` and `update()`,
+  pass `raw.reflectance` unchanged into `Measurements.reflectance`, including
+  `None` when readings are absent. The code tests in this part also check reflectance;
+  the encoder tests in Challenge 1 do not.
 - Import [differential_drive.py](differential_drive.py) from part 2.2.
 - Have your reflectance data and plots from part 2.1 ready to calibrate the
   sensors for your line follower.
@@ -78,26 +80,23 @@ Calculate and store the dimensionless steering error:
 Here <em>r</em><sub>L</sub> is `reflectance.left`, <em>r</em><sub>R</sub> is
 `reflectance.right`, and <em>e</em> is `self.line_error`. Positive error calls
 for positive steering rate, a left turn. The error measures the difference
-between sensor readings, not distance from the tape. Equal readings alone do
-not establish alignment: both sensors might instead be over white floor.
+between sensor readings, not distance from the tape. Both sensors can also give equal readings on white floor.
 
-### 2.2 Calculate the PID steering contributions
+### 2.2 Calculate the PD\* steering contributions (\*PID without I)
 
 Calculate the requested steering rate from
 
-<p><em>ω</em> = <em>p</em> + <em>i</em> + <em>d</em>
+<p><em>ω</em> = <em>ω</em><sub>P</sub> + <em>ω</em><sub>D</sub>
 = <em>K</em><sub>P</sub><em>e</em>
-+ <em>K</em><sub>I</sub><em>E</em>
 + <em>K</em><sub>D</sub>(<em>e</em> − <em>e</em><sub>previous</sub>)/Δ<em>t</em>.</p>
 
-Store the three steering contributions in `self.p`, `self.i`, and `self.d`;
-all have units of **rad/s**. They appear in Monitor as **Line P contribution**,
-**Line I contribution**, and **Line D contribution**. The gains are:
+Store the two steering contributions, ω<sub>P</sub> and ω<sub>D</sub>, in
+`self.p` and `self.d`, respectively; both have units of **rad/s**. They appear
+in Monitor as **P steering rate** and **D steering rate**. The gains are:
 
 | Gain | Default in settings.py | Value used by your controller |
 | --- | --- | --- |
 | K<sub>P</sub> [rad/s] | `P_GAIN_RAD_S` | `self.settings["kp_rad_s"]` |
-| K<sub>I</sub> [rad/s²] | `I_GAIN_RAD_S2` | `self.settings["ki_rad_s2"]` |
 | K<sub>D</sub> [rad] | `D_GAIN_RAD` | `self.settings["kd_rad"]` |
 
 Use `dt_s` for Δ<em>t</em> and `self.last_error` for the preceding error. Calculate
@@ -105,26 +104,30 @@ D before storing the new error in `self.last_error`; use D = 0 when `dt_s` is ze
 P turns in proportion to the current error. D responds to its rate of change:
 when a positive error is decreasing, D opposes P and can reduce overshoot.
 
-Begin with **I = 0** and `self.i = 0`; a PD controller is sufficient. If you
-implement integral action, update `self.integral_error` using
-<em>E</em> ← <em>E</em> + <em>e</em>Δ<em>t</em> before calculating I. Keep
-<em>E</em> within `±self.settings["integral_limit_s"]`, the supplied integral
-bound. I can correct persistent bias, but accumulated error can also prolong
-an unwanted turn.
-
-Limit the sum of the three contributions to
-`±self.settings["maximum_turn_rate_rad_s"]`, set by `MAXIMUM_TURN_RATE_RAD_S`.
+Limit the sum of steering contributions so that the magnitude of <em>ω</em>
+is no greater than
+`self.settings["maximum_turn_rate_rad_s"]`, set by `MAXIMUM_TURN_RATE_RAD_S`.
 **Requested turn rate** shows this limited result.
+
+Begin with **I = 0** and `self.i = 0`; a PD controller is sufficient.
+If integral action is needed later, accumulate error as
+<em>E</em> = ∑<em>e</em>Δ<em>t</em> in `self.integral_error`. Store the additional
+steering contribution, <em>ω</em><sub>I</sub> = <em>K</em><sub>I</sub><em>E</em>,
+in `self.i` and add it to P and D before applying the steering limit.
+The gain <em>K</em><sub>I</sub> [rad/s²] is `self.settings["ki_rad_s2"]`,
+set by `I_GAIN_RAD_S2`. **I steering rate** displays `self.i` in rad/s.
 
 ### 2.3 Reduce forward speed during strong turns
 
-Use the limited steering rate to calculate forward speed:
+Use the value of <em>ω</em> from the preceding calculation to compute the
+forward speed as:
 
 <p><em>v</em> = <em>v</em><sub>cruise</sub>
 (1 − <em>s</em>|<em>ω</em>|/<em>ω</em><sub>max</sub>).</p>
 
 Here <em>v</em><sub>cruise</sub> is `self.settings["cruise_speed_mm_s"]`,
-<em>s</em> is `self.settings["turn_slowdown"]` (configured by `TURN_SLOWDOWN`),
+<em>s</em> is the slowdown factor, `self.settings["turn_slowdown"]`
+(configured by `TURN_SLOWDOWN`),
 and <em>ω</em><sub>max</sub> is the maximum steering rate above. Apply
 `self.settings["minimum_speed_mm_s"]` as the minimum speed in a turn, without
 exceeding the cruise speed. A zero cruise setting must produce zero speed and
@@ -132,26 +135,43 @@ zero steering rate. Return the resulting values in a `MotionCommand`.
 
 ## 3. Drive through the waypoint bars
 
-Both sensors read dark on a transverse bar, so their difference no longer
-indicates which way to steer. Implement the following behavior:
+When both sensors cross a tape bar, keep the preceding forward speed and
+steering rate until the bar has passed:
 
-1. In `LineFollower.reset()`, call `super().reset()` and initialize a straight
-   cruise command. The robot begins with its sensors on the starting bar.
-2. When both readings reach `self.settings["waypoint_dark_threshold"]`, retain
-   the preceding speed and steering rate until the bar has passed. Hold the
-   integral and set `self.p`, `self.i`, and `self.d` to zero during the crossing.
-3. On the first reading after the bar, use D = 0 and store that error for the
-   next derivative calculation. Then resume ordinary steering.
+1. In `reset()`, call `super().reset()` and store an initial command with cruise
+   speed and zero steering rate. This drives straight across the starting bar.
+2. In `update()`, if both readings reach `self.settings["waypoint_dark_threshold"]`,
+   return the stored command. Leave `self.last_error` and `self.integral_error`
+   unchanged and set
+   `self.p = self.i = self.d = 0` while on the bar.
+3. After leaving the bar, calculate steering from the new error with D = 0 for
+   that first sample. Store the error for the next derivative calculation.
+   After each ordinary update, store the resulting motion command.
 
-Retain the most recent motion command after each steering calculation. If cruise
-changes while crossing a bar, scale speed and steering rate together to preserve
-the turn radius, respecting the steering limit; zero cruise still stops motion.
-The supplied code counts crossings and stops at six.
+Example with constant cruise speed 100 mm/s, K<sub>P</sub> = 1 rad/s, I = 0,
+K<sub>D</sub> = 0.02 rad, slowdown factor 0.45, and maximum steering rate 1.4 rad/s.
+The error is steady before the bar. These are selected samples from a 20 ms
+control loop; intervening samples are omitted. Each line gives the time, the readings
+received by `update()`, error, P/I/D contributions, and returned motion:
+
+```text
+t=1.00 s: rL=0.48, rR=0.20, e=0.28, p=0.28, i=0, d=0; v=91 mm/s, ω=0.28 rad/s (before bar)
+t=1.02 s: rL=0.90, rR=0.90, e=0.00, p=0,    i=0, d=0; v=91 mm/s, ω=0.28 rad/s (on bar)
+t=1.20 s: rL=0.90, rR=0.90, e=0.00, p=0,    i=0, d=0; v=91 mm/s, ω=0.28 rad/s (on bar)
+t=1.22 s: rL=0.40, rR=0.20, e=0.20, p=0.20, i=0, d=0; v≈94 mm/s, ω=0.20 rad/s (after bar)
+```
+
+The zero contributions on the bar indicate that PID steering is suspended;
+the returned command retains the preceding turn. Speeds v are in mm/s and
+p, i, d, and ω are in rad/s. If cruise changes on a bar, scale the stored speed
+and steering rate by the same factor to preserve the turn radius, reducing that
+factor if necessary to respect the steering limit. Zero cruise stops motion.
+Waypoint counting and stopping at six are automatic.
 
 ## 4. Tune the line following controller
 
 Start with the target-specific P and D defaults in `settings.py`, I = 0, and a
-fixed cruise speed of 100 mm/s. If this Project has saved live settings, select
+cruise speed of 100 mm/s. If this Project has saved live settings, select
 **Restore defaults** before the initial comparison. Use the measurements from
 parts 2.1 and 2.2 to
 resolve sensor bias or poor wheel-speed tracking before changing steering gains.
@@ -162,7 +182,7 @@ Observe a straight section and a bend. In Monitor, compare **Reflectance left**,
 **Reflectance right**, **Line error**, **Requested turn rate**, and the P and D
 contributions over the interval where tracking deteriorates.
 
-Choose one change supported by the motion and plots:
+Choose one change based on your observations of the motion and on the plots:
 
 | Observed motion and supporting data | Change to compare |
 | --- | --- |
@@ -172,18 +192,14 @@ Choose one change supported by the motion and plots:
 | Steering stays at its limit through the failing bend. | Reduce cruise speed or increase `MAXIMUM_TURN_RATE_RAD_S` if the wheels can follow the resulting targets. Increasing P cannot raise a saturated steering rate. |
 | Measured wheel speeds depart substantially from their targets, or white and black readings overlap. | Revisit the motor settings or sensor measurements from parts 2.2 or 2.1 before tuning PID. |
 
-For a bend of radius <em>R</em> [mm], steering must be approximately
-<em>|ω| = v/|R|</em>. At 100 mm/s on a 200 mm bend this is 0.5 rad/s. With I = 0
-and small D on a steady bend, P must supply most of that rate, so some nonzero
-error is expected. This provides a useful check on whether the chosen P gain
-can supply the required turn while the tape remains within sensor range.
+For a bend of cornering radius <em>R</em>, the required steering rate is
+<em>|ω| = v/|R|</em>. You do not need to measure R: at the same speed, a tighter
+bend requires more steering. If the requested steering rate is already at its
+limit, increasing P cannot tighten the turn; reduce cruise speed instead.
 
-Change one parameter at a time, keeping speed and starting placement fixed.
-Record the expected effect and compare the same circuit interval. Monitor's
-**P gain** and **Cruise speed** controls retain their values between runs without
-another Compile; **Restore defaults** selects the source defaults. Record the
-actual control values used. Save your selected defaults in `settings.py`, then
-repeat a successful lap before increasing speed.
+Change one parameter at a time and use the same starting position.
+Record the expected effect, perform a run, and examine the data.
+Keep notes on the parameter values tested and their results.
 
 The default program stops the motors when both raw sensor readings fall below
 their respective visibility thresholds. It ends the run after 0.4 s if neither
@@ -198,7 +214,8 @@ Export the selected sensor and steering plots using **Export plots as SVG** or
 **Export plots as PNG**. The image covers the selected **Time window**; the CSV
 contains the complete recording.
 
-Use this MATLAB example with your exported filename:
+You can use this MATLAB code to plot your exported data. Replace the filename
+with the name of your exported CSV:
 
 ```matlab
 T = readtable('line_trial_01.csv', 'TextType', 'string');
@@ -221,13 +238,13 @@ ylabel('Turn rate [rad/s]'); xlabel('Time [s]'); grid on;
 exportgraphics(gcf, 'line_trial_01.png', 'Resolution', 200);
 ```
 
-Reflectance plots show raw readings; `program_line_error` uses calibrated
-readings. During a line-loss stop it retains the last calculated error, so use
-both reflectance traces to interpret that interval. Use
-`program_waypoints_reached` to locate corresponding parts of different trials.
+The reflectance plots contain raw readings; the steering error uses the
+calibrated readings defined in Section 2.1.
 
-For steering comparisons, also plot `program_line_p_rad_s` and
-`program_line_d_rad_s`. For wheel-speed comparisons, plot
+For steering comparisons, plot `program_omega_p_rad_s` and
+`program_omega_d_rad_s`, the P and D steering rates. These signals are named
+`omega_p_rad_s` and `omega_d_rad_s` in `live_variables.py`; CSV exports add
+the `program_` prefix. For wheel-speed comparisons, plot
 `left_wheel_speed_mm_s` and `right_wheel_speed_mm_s` against
 `target_left_wheel_speed_mm_s` and `target_right_wheel_speed_mm_s`.
 

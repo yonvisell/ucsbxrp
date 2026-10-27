@@ -15,9 +15,9 @@ _PLOT_WAYPOINTS_REACHED = live.register_plot("waypoints_reached", label="Waypoin
 _WATCH_PHASE = live.register_watch('phase')
 
 
-_PLOT_P_TERM = live.register_plot("line_p_rad_s", unit="rad/s", label="Line P contribution")
-_PLOT_I_TERM = live.register_plot("line_i_rad_s", unit="rad/s", label="Line I contribution")
-_PLOT_D_TERM = live.register_plot("line_d_rad_s", unit="rad/s", label="Line D contribution")
+_PLOT_P_TERM = live.register_plot("omega_p_rad_s", unit="rad/s", label="P steering rate")
+_PLOT_I_TERM = live.register_plot("omega_i_rad_s", unit="rad/s", label="I steering rate")
+_PLOT_D_TERM = live.register_plot("omega_d_rad_s", unit="rad/s", label="D steering rate")
 
 
 def publish_line_values(readings, command, follower, waypoints_reached, phase):
