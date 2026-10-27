@@ -202,8 +202,9 @@ Record the expected effect, perform a run, and examine the data.
 Keep notes on the parameter values tested and their results.
 
 The default program stops the motors when both raw sensor readings fall below
-their respective visibility thresholds. It ends the run after 0.4 s if neither
-sensor detects tape again. At the normal finish, the output reports `complete`,
+their respective visibility thresholds. It ends the run after 1.0 s if neither
+sensor detects tape again. Set this interval with `MAXIMUM_LOST_LINE_S`, beside
+`STOP_ON_LINE_LOSS` in `robot_setup.py`. At the normal finish, the output reports `complete`,
 six waypoints, and elapsed time. Confirm that the observed circuit and finish
 agree with that result.
 

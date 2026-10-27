@@ -1,5 +1,5 @@
 # Supplied waypoint counting and stop conditions; no changes required.
-from challenge import MAXIMUM_LOST_LINE_S
+from robot_setup import MAXIMUM_LOST_LINE_S
 from supplied_settings import (
     WAYPOINT_DARK_THRESHOLD, WAYPOINT_CLEAR_THRESHOLD,
     WAYPOINT_CONFIRM_TIME_S, WAYPOINT_TARGET, calibrated_reflectance, line_is_visible,

@@ -41,9 +41,10 @@ USE_STUDENT_SENSOR_PROCESSOR = False
 USE_STUDENT_DIFFERENTIAL_DRIVE = False
 USE_STUDENT_LINE_FOLLOWER = False
 
-# True stops the motors when neither sensor detects tape and ends after 0.4 s.
+# True stops the motors immediately when neither sensor detects tape.
 # Set False when implementing line recovery in LineFollower.
 STOP_ON_LINE_LOSS = True
+MAXIMUM_LOST_LINE_S = 1.0  # End the run if neither sensor detects tape for this long [s].
 
 
 def make_robot(config):

@@ -1,9 +1,9 @@
 # Follow the tape continuously and stop after the final waypoint crossing.
-from challenge import INITIAL_POSE, MAXIMUM_LOST_LINE_S
+from challenge import INITIAL_POSE
 from lap_progress import LineCircuit
 from live_variables import publish_line_values
 from robot_setup import (
-    LINE_FOLLOWER_SETTINGS, ROBOT_CONFIG, STOP_ON_LINE_LOSS,
+    LINE_FOLLOWER_SETTINGS, ROBOT_CONFIG, STOP_ON_LINE_LOSS, MAXIMUM_LOST_LINE_S,
     apply_line_controls, make_line_follower, make_robot,
 )
 from supplied_settings import WAYPOINT_TARGET
