@@ -1,4 +1,4 @@
-# Supplied program: acquire camera based gps, then execute the five-goal route.
+# Execute the route from the known initial pose.
 
 from challenge import INITIAL_POSE, ROUTE
 from live_variables import (
@@ -19,8 +19,7 @@ reached_count = 0
 route_time_s = 0.0
 try:
     state = robot.start(INITIAL_POSE)
-    state = robot.wait_for_gps()  # Acquire the world pose before starting navigation.
-    start_ms = state.measurements.time_ms  # Route time excludes this initial wait.
+    start_ms = state.measurements.time_ms
     reached_count = count_reached_goals(state.pose, ROUTE, reached_count)
     navigation.start(ROUTE)
     active_goal_number = 1

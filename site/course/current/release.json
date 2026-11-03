@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.11-dev.82",
-  "release_sequence": 82,
+  "release_id": "2026.11-dev.83",
+  "release_sequence": 83,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.8.0-draft",
@@ -12,7 +12,7 @@
     "bootstrap_version": 1
   },
   "compatibility": {
-    "minimum_robot_release_sequence": 81
+    "minimum_robot_release_sequence": 83
   },
   "controller": {
     "id": "sparkfun-xrp-controller-rp2350",
@@ -49,7 +49,7 @@
     "version": "0.8.0-dev",
     "source_hash_algorithm": "sha256-file-manifest-v1",
     "source_file_count": 24,
-    "source_sha256": "07090ab7a28fc5b902414a4da0cfda2ed8748cfb45faa7d471daf31c5815bc03",
+    "source_sha256": "c74e0f177547c5a4419ede29f03b591a0075792688e01c75ea57d215e109c4e1",
     "reference_compiler": {
       "commit": "e0e9fbb17ed6fd06bb76e266ae554784c9c80804",
       "portable_abi": 774,
@@ -122,11 +122,11 @@
         "source_sha256": "794894d7af10e884c4a2496f3bb2910f4edf0d969937a0dff0d11bbd271c8010"
       },
       {
-        "byte_size": 412,
+        "byte_size": 481,
         "path": "reference_mpy/ucsb_xrp_reference/localization.mpy",
-        "sha256": "952f1f6119990ddb6de6edfc91936a06b91764e84b28fef6a89d5bcfee4aeeca",
+        "sha256": "c414f67b73a64a9331e3631cf0f22580922172c7f7a6438aa31c0f9fbd56ea99",
         "source": "reference_source/ucsb_xrp_reference/localization.py",
-        "source_sha256": "fbce5c8707b3c36e28451b0676ce6e8219d21ea24b537a49b4fdbe652593f78e"
+        "source_sha256": "a8f8d11aaebb31f43eaff45004081fb88b2a4953254b9738c96b82297e26a10d"
       }
     ]
   }

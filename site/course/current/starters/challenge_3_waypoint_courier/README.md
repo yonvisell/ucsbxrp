@@ -12,9 +12,23 @@ Reuse your sensing and differential-drive components from Challenge 2. The new w
 
 *Figure 1. Successive stages of a completed route in Virtual XRP.*
 
-## 1. Estimate the robot's position and heading
+## 1. Localization
 
-Camera based gps provides position and heading in the arena. Its updates correct the pose, while measured wheel travel provides the movement between updates. You will calculate this movement in `predict()`; the inherited `update()` method combines it with camera based gps to produce the pose used by navigation.
+Localization maintains the robot's position and heading in the arena. Camera based gps provides periodic updates of both quantities. Between these updates, estimate the robot's movement from the pair of wheel travel increments.
+
+In [localization.py](localization.py), `update_pose()` calls `predict()` to update the preceding pose using wheel travel. When a new camera based gps pose is available, its position and heading replace this prediction. Otherwise, the wheel-based prediction becomes the new pose.
+
+The `gps_pose` argument contains the new camera based gps pose, adjusted for wheel movement since image capture. Its value is `None` when no new update is available.
+
+```python
+def update_pose(self, pose, left_increment_mm, right_increment_mm, gps_pose=None):
+    predicted_pose = self.predict(pose, left_increment_mm, right_increment_mm)
+    if gps_pose is not None:
+        return gps_pose
+    return predicted_pose
+```
+
+## 2. Estimation of robot position and heading
 
 ### World coordinates and robot coordinates
 
@@ -73,7 +87,7 @@ Complete `Localization.predict()` in [localization.py](localization.py). It rece
 
 *Figure 3. The robot turns from heading \(\theta\) to \(\theta'\), a change of \(\Delta\theta\). The displacement \(\Delta\boldsymbol{p}=\boldsymbol{p}'-\boldsymbol{p}\) points along \(\theta+\Delta\theta/2\), halfway between these headings. Its world components are \(\Delta x\) and \(\Delta y\). The oblique dashed ray at \(\boldsymbol{p}'\) is parallel to the initial forward direction; it provides the reference for \(\Delta\theta\).*
 
-## 2. Use the estimated pose to navigate toward a goal
+## 3. Use the estimated pose to navigate toward a goal
 
 The updated position and heading from localization become the `pose` input to the navigation commands. Use them to find the direction of the active goal, calculate a heading error, and request a turn that reduces that error. While driving, repeat this calculation as the robot's position changes.
 
@@ -134,7 +148,7 @@ The controller starts driving within 10° of the goal direction. If the error la
 
 The two gains control different motions: `TURN_GAIN` controls changes of heading at a fixed position; `HEADING_GAIN` controls steering while the goal direction changes with the robot's position.
 
-## 3. Test the program, then improve route time
+## 4. Test the program, then improve route time
 
 ### Test the implementation in Virtual XRP
 
@@ -200,13 +214,13 @@ The route is a feedback process: wheel travel and camera based gps update the po
 
 *Figure 5. Pose \((\boldsymbol{p},\theta)\) and the active goal determine forward speed \(V\) and turn rate \(\omega\). Wheel travel \(d_L,d_R\) and camera based gps provide the next pose update.*
 
-After the initial camera based gps update, `main.py` starts navigation and the route clock. Each iteration calls `navigation.update(state.pose)` to obtain a command, then `robot.step(command)` to apply it and obtain the next `RobotState`. That state contains the pose used in the following iteration. The loop updates the waypoint count and route time; completing the route stops the robot.
+After `robot.start(INITIAL_POSE)`, `main.py` starts navigation and the route clock. Each iteration calls `navigation.update(state.pose)` to obtain a command, then `robot.step(command)` to apply it and obtain the next `RobotState`. That state contains the pose used in the following iteration. The loop updates the waypoint count and route time; completing the route stops the robot.
 
 ## Appendix B: State objects and method selection
 
 The controller creates one object for each behavior class and reuses it throughout the route. Each object combines the class's motion command with a decision about which behavior comes next.
 
-In `class DriveToGoal(DriveToGoalState):`, `DriveToGoalState` is the parent class. It provides `execute()`, which decides whether to continue driving or change state. Your `DriveToGoal` class provides `command()`, the calculation you completed in section 2. When the inherited `execute()` calls `self.command(pose, goal, config)`, Python uses the command method defined by that object's class.
+In `class DriveToGoal(DriveToGoalState):`, `DriveToGoalState` is the parent class. It provides `execute()`, which decides whether to continue driving or change state. Your `DriveToGoal` class provides `command()`, the calculation you completed in section 3. When the inherited `execute()` calls `self.command(pose, goal, config)`, Python uses the command method defined by that object's class.
 
 The controller advances the active behavior with
 

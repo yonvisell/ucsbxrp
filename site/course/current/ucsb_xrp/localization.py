@@ -231,8 +231,15 @@ class LocalizationBase:
         """Return a new Pose from signed wheel increments; retain no state."""
         raise NotImplementedError
 
+    def update_pose(self, pose, left_increment_mm, right_increment_mm, gps_pose=None):
+        """Predict from wheel travel, then replace with the current GPS pose if available."""
+        predicted_pose = self.predict(pose, left_increment_mm, right_increment_mm)
+        if gps_pose is not None:
+            return gps_pose
+        return predicted_pose
+
     def gps_ready(self, now_ms=None):
-        """Whether a recent accepted GPS fix permits navigation and motor effort."""
+        """Whether this run has a recent accepted GPS fix."""
         if not self._use_gps:
             return True
         if self._accepted_capture_ms is None:
@@ -254,7 +261,8 @@ class LocalizationBase:
             self._remember(origin_ms, self._wheel_pose, 0.0, 0.0)
         left = measurements.left_increment_mm
         right = measurements.right_increment_mm
-        self._wheel_pose = self.predict(self._wheel_pose, left, right)
+        if self._use_gps:
+            self._wheel_pose = self.predict(self._wheel_pose, left, right)
         self._time_ms = now_ms
         self._observation_event = None
         self._innovation_event = None
@@ -265,7 +273,11 @@ class LocalizationBase:
                 fix = latest_pose_fix(now_ms)
             if fix is not None:
                 self._observe(fix, now_ms)
-        self._pose = self._mapped_pose(self._wheel_pose)
+        # A new fix supplies a pose advanced from capture time to this sample.
+        gps_pose = self._mapped_pose(self._wheel_pose) if self._fix_status == "accepted" else None
+        self._pose = self.update_pose(self._pose, left, right, gps_pose)
+        if not self._use_gps:
+            self._wheel_pose = self._pose
         return self._pose
 
     # Robot binds this measured-input interface once; legacy Odometry is intact.
