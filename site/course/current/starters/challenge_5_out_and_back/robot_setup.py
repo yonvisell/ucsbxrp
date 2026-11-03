@@ -1,46 +1,44 @@
-# Robot calibration, component selection, and assembly for this project.
-
-from live_variables import (
-    CRUISE_SPEED,
-    DEFAULT_CRUISE_SPEED_MM_S,
-    DEFAULT_TURN_RATE_RAD_S,
-    TURN_RATE,
+# Select the project components; numerical settings live in settings.py.
+from live_variables import CRUISE_SPEED, TURN_RATE
+from settings import (
+    WHEEL_DIAMETER_MM, ENCODER_COUNTS_PER_REVOLUTION, TRACK_WIDTH_MM,
+    CRUISE_SPEED_MM_S, TURN_RATE_RAD_S, APPROACH_SPEED_RATIO,
+    SLOWDOWN_DISTANCE_MM, POSITION_TOLERANCE_MM,
+    HEADING_TOLERANCE_RAD, REALIGN_HEADING_RAD,
+    USE_GPS, VIRTUAL_GPS_RATE_HZ,
+    GPS_POSITION_DRIFT_MM, GPS_HEADING_DRIFT_RAD, DRIVING_DRIFT_PERCENT,
 )
-from ucsb_xrp import NavigationConfig, RobotConfig, Robot, XRPBot
-
-# Robot dimensions and supplied wheel-controller settings.
-# Supplied motor settings for Virtual XRP; use the instructor's settings for a physical XRP.
-# Measure wheel diameter and track width in mm; use specified encoder counts.
-ROBOT_CONFIG = RobotConfig(
-    sample_period_ms=20,  # Scheduled sample interval in ms; 20 ms gives 50 Hz.
-    wheel_diameter_mm=60.0,  # Rolling wheel diameter in mm; measure on the physical robot.
-    encoder_counts_per_revolution=585.0,  # Encoder counts for one wheel revolution.
-    track_width_mm=155.0,  # Effective left-to-right wheel separation in mm.
-    left_start_command=0.12,  # Supplied left-wheel starting command; dimensionless.
-    right_start_command=0.13,  # Supplied right-wheel starting command; dimensionless.
-    left_speed_command_gain=0.0031,  # Supplied left command per mm/s of requested speed (s/mm).
-    right_speed_command_gain=0.0031,  # Supplied right command per mm/s of requested speed (s/mm).
-    wheel_speed_kp=0.001,  # Supplied correction per wheel-speed error (s/mm).
-    wheel_speed_ki=0.0,  # Reserved accumulated-error coefficient (1/mm); keep zero.
-    wheel_speed_kd=0.0,  # Reserved error-rate coefficient (s^2/mm); keep zero.
-    max_drive_command=0.55,  # Maximum absolute command for either motor; dimensionless, within [0, 1].
+from supplied_settings import (
+    SAMPLE_PERIOD_MS, make_robot_config,
+    VIRTUAL_GPS_LATENCY_MS, VIRTUAL_GPS_DROPOUT_START_MS,
+    VIRTUAL_GPS_DROPOUT_DURATION_MS,
 )
+from ucsb_xrp import NavigationConfig, Robot, XRPBot
+from ucsb_xrp.pose_sources import configure_pose_source
+
+ROBOT_DIMENSIONS = dict(
+    sample_period_ms=SAMPLE_PERIOD_MS,
+    wheel_diameter_mm=WHEEL_DIAMETER_MM,
+    encoder_counts_per_revolution=ENCODER_COUNTS_PER_REVOLUTION,
+    track_width_mm=TRACK_WIDTH_MM,
+)
+ROBOT_CONFIG = make_robot_config(ROBOT_DIMENSIONS)
 NAVIGATION_CONFIG = NavigationConfig(
-    cruise_speed_mm_s=DEFAULT_CRUISE_SPEED_MM_S,  # Requested forward speed outside the slowdown radius, mm/s.
-    approach_speed_mm_s=0.8 * DEFAULT_CRUISE_SPEED_MM_S,  # Requested forward speed within the slowdown radius, mm/s.
-    slowdown_distance_mm=120.0,  # Goal-distance threshold for selecting approach speed, mm.
-    turn_rate_rad_s=DEFAULT_TURN_RATE_RAD_S,  # Maximum absolute rotation rate during alignment and steering, rad/s.
-    position_tolerance_mm=12.0,  # Accept goal position within this estimated-distance radius, mm.
-    heading_tolerance_rad=0.08,  # Accept initial alignment or requested final heading within this error, rad.
-    realign_heading_rad=0.25,  # Return to turning in place when driving heading error reaches this value, rad.
+    cruise_speed_mm_s=CRUISE_SPEED_MM_S,
+    approach_speed_mm_s=APPROACH_SPEED_RATIO * CRUISE_SPEED_MM_S,
+    slowdown_distance_mm=SLOWDOWN_DISTANCE_MM,
+    turn_rate_rad_s=TURN_RATE_RAD_S,
+    position_tolerance_mm=POSITION_TOLERANCE_MM,
+    heading_tolerance_rad=HEADING_TOLERANCE_RAD,
+    realign_heading_rad=REALIGN_HEADING_RAD,
 )
 
-# Supplied component classes. Wheel-speed control always uses this library class.
+# Wheel-speed control always uses this supplied library class.
 from ucsb_xrp_reference import (
     DifferentialDrive as SuppliedDifferentialDrive,
     GridPlanner as SuppliedGridPlanner,
     NavigationController as SuppliedNavigationController,
-    Odometry as SuppliedOdometry,
+    Localization as SuppliedLocalization,
     SensorProcessor as SuppliedSensorProcessor,
     WheelSpeedController,
 )
@@ -49,21 +47,35 @@ from ucsb_xrp_reference import (
 # True: use this project's class. False: use the supplied class.
 USE_STUDENT_SENSOR_PROCESSOR = False
 USE_STUDENT_DIFFERENTIAL_DRIVE = False
-USE_STUDENT_ODOMETRY = False
+USE_STUDENT_LOCALIZATION = False
 USE_STUDENT_NAVIGATION_CONTROLLER = False
 USE_STUDENT_GRID_PLANNER = False
 
 
-# Create the robot and its sensing, drive, and odometry components.
+# Create the robot and its sensing, drive, and localization components.
 def make_robot(config):
     from differential_drive import DifferentialDrive as StudentDifferentialDrive
-    from odometry import Odometry as StudentOdometry
+    from localization import Localization as StudentLocalization
     from sensor_processor import SensorProcessor as StudentSensorProcessor
 
     SensorProcessor = StudentSensorProcessor if USE_STUDENT_SENSOR_PROCESSOR else SuppliedSensorProcessor
     DifferentialDrive = StudentDifferentialDrive if USE_STUDENT_DIFFERENTIAL_DRIVE else SuppliedDifferentialDrive
-    Odometry = StudentOdometry if USE_STUDENT_ODOMETRY else SuppliedOdometry
-    return Robot(config, XRPBot(config), SensorProcessor(config), WheelSpeedController(config), DifferentialDrive(config), Odometry(config))
+    Localization = StudentLocalization if USE_STUDENT_LOCALIZATION else SuppliedLocalization
+    if USE_GPS:
+        configure_pose_source(
+            rate_hz=VIRTUAL_GPS_RATE_HZ,
+            latency_ms=VIRTUAL_GPS_LATENCY_MS,
+            dropout_start_ms=VIRTUAL_GPS_DROPOUT_START_MS,
+            dropout_duration_ms=VIRTUAL_GPS_DROPOUT_DURATION_MS,
+            position_drift_mm=GPS_POSITION_DRIFT_MM,
+            heading_drift_rad=GPS_HEADING_DRIFT_RAD,
+            driving_drift_percent=DRIVING_DRIFT_PERCENT,
+        )
+    localization = Localization(
+        config, use_gps=USE_GPS,
+    )
+    return Robot(config, XRPBot(config), SensorProcessor(config),
+                 WheelSpeedController(config), DifferentialDrive(config), localization)
 
 
 # Create the selected navigation controller.
@@ -96,7 +108,7 @@ def apply_navigation_controls(navigation):
         return  # Neither slider changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
-        approach_speed_mm_s=0.8 * cruise_speed_mm_s,
+        approach_speed_mm_s=APPROACH_SPEED_RATIO * cruise_speed_mm_s,
         slowdown_distance_mm=current.slowdown_distance_mm,
         turn_rate_rad_s=turn_rate_rad_s,
         position_tolerance_mm=current.position_tolerance_mm,

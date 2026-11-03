@@ -90,20 +90,58 @@ summary::marker {
 
 /* The asterisk also identifies assigned files without relying on color. */
 .student-file,
-.student-file code {
+.student-file code,
+.file-role-implement,
+.project-file-reference.file-role-implement,
+.file-role-implement code {
   color: var(--student-file-color);
   font-weight: 700;
 }
 
 .config-file,
-.config-file code {
+.config-file code,
+.file-role-configure,
+.project-file-reference.file-role-configure,
+.file-role-configure code {
   color: var(--config-file-color);
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .supplied-file,
-.supplied-file code {
+.supplied-file code,
+.file-role-supplied,
+.project-file-reference.file-role-supplied,
+.file-role-supplied code {
   color: var(--supplied-file-color);
+  font-weight: 400;
+}
+
+:is(.markdown-preview, .documentation-markdown) .navigation-behaviors table {
+  display: table;
+  table-layout: auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+:is(.markdown-preview, .documentation-markdown)
+  .navigation-behaviors
+  :is(th, td):first-child {
+  width: 24%;
+}
+
+:is(.markdown-preview, .documentation-markdown)
+  .navigation-behaviors
+  :is(th, td):nth-child(n + 2) {
+  width: 38%;
+}
+
+:is(.markdown-preview, .documentation-markdown)
+  .navigation-behaviors
+  td:first-child
+  code {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* The final program walkthrough uses the same blue as the app menubar. */

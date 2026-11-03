@@ -2,173 +2,216 @@
 
 ## Task
 
-Visit the three destinations in order and finish facing the indicated direction. Use measured wheel travel to estimate the robot's axle-midpoint position and heading, then navigate from that estimate. Compare the reported final pose with an independent floor measurement.
+Navigate the sequence of goals, in order, in minimum time, returning to the starting position and heading at the end. Use camera based gps and wheel travel to estimate the robot's pose, then use that pose to control its motion toward the active goal.
 
-![Starting pose, three destinations in visit order, and final heading.](course-assets/waypoint-courier.svg)
+The Waypoints counter confirms arrivals within 50 mm of each goal. At the final goal, the heading must also be within 10° of the starting heading. A successful run reaches the final goal number and stops. Route time is measured automatically from navigation start to the final accepted pose.
 
-*Figure. The blue S dot and arrow indicate the starting axle pose and +x heading. Numbered orange dots show the three destinations in visit order; the left-pointing arrow at goal 3 shows its required final heading. No measured or planned trajectory is drawn. Coordinates come from `world.json` in millimeters.*
+Reuse your sensing and differential-drive components from Challenge 2. The new work is to update world position and heading in [localization.py](localization.py), and calculate motion commands in [navigation_controller.py](navigation_controller.py). Implement and test these calculations in Virtual XRP before running the physical robot.
 
-## 1. Implement and measure odometry
+![Four World views showing the robot between successive navigation goals.](course-assets/waypoint-courier-run.svg)
 
-1. **Initialize pose.** Establish the estimate at a known starting pose. In `odometry.py`, implement `Odometry.reset(initial_pose)` to store and return that `Pose`. Make the `pose` property return the latest estimate. Position is the drive-axle midpoint in world millimeters; heading is positive counterclockwise from +x, in radians.
-2. **Integrate wheel travel.** Convert each measured wheel increment into a change in pose. Implement `Odometry.update(left_increment_mm, right_increment_mm)` using signed travel since the previous sample and `self.config.track_width_mm`. Return and retain the new `Pose`. Unequal travel follows the wheel paths' exact constant-curvature arc; wrap heading to `[-π, π)`.
-3. **Check known motions.** Run **Run code tests** (`component_checks.py`) without driving. For its straight, in-place turn, and arc inputs, record the wheel increments, predicted change in pose, and returned `Pose`. Compare the direction, units, and heading wrap. A square is an optional additional accumulation check; the route run below supplies the independent floor-pose comparison.
+*Figure 1. Successive stages of a completed route in Virtual XRP.*
 
-## 2. Implement and test ordered navigation
+## 1. Estimate the robot's position and heading
 
-1. **Track goals.** Retain which destination is active across samples. In `navigation_controller.py`, implement `NavigationController.start(goals)` to save the ordered sequence and reset progress. Make `current_goal()` report the active goal or `None`, and `is_complete()` report whether every required position and heading has been reached. An empty route is complete immediately.
-2. **Choose motion.** Turn pose error into the next motion request. Implement `update(pose)` to return a `MotionCommand` from the estimated `Pose`. Decide how to turn toward, approach, and accept each goal. `heading_rad=None` requires position only; the last goal also requires heading. Use `NavigationConfig` tolerances and motion settings. Return `STOP_COMMAND` after completion.
-3. **Check and select.** Use **Run code tests** to examine distant, near, and wrong-final-heading poses. In `robot_setup.py`, set `USE_STUDENT_ODOMETRY` and `USE_STUDENT_NAVIGATION_CONTROLLER` to `True` after their checks pass so Run uses your methods. Reuse your completed sensing and differential-drive files from Arena Line Circuit, along with the same robot's measured settings. Set their matching flags to `True`; `False` selects the supplied versions. Wheel-speed control remains supplied by the library.
+Camera based gps provides position and heading in the arena. Its updates correct the pose, while measured wheel travel provides the movement between updates. You will calculate this movement in `predict()`; the inherited `update()` method combines it with camera based gps to produce the pose used by navigation.
 
-## 3. Run and measure the courier route
+### World coordinates and robot coordinates
 
-1. **Set motion controls.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` applies changed values to the active controller after the next robot sample; approach speed follows cruise speed at 80%. Slider endpoints are configured control limits, not activity targets. Record values used; adjust other navigation settings in `robot_setup.py` when measurements support a change.
-2. **Check the virtual route.** Inspect the start and ordered goals in `world.json`; `challenge.py` loads them as `INITIAL_POSE` and `ROUTE`. Run `main.py` on the Virtual XRP. Use the route trace, estimated heading, `goals_reached`, and Program output to locate overshoot, missed goals, or repeated turns. Revise the controller and repeat as needed before physical trials.
-3. **Measure the physical result.** Run from the marked starting axle pose. Record visit order, missed destinations or contact, and final orientation. Measure final axle-midpoint position and heading on the floor, including reading precision, and compare them with `final_pose` in Program output. If using a front-center mark, measure its axle offset and account for heading. Repeat the selected motion settings three times to assess consistency.
+World space has its origin at the arena center. The directions \(\hat{x}\) and \(\hat{y}\) lie along the arena's length and width. The position vector \(\boldsymbol{p}=[x,y]^\top\) locates the midpoint between the driven wheels. The heading \(\theta\) is measured counterclockwise from world \(+x\) to the robot's forward direction.
 
-## Save and plot each trial
+Robot space has its origin at the wheel midpoint, with \(\hat{x}_r\) pointing forward and \(\hat{y}_r\) pointing left. These directions turn with the robot. The hats denote unit vectors. Use millimeters for distances and radians for angles in your calculations.
 
-If Monitor’s controls are collapsed, select **›** at its upper left to reach
-the plot and export settings.
+![An example path running left to right through two robot poses toward goal 3, with separate world and robot coordinate directions.](course-assets/localization-navigation.svg)
 
-1. Before **Run**, record the world, selected student flags, calibration,
-   sample period, and live-control values. Keep those values fixed during a
-   comparison trial. Number every run, including incomplete runs.
-2. After the run ends, use **Monitor → Export → Export run data as CSV** and
-   **Export program output**. Select **Include code in ZIP** and **Export run
-   data (ZIP)** to retain the code and settings used. Name exports by pair,
-   challenge, target, and trial, for example `pair07_ch3_virtual_trial01.csv`.
-   Wait for export completion and open the saved files to check their contents.
-3. Load the CSV in MATLAB with the commands below. Keep the original CSV;
-   filtering the table selects processed course samples for these plots.
-   Virtual physics observations and raw acquisition rows remain in the file.
-   Use the same axis limits when comparing settings. Put trial number and
-   settings in each figure title or caption.
+*Figure 2. World and robot coordinates along a schematic example path. At times \(t_1\) and \(t_2\), the robot headings are \(\theta_1\) and \(\theta_2\). The forward and leftward unit directions \(\hat{x}_{r,1},\hat{y}_{r,1}\) and \(\hat{x}_{r,2},\hat{y}_{r,2}\) turn with the robot; \(\hat{x},\hat{y}\) are fixed world directions. The navigation goal has world coordinates \((x_g,y_g)\).*
 
-```matlab
-T = readtable('pair07_ch3_virtual_trial01.csv', ...
-    'VariableNamingRule','preserve');
-valid = strcmp(string(T.sample_kind),'course') & ...
-    isfinite(T.acquired_at_s) & isfinite(T.acquisition_seq);
-T = T(valid,:);
-assert(~isempty(T), 'No course sensor samples were recorded.');
-clock = string(T.clock_id);
-T = T(clock == clock(1),:);
-[~, rows] = unique(T.acquisition_seq, 'stable');
-T = T(rows,:);
-t = T.acquired_at_s; % Seconds from the first encoder acquisition.
-```
+### Calculate the new position and heading
 
-```matlab
-figure; plot(T.estimated_x_mm,T.estimated_y_mm);
-axis equal; xlabel('Estimated x (mm)'); ylabel('Estimated y (mm)'); grid on;
-hold on;
-% Enter the ordered goal coordinates from this trial's world.json:
-goal_x_mm = [400; 400; 0];
-goal_y_mm = [0; 300; 300];
-plot(goal_x_mm,goal_y_mm,'o');
-legend('Estimated route','Goals','Location','best');
-figure; plot(t,T.estimated_heading_rad);
-xlabel('Time from first encoder acquisition (s)'); ylabel('Estimated heading (rad)'); grid on;
-exportgraphics(gcf,'trial01_heading.png','Resolution',200);
-```
+Complete `Localization.predict()` in [localization.py](localization.py). It receives the starting `pose` and the left and right wheel travel increments, \(d_L\) and \(d_R\), since the preceding encoder measurement. Forward travel is positive. The method returns the updated pose.
 
-Replace the example filename and both goal vectors with values from the
-selected world; check their order before plotting. Keep equal x/y scale on
-route plots. For physical runs, add measured final axle-midpoint x/y and heading
-to the trial table; report position error in mm and wrapped heading error in
-rad. Repeat the selected motion settings three times and include incomplete
-routes. Do not label estimated pose as a floor measurement.
+1. **Calculate forward travel and heading change.** The mean wheel travel gives the distance \(s\) traveled by the wheel midpoint. The difference turns the robot through \(\Delta\theta\), where \(b\) is the separation between the driven wheels:
 
-To inspect the sample timing, select **Monitor → Plot signals → Control period**.
-The plot compares the measured interval between sensor samples with the
-configured period, both in ms. Use measured elapsed time in calculations;
-the arrival time of a telemetry message in the browser is not the sample time.
+   \[
+   s=\frac{d_L+d_R}{2},\qquad
+   \Delta\theta=\frac{d_R-d_L}{b}.
+   \]
 
-## Reading main.py
+   Use the two wheel-travel arguments for \(d_L,d_R\) and `self.config.track_width_mm` for \(b\).
 
-1. **Create robot and navigation objects.** `make_robot(ROBOT_CONFIG)`
-   assembles the selected sensing, wheel-speed, drive-conversion, and odometry
-   objects. `make_navigation_controller(NAVIGATION_CONFIG)` creates a
-   separate route controller. The processor saves sensor samples, odometry saves the estimated pose,
-   and navigation saves route progress. The settings records hold wheel
-   dimensions, speed limits, and arrival tolerances.
-2. **Start at the known pose.** `robot.start(INITIAL_POSE)` resets measurements
-   and returns `RobotState(measurements, pose)`. `state.pose` is the estimated
-   axle-midpoint `Pose`, with named x/y positions in mm and heading in rad.
-   `navigation.start(ROUTE)` stores the ordered `NavigationGoal` records and
-   resets its active-goal index.
-3. **Request and apply one motion.** While the controller is incomplete,
-   `apply_navigation_controls()` copies current Monitor settings into it.
-   `navigation.update(state.pose)` selects a `MotionCommand` using the latest
-   estimate. `robot.step(...)` converts it to wheel targets, applies motor
-   feedback, measures wheel travel, and updates odometry. The returned state
-   supplies the next pose. Neither the requested motion nor simulated truth
-   replaces the wheel-derived pose in this loop.
-4. **Check observed arrivals.** `count_reached_goals()` compares each new
-   estimated pose with the next goal using current position/heading tolerances.
-   Its count is separate from the navigation object's completion claim.
-   Monitor receives that count and estimated heading. `step_count` counts
-   updates for debugging; it is not elapsed time.
-5. **Report and stop.** After controller completion, `main.py` checks that
-   every required arrival was observed in order. It prints the count and
-   final estimated pose, raises an error for incomplete arrival, and removes
-   motor effort in `finally` on completion or error.
+2. **Calculate the displacement in world coordinates.** During a turn, the robot's heading changes from \(\theta\) to \(\theta'=\theta+\Delta\theta\). With approximately constant wheel speeds over the short interval, the heading changes approximately uniformly. Halfway through the interval, the heading is
 
-Optional `TARGET_LOCATION_KP`, `TARGET_LOCATION_KI`, and `TARGET_LOCATION_KD`
-are defined at zero in `navigation_controller.py` for a student distance-to-speed
-feedback rule. The supplied controller does not read them. The current
-`update(pose)` method receives position and heading, with no time interval.
-Keep `TARGET_LOCATION_KI` and `TARGET_LOCATION_KD` at zero for this challenge.
+   \[
+   \frac{\theta+\theta'}{2}
+   =\frac{\theta+(\theta+\Delta\theta)}{2}
+   =\theta+\frac{\Delta\theta}{2}.
+   \]
 
-## Your report
+   Approximate the short movement by travel \(s\) along this halfway direction, then project it onto the world axes (Figure 3):
 
-Submit one report per pair with both names, robot identification, selected components, world, and trial settings. Label virtual results separately from physical measurements.
+   \[
+   \Delta\boldsymbol{p}
+   =\begin{bmatrix}\Delta x\\\Delta y\end{bmatrix}
+   \approx s\begin{bmatrix}
+   \cos(\theta+\Delta\theta/2)\\
+   \sin(\theta+\Delta\theta/2)
+   \end{bmatrix}.
+   \]
 
-1. **Preliminary lab work:** give the odometry model, straight/turn/arc input-output checks, navigation checks, and reasoning behind calibration and controller choices. Include a square check if performed.
-2. **Challenge data:** show the route trace and estimated heading, and tabulate requested, estimated, and measured final position and heading for physical runs. Include visit order and relevant settings.
-3. **Challenge performance:** state which goals and final-heading requirement were reached, and quantify final position and heading errors using the axle midpoint.
-4. **Reflection:** use the preliminary and route data to distinguish pose-estimation error from controller behavior. Identify one supported improvement and the measurement that would test it.
+   Use `pose.heading_rad` for \(\theta\), with `cos` and `sin` for the two projections.
 
-## Project files
+3. **Return the updated pose.** Add the displacement to the starting world position and the heading change to the starting heading:
 
-<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.
+   \[
+   \boldsymbol{p}'=\boldsymbol{p}+\Delta\boldsymbol{p},\qquad
+   \theta'=\theta+\Delta\theta.
+   \]
 
-<div class="project-file-table">
+   Add \(\Delta x\) to `pose.x_mm` and \(\Delta y\) to `pose.y_mm`. Return the resulting coordinates and heading in a new `Pose`.
 
-| File | What it does |
-| --- | --- |
-| <span class="supplied-file"><code>main.py</code> S</span> | Runs navigation and reports independently counted arrivals and final pose. |
-| <span class="supplied-file"><code>route_progress.py</code> S</span> | Checks estimated-pose arrival at ordered goals using current tolerances. |
-| <strong class="student-file"><code>odometry.py</code> *</strong> | Accumulates wheel increments to estimate position and heading. |
-| <strong class="student-file"><code>navigation_controller.py</code> *</strong> | Uses estimated pose to reach ordered destinations. |
-| <span class="supplied-file"><code>sensor_processor.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |
-| <strong class="config-file"><code>robot_setup.py</code> †</strong> | `sample_period_ms` — scheduled measurement interval in ms; 20 ms requests 50 Hz.<br>`wheel_diameter_mm` — wheel diameter in mm used to convert encoder counts to travel.<br>`encoder_counts_per_revolution` — encoder counts for one wheel revolution.<br>`track_width_mm` — wheel spacing in mm used for turning and odometry.<br>`left_start_command`, `right_start_command` — supplied motor commands for starting each wheel.<br>`left_speed_command_gain`, `right_speed_command_gain` — supplied motor-command coefficients per requested wheel speed.<br>`wheel_speed_kp` — supplied correction per wheel-speed error.<br>`wheel_speed_ki`, `wheel_speed_kd` — reserved settings; keep zero because the supplied controller does not use them.<br>`max_drive_command` — largest permitted absolute motor command.<br>`USE_STUDENT_SENSOR_PROCESSOR`, `USE_STUDENT_DIFFERENTIAL_DRIVE`, `USE_STUDENT_ODOMETRY`, `USE_STUDENT_NAVIGATION_CONTROLLER` — True uses each corresponding project class; False uses its supplied class.<br>`cruise_speed_mm_s` — forward speed in mm/s away from a goal.<br>`approach_speed_mm_s` — forward speed near a goal; 80% of the Cruise speed setting.<br>`slowdown_distance_mm` — distance in mm at which approach speed replaces cruise speed.<br>`turn_rate_rad_s` — maximum turning rate in rad/s.<br>`position_tolerance_mm` — distance error in mm accepted at a goal.<br>`heading_tolerance_rad` — heading error in rad accepted for alignment.<br>`realign_heading_rad` — heading error in rad that pauses forward travel for turning. |
-| <strong class="config-file"><code>challenge.py</code> †</strong> | `INITIAL_POSE` — starting pose read from the world.<br>`ROUTE` — world waypoint sequence in visit order. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | `CRUISE_SPEED` — Monitor Cruise speed setting in mm/s.<br>`TURN_RATE` — Monitor Turn rate limit in rad/s. |
-| <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |
-| <strong class="config-file"><code>world.json</code> †</strong> | `default_world` — world used when none has been selected.<br>`bounds` — arena edges in mm.<br>`initial_pose` — starting position in mm and heading in rad.<br>`markers` — start, target, or waypoint locations in mm. |
+![A turning movement with different initial and final forward directions, its displacement, and projections onto the world axes.](course-assets/pose-increment.svg)
+
+*Figure 3. The robot turns from heading \(\theta\) to \(\theta'\), a change of \(\Delta\theta\). The displacement \(\Delta\boldsymbol{p}=\boldsymbol{p}'-\boldsymbol{p}\) points along \(\theta+\Delta\theta/2\), halfway between these headings. Its world components are \(\Delta x\) and \(\Delta y\). The oblique dashed ray at \(\boldsymbol{p}'\) is parallel to the initial forward direction; it provides the reference for \(\Delta\theta\).*
+
+## 2. Use the estimated pose to navigate toward a goal
+
+The updated position and heading from localization become the `pose` input to the navigation commands. Use them to find the direction of the active goal, calculate a heading error, and request a turn that reduces that error. While driving, repeat this calculation as the robot's position changes.
+
+### Complete the driving command
+
+In [navigation_controller.py](navigation_controller.py), complete `DriveToGoal.command()`. It receives the current `pose`, active `goal`, and navigation settings `config`. Return a `MotionCommand` containing forward speed \(V\) [mm/s] and turn rate \(\omega\) [rad/s]. The turn rate is the change in robot heading per second; positive \(\omega\) turns counterclockwise.
+
+1. **Find the heading toward the active goal.** For robot position \((x,y)\) and goal position \((x_g,y_g)\), calculate
+
+   \[
+   \phi=\operatorname{atan2}(y_g-y,\;x_g-x).
+   \]
+
+   Use `goal.y_mm - pose.y_mm` and `goal.x_mm - pose.x_mm` as the two `atan2` arguments, in that order. The function uses both coordinate differences to determine the direction.
+
+2. **Calculate the heading error.** Compare the goal direction with the current robot heading:
+
+   \[
+   \Delta\phi=\operatorname{wrap}(\phi-\theta).
+   \]
+
+   Apply `wrap_angle_rad` to the difference from `pose.heading_rad`. It expresses the turn between \(-\pi\) and \(\pi\): positive error calls for a left turn, and negative error for a right turn.
+
+![Robot heading and heading toward a navigation goal, with their angular difference.](course-assets/navigation-steering.svg)
+
+*Figure 4. The robot heading \(\theta\) and the heading toward the navigation goal, \(\phi\), are shown. The difference between them, \(\Delta\phi\), is the heading error.*
+
+3. **Calculate the turn rate.** Use proportional feedback:
+
+   \[
+   \omega=k\Delta\phi.
+   \]
+
+   For driving, use `HEADING_GAIN` as \(k\), in \(\mathrm{s}^{-1}\). A larger gain requests a faster turn for the same heading error. Use `clamp(value, lower, upper)` to limit the result between `-config.turn_rate_rad_s` and `config.turn_rate_rad_s`. This is the turn rate to return in your command.
+
+4. **Set forward speed from the remaining distance.** Slow the final approach to allow time for the remaining heading correction. Find the distance with `distance_to_goal(pose, goal)`. Outside `config.slowdown_distance_mm`, request `config.cruise_speed_mm_s`. Within that distance, multiply `config.approach_speed_mm_s` by the remaining distance divided by `config.slowdown_distance_mm`.
+
+5. **Return the motion command.** Return `MotionCommand(forward_speed, turn_rate)` using the speed from step 4 and the turn rate from step 3. Your differential-drive component from Challenge 2 converts these requests into left and right wheel speeds.
+
+### Complete turning and final alignment
+
+The navigation controller selects the active behavior and advances to the next goal when its arrival conditions are met. The driving command above controls travel between goals; the other two commands orient the robot before driving and at the end of the route.
+
+<div class="navigation-behaviors">
+
+| Behavior class | When active | Function |
+| --- | --- | --- |
+| `TurnToGoal` | Before driving toward a new goal, or when a large heading error interrupts driving. | Turn in place to face the goal. |
+| `DriveToGoal` | Once facing the goal. | Drive forward and correct the heading until reaching the goal position. |
+| `AlignAtGoal` | At the final goal. | Turn in place to restore the starting heading. |
 
 </div>
 
-## Functions and methods
+- Complete `TurnToGoal.command()` using the same goal direction and heading error as the driving command. Use `TURN_GAIN` for the proportional gain, apply the turn-rate limit, and return zero forward speed with the resulting turn rate.
+- Complete `AlignAtGoal.command()` by comparing `goal.heading_rad` with `pose.heading_rad`. Apply `wrap_angle_rad`, `TURN_GAIN`, and the turn-rate limit, then return zero forward speed with the resulting turn rate.
 
-Keep the template method names and arguments. Use measured `dt_s` or sample
-timestamps for calculations involving time. Keep the supplied wheel-controller
-settings in `robot_setup.py`. The API Reference gives the full record fields
-and method requirements.
+The controller starts driving within 10° of the goal direction. If the error later exceeds `REALIGN_HEADING_RAD` in [settings.py](settings.py), it turns in place before continuing.
 
+The two gains control different motions: `TURN_GAIN` controls changes of heading at a fixed position; `HEADING_GAIN` controls steering while the goal direction changes with the robot's position.
 
+## 3. Test the program, then improve route time
 
-| Function or method | Input | Return or effect |
-| --- | --- | --- |
-| `Odometry.reset(initial_pose)` | Known `Pose` in mm and rad | Stores and returns starting `Pose`. |
-| `Odometry.update(left_increment_mm, right_increment_mm)` | Signed wheel increments in mm | Updated estimated `Pose`. |
-| `Odometry.pose` | Property read after reset | Latest estimated `Pose`. |
-| `NavigationController.start(goals)` | Ordered `NavigationGoal` values | Starts at first goal; an empty route is complete. |
-| `NavigationController.set_config(config)` | Complete `NavigationConfig` | Inherited method changes settings without restarting the route. |
-| `NavigationController.update(pose)` | Estimated `Pose` | Next `MotionCommand` in mm/s and rad/s. |
-| `NavigationController.current_goal()` | None | Active goal or `None`. |
-| `NavigationController.is_complete()` | None | Boolean route-completion status. |
-| `count_reached_goals(pose, route, reached_count, config)` | Estimated pose, ordered goals, previous count, current settings | Updated independently observed arrival count. |
+### Test the implementation in Virtual XRP
+
+Use Run code tests to check each completed component. The tests exercise the project classes directly; unfinished methods are reported as Not implemented. In [robot_setup.py](robot_setup.py), enable your reused components by setting `USE_STUDENT_SENSOR_PROCESSOR` and `USE_STUDENT_DIFFERENTIAL_DRIVE` to `True`. Then test the new components in Virtual XRP:
+
+1. Set `USE_STUDENT_LOCALIZATION = True` and `USE_STUDENT_NAVIGATION_CONTROLLER = False` to test your pose update with the reference navigation commands.
+2. Set `USE_STUDENT_NAVIGATION_CONTROLLER = True` and run again to test your complete implementation.
+
+Inspect the path in World. Confirm that the Waypoints count advances through the goals and that the robot returns to the start, aligns, and stops.
+
+Use the motion to diagnose your implementation: the robot should turn toward the active goal, drive toward it while correcting its heading, and align with the starting direction at the finish. During driving, inspect Command heading error and Requested turn rate together to check the sign, magnitude and limit of your steering correction.
+
+### Reduce the time on Physical XRP
+
+Copy your physical robot's calibration from Challenge 2 into [settings.py](settings.py), place the wheel midpoint at the start mark facing world \(+x\), and run your tested components with camera based gps. Use the Waypoints count to confirm completion and Route time to measure performance. The program also prints the final route time as `elapsed_s`.
+
+Identify where the robot spends unnecessary time. Adjust speeds and the turn-rate limit in [settings.py](settings.py), or the two gains in [navigation_controller.py](navigation_controller.py), using the observed motion to guide your choice:
+
+| Observed motion | Adjustment to evaluate |
+| --- | --- |
+| Direct, steady travel between goals, with little heading error. | Increase cruise speed and check that the route still completes. |
+| Long turns in place before or after driving. | Increase `TURN_GAIN` if the turn-rate request is below its limit; otherwise evaluate a higher turn-rate limit. |
+| While driving, the heading error persists in one direction and the turn-rate request is below its limit. | Increase `HEADING_GAIN` to correct the error more quickly. |
+| While driving, the heading error persists and the turn-rate request remains at its limit. | Reduce cruise speed or evaluate a higher turn-rate limit. Increasing the gain alone cannot increase the requested turn rate. |
+| Steering repeatedly carries the robot across the direction of the goal. | Reduce `HEADING_GAIN` and compare the path and route time. |
+
+Repeat promising settings to establish that the faster route completes reliably. Use the physical runs to choose your final settings.
+
+## Explain the improvement in your submission
+
+Export the selected runs from Monitor with Include code in ZIP. Record the Waypoints count, Route time, cruise speed, turn-rate limit and two gains for the runs that support your choice.
+
+Plot the robot's path from `estimated_x_mm` and `estimated_y_mm`, with equal axis scales and the navigation goals from [world.json](world.json). To explain a steering change during driving, plot `program_goal_heading_error_rad` and `requested_turn_rate_rad_s` against `acquired_at_s` over the relevant part of the route. The recorded route time is `program_route_time_s`.
+
+Answer these questions in your submission:
+
+1. How does unequal wheel travel change the robot's heading, and why does the world displacement use the direction halfway through that change?
+2. How does the updated pose determine the command in `DriveToGoal.command()`? Explain how turning in place and final alignment modify that calculation.
+3. Which change improved your physical route time? Use the path or steering plots to explain the improvement and report the completion counts and times that support your final settings.
+
+## Test the pose and navigation calculations
+
+The calculation tests call the classes in your project files, independently of the component selectors in [robot_setup.py](robot_setup.py). They compare returned poses and commands with expected results for known inputs. Resolve a Fail result using the reported inputs and differences. A Not implemented result identifies a method still to complete; a Pass result confirms the tested calculation.
+
+## Project files
+
+<span class="student-file">Implement (green)</span>: student calculations. <span class="config-file">Configure (purple)</span>: settings and selectors. <span class="supplied-file">Supplied (gray)</span>: program and task files.
+
+| File | Work |
+| --- | --- |
+| `localization.py`, `navigation_controller.py` | Complete the pose update and three motion commands. |
+| `settings.py`, `robot_setup.py` | Enter calibration, tune navigation and select components. |
+| `sensor_processor.py`, `differential_drive.py` | Reuse your Challenge 2 calculations. |
+| `challenge.py`, `world.json` | Define the route and arrival criteria. |
+| `main.py`, `route_progress.py`, `live_variables.py` | Run the route, count arrivals and report time. |
+| `supplied_settings.py`, `component_checks.py` | Configure target services and test calculations. |
+
+## Appendix A: main.py: controlling the loop
+
+The route is a feedback process: wheel travel and camera based gps update the pose, navigation uses that pose to choose the next motion command, and the resulting movement changes the next pose.
+
+![Pose estimation, navigation, wheel control and robot movement connected in a feedback loop.](course-assets/navigation-feedback-loop.svg)
+
+*Figure 5. Pose \((\boldsymbol{p},\theta)\) and the active goal determine forward speed \(V\) and turn rate \(\omega\). Wheel travel \(d_L,d_R\) and camera based gps provide the next pose update.*
+
+After the initial camera based gps update, `main.py` starts navigation and the route clock. Each iteration calls `navigation.update(state.pose)` to obtain a command, then `robot.step(command)` to apply it and obtain the next `RobotState`. That state contains the pose used in the following iteration. The loop updates the waypoint count and route time; completing the route stops the robot.
+
+## Appendix B: State objects and method selection
+
+The controller creates one object for each behavior class and reuses it throughout the route. Each object combines the class's motion command with a decision about which behavior comes next.
+
+In `class DriveToGoal(DriveToGoalState):`, `DriveToGoalState` is the parent class. It provides `execute()`, which decides whether to continue driving or change state. Your `DriveToGoal` class provides `command()`, the calculation you completed in section 2. When the inherited `execute()` calls `self.command(pose, goal, config)`, Python uses the command method defined by that object's class.
+
+The controller advances the active behavior with
+
+```python
+self._state = self._state.execute(pose, goal, self)
+```
+
+Here, `self` is the controller; the last argument passes it to the active state. The call runs that state's `execute()` method. Returning the same state continues its behavior; returning another state changes behavior. Calling the appropriate method through the active object is polymorphic execution.

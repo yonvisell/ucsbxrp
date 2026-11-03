@@ -17,6 +17,7 @@ def reached(pose, goal, config):
 # Inputs: started Robot, NavigationController, current RobotState, ordered goals.
 # Returns: latest RobotState and "arrived" or "failed_arrival"; publishes count.
 def follow_route(robot, navigation, state, goals):
+    state = robot.wait_for_gps()
     navigation.start(goals)  # Load the route and select its first goal.
     reached_count = 0
     while True:  # Check arrival and update motion at each measured pose.

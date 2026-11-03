@@ -11,7 +11,7 @@ from stationary_observation import wait_until_stationary
 from robot_setup import NAVIGATION_CONFIG, ROBOT_CONFIG
 from ucsb_xrp import elapsed_time_s
 
-robot = make_robot(ROBOT_CONFIG)  # Assemble the selected sensing, wheel-control, drive, and odometry objects.
+robot = make_robot(ROBOT_CONFIG)  # Assemble the selected sensing, wheel-control, drive, and localization objects.
 navigation = make_navigation_controller(NAVIGATION_CONFIG)  # Create a separate navigation object with its own route progress.
 try:  # Run this block, then stop the motors in finally.
     state = robot.start(INITIAL_POSE)  # Start wheel travel at zero and set the estimated starting Pose.
@@ -38,6 +38,7 @@ try:  # Run this block, then stop the motors in finally.
             else:
                 publish_phase("plan_return")
                 robot.stop()
+                state = robot.wait_for_gps()
                 goals, path_cell_count, path_error = plan_return(make_grid_planner(), state.pose, blocked)
                 if path_error is not None:
                     report_result(path_error)

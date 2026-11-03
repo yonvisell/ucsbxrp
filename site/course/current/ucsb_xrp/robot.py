@@ -53,6 +53,9 @@ class Robot:
         "_wheel_update",
         "_wheel_speeds",
         "_odometry_update",
+        "_localization_update",
+        "_localization_snapshot",
+        "_gps_ready",
         "_wheel_control_values",
         "_scalar_targets",
         "_scalar_wheel_update",
@@ -109,6 +112,12 @@ class Robot:
         self._wheel_update = wheel_controller.update
         self._wheel_speeds = differential_drive.wheel_speeds
         self._odometry_update = odometry.update
+        measured_update = getattr(odometry, "_update_measurements", None)
+        self._localization_update = measured_update if callable(measured_update) else None
+        self._localization_snapshot = (
+            odometry._telemetry_snapshot if self._localization_update is not None else None
+        )
+        self._gps_ready = getattr(odometry, "gps_ready", None)
         self._wheel_control_values = None
         self._scalar_targets = None
         self._scalar_wheel_update = None
@@ -174,14 +183,32 @@ class Robot:
         raw = self._read_sensors(False, read_reflectance)
         measurements = self._sensor_model.reset(raw)
         self._wheel_controller.reset()
-        pose = self._odometry.reset(initial_pose)
+        if self._localization_update is None:
+            pose = self._odometry.reset(initial_pose)
+        else:
+            pose = self._odometry.reset(initial_pose, measurements.time_ms)
         self._state = RobotState(measurements, pose)
-        publish_state(self._state, raw_sensors=raw, sample_period_ms=self.config.sample_period_ms)
+        publish_state(
+            self._state, raw_sensors=raw, sample_period_ms=self.config.sample_period_ms,
+            localization=None if self._localization_snapshot is None else self._localization_snapshot(),
+        )
         apply_updates()
         self._last_overrun_ms = 0
         self._next_sample_ms = self._ticks_add(
             self._ticks_ms(), self.config.sample_period_ms
         )
+        return self._state
+
+    def wait_for_gps(self):
+        """Sample at rest until camera-based GPS supplies a usable world pose."""
+        if self._state is None:
+            raise RuntimeError("call start(initial_pose) before wait_for_gps()")
+        ready = self._gps_ready
+        if ready is not None and not ready(self._ticks_ms()):
+            print("Waiting for camera-based GPS.")
+            while not ready(self._ticks_ms()):
+                self.step(STOP_COMMAND)
+            print("Camera-based GPS ready.")
         return self._state
 
     def step(self, command, read_range=False, read_reflectance=False):
@@ -218,10 +245,13 @@ class Robot:
                 self._sleep_ms(remaining_ms)
             raw = self._read_sensors(read_range, read_reflectance)
             measurements = self._sensor_update(raw)
-            pose = self._odometry_update(
-                measurements.left_increment_mm,
-                measurements.right_increment_mm,
-            )
+            if self._localization_update is None:
+                pose = self._odometry_update(
+                    measurements.left_increment_mm,
+                    measurements.right_increment_mm,
+                )
+            else:
+                pose = self._localization_update(measurements)
             self._state = RobotState(measurements, pose)
             publish_state(
                 self._state,
@@ -232,6 +262,7 @@ class Robot:
                 sample_period_ms=self.config.sample_period_ms,
                 overrun_ms=self._last_overrun_ms,
                 wheel_control_values=control_values,
+                localization=None if self._localization_snapshot is None else self._localization_snapshot(),
             )
             apply_updates()
             self._advance_deadline()
@@ -294,7 +325,11 @@ class Robot:
         self._bot.stop()
         apply_updates()
         if self._state is not None:
-            publish_state(self._state, DriveCommand(0.0, 0.0), sample_period_ms=self.config.sample_period_ms, kind="stop")
+            publish_state(
+                self._state, DriveCommand(0.0, 0.0),
+                sample_period_ms=self.config.sample_period_ms, kind="stop",
+                localization=None if self._localization_snapshot is None else self._localization_snapshot(False),
+            )
 
     def _read_sensors(self, include_range, include_reflectance):
         begin_course_samples()

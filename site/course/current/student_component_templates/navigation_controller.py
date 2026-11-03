@@ -1,50 +1,63 @@
-# Receive NavigationGoal sequences and Pose samples, retain route progress,
-# and return one MotionCommand for each update.
+"""Calculate motion toward the active world-coordinate goal.
 
-from ucsb_xrp import MotionCommand, STOP_COMMAND
-from ucsb_xrp.student_api import NavigationControllerBase
+pose gives the current world position x_mm/y_mm [mm] and heading_rad [rad].
+goal gives a target world position and an optional heading for alignment.
+config supplies speeds and limits.
+Return MotionCommand(forward_speed, turn_rate), in mm/s and rad/s; positive turn
+rate is counterclockwise.
 
-# NavigationController — Convert ordered arena-frame targets and estimated pose into motion.
-# Called by: Route execution in main.py or mission_steps.py.
-# Methods: start(), update(), current_goal(), is_complete(); inherited set_config().
-# Inputs: Ordered NavigationGoal targets and estimated Pose in the arena frame.
-# State: Saved goals, active-goal index, and turn/drive/align phase.
-# Returns: MotionCommand (forward mm/s, turn rad/s) and completion status.
+Each supplied parent class provides execute(), which selects the next behavior.
+While its behavior continues, it calls this class's command() with the current
+pose, goal and config. The controller retains progress and reuses these objects.
+"""
 
+from math import atan2
+from ucsb_xrp import (
+    MotionCommand, clamp, distance_to_goal, wrap_angle_rad,
+)
+from ucsb_xrp.navigation import (
+    NavigationControllerBase, TurnToGoalState, DriveToGoalState, AlignAtGoalState,
+)
+
+TURN_GAIN = 2.0      # Turn rate per heading error when turning in place [1/s].
+HEADING_GAIN = 2.0   # Turn rate per heading error while driving [1/s].
+
+
+class TurnToGoal(TurnToGoalState):
+    def command(self, pose, goal, config):
+        """Request an in-place turn toward the goal position."""
+        # Find world displacement from robot to goal; atan2(y, x) gives its direction.
+        # Use wrap_angle_rad for the shortest signed turn from pose.heading_rad
+        # toward that direction.
+        # Scale the error by TURN_GAIN; clamp to +/- config.turn_rate_rad_s.
+        # Return zero forward speed and the calculated turn rate.
+        raise NotImplementedError("Complete TurnToGoal.command")
+
+
+class DriveToGoal(DriveToGoalState):
+    def command(self, pose, goal, config):
+        """Request forward travel with steering toward the goal position."""
+        # Recalculate the goal direction and signed heading error as in TurnToGoal.
+        # Use HEADING_GAIN here and the same turn-rate limit.
+        # Find remaining distance [mm] with distance_to_goal(pose, goal).
+        # Beyond config.slowdown_distance_mm, request config.cruise_speed_mm_s.
+        # At or inside that distance, scale config.approach_speed_mm_s by the
+        # fraction of the slowdown distance remaining, allowing time to steer.
+        # Return the forward speed and turn rate together in a MotionCommand.
+        raise NotImplementedError("Complete DriveToGoal.command")
+
+
+class AlignAtGoal(AlignAtGoalState):
+    def command(self, pose, goal, config):
+        """Request an in-place turn to the heading required at the reached goal."""
+        # Use goal.heading_rad as the target orientation, replacing goal direction.
+        # Wrap its error from the current heading; apply TURN_GAIN and the limit.
+        # Return zero forward speed and the calculated turn rate.
+        raise NotImplementedError("Complete AlignAtGoal.command")
+
+
+# Connect the three command classes to the supplied controller's state selection.
 class NavigationController(NavigationControllerBase):
-    # Keep the active-goal index and whether the robot is turning toward a
-    # target, driving to it, or aligning to its requested final heading.
-    # config.position_tolerance_mm is the permitted distance from the target;
-    # config.heading_tolerance_rad is the permitted final heading error.
-    # config.realign_heading_rad is the error above which forward travel pauses
-    # so the robot can turn toward the target in place.
-
-    def start(self, goals):
-        # goals is an ordered tuple or list of NavigationGoal objects. Each goal's
-        # x_mm and y_mm locate a target in the fixed arena coordinate frame.
-        # Its heading_rad is the required final angle from the positive x axis,
-        # counterclockwise in radians; None means no final-angle requirement.
-        # Save this route and discard previous progress. If goals is empty,
-        # is_complete() returns True and update() returns STOP_COMMAND.
-        raise NotImplementedError("Complete NavigationController.start")
-
-    def update(self, pose):
-        # pose is the latest estimated Pose(x_mm, y_mm, heading_rad) in the
-        # fixed arena frame (mm, mm, rad). Use the current goal to choose
-        # turning, forward travel, or final-heading alignment; advance when its
-        # required position and heading are reached. Return
-        # MotionCommand(forward_speed_mm_s, turn_rate_rad_s), with positive
-        # turn rate counterclockwise. Return STOP_COMMAND when no goal remains.
-        raise NotImplementedError("Complete NavigationController.update")
-
-    def current_goal(self):
-        # Return the saved NavigationGoal currently being approached, or
-        # None when no goal remains.
-        raise NotImplementedError("Complete NavigationController.current_goal")
-
-    def is_complete(self):
-        # Return True after every saved goal has been accepted in order.
-        # Accept each position within config.position_tolerance_mm and each
-        # specified final heading within config.heading_tolerance_rad.
-        # Return True immediately for an empty route.
-        raise NotImplementedError("Complete NavigationController.is_complete")
+    turn_state_class = TurnToGoal
+    drive_state_class = DriveToGoal
+    align_state_class = AlignAtGoal

@@ -240,7 +240,7 @@
     "source": "starters/challenge_3_waypoint_courier",
     "label": "3 \u00b7 Waypoint Courier",
     "short_label": "3 \u00b7 Waypoint Courier",
-    "summary": "Estimate position from wheel travel and visit the marked waypoints in order.",
+    "summary": "Use camera-based GPS and heading feedback to visit four irregularly placed goals, then return to the starting pose at goal 5.",
     "entrypoint": "main.py",
     "components": [
       {
@@ -254,9 +254,9 @@
         "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
-        "name": "Odometry",
-        "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY"
+        "name": "Localization",
+        "file": "localization.py",
+        "selection_flag": "USE_STUDENT_LOCALIZATION"
       },
       {
         "name": "NavigationController",
@@ -287,9 +287,9 @@
         "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
-        "name": "Odometry",
-        "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY"
+        "name": "Localization",
+        "file": "localization.py",
+        "selection_flag": "USE_STUDENT_LOCALIZATION"
       },
       {
         "name": "NavigationController",
@@ -325,9 +325,9 @@
         "selection_flag": "USE_STUDENT_DIFFERENTIAL_DRIVE"
       },
       {
-        "name": "Odometry",
-        "file": "odometry.py",
-        "selection_flag": "USE_STUDENT_ODOMETRY"
+        "name": "Localization",
+        "file": "localization.py",
+        "selection_flag": "USE_STUDENT_LOCALIZATION"
       },
       {
         "name": "NavigationController",

@@ -20,9 +20,11 @@ Plan a connected route around known obstacles, then have the Virtual XRP follow 
 2. **Check cases.** Test how the search handles endpoints and disconnection before motion. Use **Run code tests** (`component_checks.py`) without driving. Check a free start equal to goal, a blocked endpoint, and a disconnected map. `grid.is_blocked(cell)` and `grid.neighbors(cell)` expose the same grid rules as the route check.
 3. **Compare worlds.** Set `USE_STUDENT_GRID_PLANNER = True` in `robot_setup.py` after checking the planner so Run uses your search. Reuse the completed component files and measured robot settings from Waypoint Courier, and set their matching flags to `True`; `False` selects supplied versions. With **Virtual XRP** selected and `EXECUTE_ROUTE = False`, choose each named case in **Monitor → World** and run it. Compare predictions with Program output and inspect each returned path's endpoints, free cells, and steps. `main.py` reports `valid_path`, `no_path`, or `invalid_path`.
 
+Reuse the checked `localization.py` and the three navigation state commands from Challenge 3. Transfer physical calibration and tested navigation values into this project's `settings.py`; retain this project's setup and mission files. Keep `USE_GPS = True`. Camera-based GPS supplies world pose on both targets, and wheel travel updates pose between fixes. The supplied route helper acquires GPS before starting the route. Keep the virtual GPS and driving drift fixed when comparing routes.
+
 ## 3. Run and assess the route
 
-1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` applies changes after the next robot sample; approach speed remains 80% of selected cruise speed. Slider endpoints are configured control limits. Record values used; `robot_setup.py` also holds slowing distance and pose tolerances.
+1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` applies changes after the next robot sample; approach speed starts at 80% of selected cruise speed at the slowdown distance, then decreases in proportion to remaining distance. Slider endpoints are configured control limits. Record values used; `settings.py` holds navigation defaults, slowing distance and pose tolerances.
 2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals; `route_runner.py` follows them with the selected `NavigationController` and checks arrival. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.
 3. **Measure a physical route if performed.** A physical trial is optional. First compare floor geometry and robot dimensions with `world.json`. Record closest obstacle gap and measurement method, contact, and final axle-midpoint pose. Distinguish measurements from estimated pose and virtual trajectory.
 
@@ -104,14 +106,11 @@ the arrival time of a telemetry message in the browser is not the sample time.
    is replaced by the exact destination rather than its cell center.
 4. **Assemble and follow.** Only this execution branch calls `make_robot()`
    and `make_navigation_controller()`. `run_route()` starts the robot,
-   repeatedly requests motion from estimated `Pose`, and applies it through
-   `robot.step()`. It confirms destination position/heading, publishes progress,
+   acquires GPS before starting the route, requests motion from the current
+   `Pose`, and applies it through `robot.step()`. It confirms
+   destination position/heading, publishes progress,
    and stops the motors on completion or error. Planning cells are a proposed
-   route; wheel measurements determine the estimated executed route.
-
-Keep the optional `TARGET_LOCATION_KI` and `TARGET_LOCATION_KD` values in
-`navigation_controller.py` at zero. Its `update(pose)` method receives no
-time interval.
+   route; GPS and wheel travel determine the pose used to follow it.
 
 ## Your report
 
@@ -124,7 +123,7 @@ Submit one report per pair with both names, selected components, worlds, grid se
 
 ## Project files
 
-<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.
+<strong class="student-file">Implement *</strong>: code to implement. <span class="config-file">Configure †</span>: settings to adjust. <span class="supplied-file">Supplied S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.
 
 <div class="project-file-table">
 
@@ -136,9 +135,11 @@ Submit one report per pair with both names, selected components, worlds, grid se
 | <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected free-cell path. |
 | <span class="supplied-file"><code>sensor_processor.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
 | <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |
-| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |
-| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |
-| <strong class="config-file"><code>robot_setup.py</code> †</strong> | `sample_period_ms` — scheduled measurement interval in ms; 20 ms requests 50 Hz.<br>`wheel_diameter_mm` — wheel diameter in mm used to convert encoder counts to travel.<br>`encoder_counts_per_revolution` — encoder counts for one wheel revolution.<br>`track_width_mm` — wheel spacing in mm used for turning and odometry.<br>`left_start_command`, `right_start_command` — supplied motor commands for starting each wheel.<br>`left_speed_command_gain`, `right_speed_command_gain` — supplied motor-command coefficients per requested wheel speed.<br>`wheel_speed_kp` — supplied correction per wheel-speed error.<br>`wheel_speed_ki`, `wheel_speed_kd` — reserved settings; keep zero because the supplied controller does not use them.<br>`max_drive_command` — largest permitted absolute motor command.<br>`USE_STUDENT_SENSOR_PROCESSOR`, `USE_STUDENT_DIFFERENTIAL_DRIVE`, `USE_STUDENT_ODOMETRY`, `USE_STUDENT_NAVIGATION_CONTROLLER`, `USE_STUDENT_GRID_PLANNER` — True uses each corresponding project class; False uses its supplied class.<br>`cruise_speed_mm_s` — forward speed in mm/s away from a goal.<br>`approach_speed_mm_s` — forward speed near a goal; 80% of the Cruise speed setting.<br>`slowdown_distance_mm` — distance in mm at which approach speed replaces cruise speed.<br>`turn_rate_rad_s` — maximum turning rate in rad/s.<br>`position_tolerance_mm` — distance error in mm accepted at a goal.<br>`heading_tolerance_rad` — heading error in rad accepted for alignment.<br>`realign_heading_rad` — heading error in rad that pauses forward travel for turning. |
+| <span class="supplied-file"><code>localization.py</code> S</span> | Updates world pose from wheel increments between supplied GPS fixes. |
+| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Reuses the Turn, Drive and Align commands; supplied states manage transitions and ordered goals. |
+| <strong class="config-file"><code>robot_setup.py</code> †</strong> | Selects each project component with `USE_STUDENT_*`; True selects your class and False its supplied counterpart. |
+| <strong class="config-file"><code>settings.py</code> †</strong> | Physical calibration, navigation defaults, `USE_GPS` and virtual drift; carry forward the tested values from the previous challenge. |
+| <span class="supplied-file"><code>supplied_settings.py</code> S</span> | Control timing, separate physical/virtual profiles and virtual GPS delay/dropout settings. |
 | <strong class="config-file"><code>challenge.py</code> †</strong> | `INITIAL_POSE`, `DESTINATION` — starting pose and destination read from the world.<br>`ARENA_MAP` — geometry used to build the occupancy grid.<br>`GRID_RESOLUTION_MM` — square grid-cell width in mm.<br>`CLEARANCE_MM` — distance in mm kept from obstacles and arena edges.<br>`MAXIMUM_GRID_CELLS` — maximum grid-cell count accepted before planning.<br>`EXECUTE_ROUTE` — False prints a checked path; True also drives that path. |
 | <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |
 | <strong class="config-file"><code>live_variables.py</code> †</strong> | `CRUISE_SPEED` — Monitor Cruise speed setting in mm/s.<br>`TURN_RATE` — Monitor Turn rate limit in rad/s. |
@@ -151,7 +152,7 @@ Submit one report per pair with both names, selected components, worlds, grid se
 
 Keep the template method names and arguments. Use measured `dt_s` or sample
 timestamps for calculations involving time. Keep the supplied wheel-controller
-settings in `robot_setup.py`. The API Reference gives the full record fields
+settings in `supplied_settings.py`. The API Reference gives the full record fields
 and method requirements.
 
 

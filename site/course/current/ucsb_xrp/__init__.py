@@ -3,6 +3,9 @@
 from .config import NavigationConfig, RobotConfig
 from .maps import ArenaMap, OccupancyGrid, Rectangle
 from .mission import DeliveryMission, DeliveryTask
+from .navigation import TurnToGoalState, DriveToGoalState, AlignAtGoalState
+from .localization import PoseFix
+from .pose_sources import configure_pose_source
 from .records import (
     DriveCommand,
     GridCell,
@@ -26,6 +29,7 @@ from .student_api import (
     DifferentialDriveBase,
     GridPlannerBase,
     LineFollowerBase,
+    LocalizationBase,
     NavigationControllerBase,
     OdometryBase,
     PoseCorrectorBase,
@@ -45,9 +49,12 @@ from .utils import (
 from .xrpbot import XRPBot
 from .world import ProjectWorld, load_world
 
-__version__ = "0.6.1-dev"
+__version__ = "0.8.0-dev"
 
 __all__ = (
+    "AlignAtGoalState",
+    "DriveToGoalState",
+    "TurnToGoalState",
     "ArenaMap",
     "DeliveryMission",
     "DeliveryTask",
@@ -57,6 +64,7 @@ __all__ = (
     "GridPath",
     "GridPlannerBase",
     "LineFollowerBase",
+    "LocalizationBase",
     "NavigationConfig",
     "NavigationControllerBase",
     "RobotConfig",
@@ -70,6 +78,7 @@ __all__ = (
     "MotorEfforts",
     "NavigationGoal",
     "Pose",
+    "PoseFix",
     "ProjectWorld",
     "RawSensors",
     "ReflectanceReadings",
@@ -86,6 +95,7 @@ __all__ = (
     "XRPBot",
     "bearing_to_goal",
     "clamp",
+    "configure_pose_source",
     "distance_to_goal",
     "elapsed_time_s",
     "wrap_angle_rad",

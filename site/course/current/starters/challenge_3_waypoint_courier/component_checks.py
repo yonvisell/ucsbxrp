@@ -6,7 +6,7 @@
 
 from differential_drive import DifferentialDrive
 from navigation_controller import NavigationController
-from odometry import Odometry
+from localization import Localization
 from sensor_processor import SensorProcessor
 
 from ucsb_xrp.component_checks import run_component_checks
@@ -16,6 +16,6 @@ from ucsb_xrp.component_checks import run_component_checks
 run_component_checks(
     SensorProcessor,
     DifferentialDrive,
-    Odometry,
-    NavigationController,
+    navigation_controller=NavigationController,
+    localization=Localization,
 )

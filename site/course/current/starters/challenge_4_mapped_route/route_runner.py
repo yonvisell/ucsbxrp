@@ -13,6 +13,7 @@ def run_route(robot, navigation, initial_pose, goals, destination, path_cell_cou
     step_count = 0
     try:
         state = robot.start(initial_pose)  # Initialize estimated pose; reset measurements.
+        state = robot.wait_for_gps()
         navigation.start(goals)  # Load the route and select its first goal.
         while not navigation.is_complete():  # Update motion until the controller finishes the route.
             publish_navigation_steps(step_count)

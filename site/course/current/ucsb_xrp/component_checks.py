@@ -3,6 +3,8 @@
 from math import cos, pi, sin
 
 from .config import NavigationConfig, RobotConfig
+from .localization import LocalizationBase
+from .navigation import TurnToGoalState, DriveToGoalState, AlignAtGoalState
 from .maps import OccupancyGrid
 from .records import (
     DriveCommand,
@@ -157,13 +159,20 @@ class _CheckedInstance:
                 _active_case["omitted_inputs"] = _active_case.get("omitted_inputs", 0) + 1
             _active_case.pop("comparison_context", None)
             _active_case.update({"actual": None, "units": None, "tolerance": None})
-            result = value(*args)
+            try:
+                result = value(*args)
+            except NotImplementedError:
+                if self.contract == "navigation_controller" and name == "update":
+                    state = getattr(self.instance, "_state", None)
+                    if isinstance(state, (TurnToGoalState, DriveToGoalState, AlignAtGoalState)):
+                        _active_case["source"]["method"] = type(state).__name__ + ".command"
+                raise
             entry["result"] = _data(result)
             _active_case["actual"] = entry["result"]
             expected_type = None
             if self.contract in ("sensor_model", "reflectance") and name in ("reset", "update"):
                 expected_type = Measurements
-            elif self.contract in ("odometry", "pose_corrector") and name in ("reset", "update", "observe_x", "observe_y", "corrected_pose"):
+            elif self.contract in ("odometry", "localization", "pose_corrector") and name in ("reset", "update", "predict", "observe_x", "observe_y", "corrected_pose"):
                 expected_type = Pose
             elif self.contract == "differential_drive" and name == "wheel_speeds":
                 expected_type = WheelSpeeds
@@ -189,6 +198,9 @@ def _factory(component_class, contract):
         _active_case["configuration"] = _data(args)
         _active_case["inputs"].append({"method": "__init__", "args": _data(args)})
         instance = component_class(*args)
+        if contract == "localization":
+            if not isinstance(instance, LocalizationBase):
+                raise AssertionError("Localization must extend LocalizationBase so supplied timing and correction remain available.")
         if contract in ("range_safety_controller", "pose_corrector", "visit_order_planner"):
             from .student_api import RangeSafetyControllerBase, PoseCorrectorBase, VisitOrderPlannerBase
             base = {"range_safety_controller": RangeSafetyControllerBase,
@@ -418,6 +430,33 @@ def _differential_drive(component_class):
     )
 
 
+def _localization(component_class):
+    localization = component_class(RobotConfig(track_width_mm=100.0))
+    origin = Pose(0.0, 0.0, 0.0)
+    examples = (
+        ("straight", origin, 10.0, 10.0, Pose(10.0, 0.0, 0.0)),
+        ("in-place", origin, -1.0, 1.0, Pose(0.0, 0.0, 0.02)),
+        ("moving turn", Pose(20.0, -30.0, -0.01), 1.0, 3.0,
+         Pose(22.0, -30.0, 0.01)),
+        ("reverse", Pose(20.0, -30.0, pi / 2), -20.0, -20.0, Pose(20.0, -50.0, pi / 2)),
+        ("reverse turn", Pose(20.0, -30.0, pi / 2 - 0.01), -3.0, -1.0,
+         Pose(20.0, -32.0, pi / 2 + 0.01)),
+        ("wrapped turn", Pose(20.0, -30.0, pi - 0.005), 1.0, 3.0,
+         Pose(20.0 - 2.0 * cos(0.005), -30.0 - 2.0 * sin(0.005), pi + 0.015)),
+    )
+    for label, pose, left, right, expected in examples:
+        actual = localization.predict(pose, left, right)
+        _close(label + " x (mm)", actual.x_mm, expected.x_mm)
+        _close(label + " y (mm)", actual.y_mm, expected.y_mm)
+        _close(label + " heading (rad)", actual.heading_rad, expected.heading_rad)
+    # The same input must not depend on the previous example or reset history.
+    repeated = localization.predict(origin, 10.0, 10.0)
+    _close("repeated prediction x (mm)", repeated.x_mm, 10.0)
+    _close("repeated prediction y (mm)", repeated.y_mm, 0.0)
+    _close("repeated prediction heading (rad)", repeated.heading_rad, 0.0)
+    return "predict() produced straight travel, an in-place turn, midpoint-heading displacement, reverse travel and a heading-wrap example. Repeating an input did not accumulate earlier calls. The supplied base coordinates reset, time alignment and optional camera correction."
+
+
 def _odometry(component_class):
     odometry = component_class(RobotConfig(track_width_mm=100.0))
     initial = odometry.reset(Pose(0.0, 0.0, 0.0))
@@ -486,7 +525,7 @@ def _navigation_controller(component_class):
     config = NavigationConfig(
         cruise_speed_mm_s=120.0,
         approach_speed_mm_s=50.0,
-        slowdown_distance_mm=150.0,
+        slowdown_distance_mm=100.0,
         turn_rate_rad_s=0.8,
         position_tolerance_mm=10.0,
         heading_tolerance_rad=0.08,
@@ -506,16 +545,17 @@ def _navigation_controller(component_class):
         raise AssertionError("NavigationController.update() must return a MotionCommand containing forward_speed_mm_s and turn_rate_rad_s.")
     if command.forward_speed_mm_s <= 0.0:
         raise AssertionError("NavigationController.update() must request positive forward speed for this goal straight ahead. Check the position and heading errors before choosing a motion command.")
+    _close("aligned driving turn rate (rad/s)", command.turn_rate_rad_s, 0.0)
     if navigation.current_goal() != NavigationGoal(200.0, 0.0):
         raise AssertionError("NavigationController.current_goal() must return the active NavigationGoal. Keep the current route index consistent with start() and update().")
 
     near_navigation = component_class(config)
-    near_navigation.start((NavigationGoal(100.0, 0.0),))
+    near_navigation.start((NavigationGoal(50.0, 0.0),))
     near_command = near_navigation.update(Pose(0.0, 0.0, 0.0))
     _close(
         "near-goal forward speed (mm/s)",
         near_command.forward_speed_mm_s,
-        config.approach_speed_mm_s,
+        config.approach_speed_mm_s / 2.0,
     )
 
     side_navigation = component_class(config)
@@ -554,6 +594,16 @@ def _navigation_controller(component_class):
             )
         )
 
+    proportional = component_class(config)
+    proportional.start((NavigationGoal(200.0, 0.0),))
+    small_turn = proportional.update(Pose(0.0, 0.0, -0.1))
+    larger_turn = proportional.update(Pose(0.0, 0.0, -0.2))
+    if not 0.0 < small_turn.turn_rate_rad_s <= larger_turn.turn_rate_rad_s <= config.turn_rate_rad_s:
+        raise AssertionError("TurnToGoal.command() must increase its positive turn rate with heading error until reaching the configured limit. Apply TURN_GAIN to the wrapped error and bound the result.")
+    if small_turn.turn_rate_rad_s == larger_turn.turn_rate_rad_s:
+        _close("TurnToGoal equal rates must be at the limit (rad/s)",
+               small_turn.turn_rate_rad_s, config.turn_rate_rad_s)
+
     realign_navigation = component_class(config)
     realign_navigation.start((NavigationGoal(200.0, 0.0),))
     driving = realign_navigation.update(Pose(0.0, 0.0, 0.0))
@@ -572,6 +622,29 @@ def _navigation_controller(component_class):
                 format_number(realign_turn.turn_rate_rad_s)
             )
         )
+
+    feedback = component_class(config)
+    feedback.start((NavigationGoal(200.0, 0.0),))
+    feedback.update(Pose(0.0, 0.0, 0.0))
+    small_correction = feedback.update(Pose(0.0, 0.0, -0.05))
+    larger_correction = feedback.update(Pose(0.0, 0.0, -0.1))
+    if not 0.0 < small_correction.turn_rate_rad_s <= larger_correction.turn_rate_rad_s <= config.turn_rate_rad_s:
+        raise AssertionError("DriveToGoal.command() must increase its positive heading correction with error until reaching the configured limit. Apply HEADING_GAIN to the wrapped error and bound the result.")
+    if small_correction.turn_rate_rad_s == larger_correction.turn_rate_rad_s:
+        _close("DriveToGoal equal rates must be at the limit (rad/s)",
+               small_correction.turn_rate_rad_s, config.turn_rate_rad_s)
+    negative_correction = feedback.update(Pose(0.0, 0.0, 0.05))
+    if negative_correction.turn_rate_rad_s >= 0.0:
+        raise AssertionError("DriveToGoal.command() must request a negative turn rate for a negative heading error. Keep the sign of the wrapped error when applying HEADING_GAIN.")
+
+    arrived_while_turning = component_class(config)
+    arrived_while_turning.start((NavigationGoal(0.0, 200.0),))
+    arrived_while_turning.update(Pose(0.0, 0.0, 0.0))
+    arrival = arrived_while_turning.update(Pose(0.0, 200.0, 0.0))
+    _close("arrival-during-turn forward speed (mm/s)", arrival.forward_speed_mm_s, 0.0, exact=True)
+    _close("arrival-during-turn rate (rad/s)", arrival.turn_rate_rad_s, 0.0, exact=True)
+    if not arrived_while_turning.is_complete():
+        raise AssertionError("A reached position without a final heading must complete even when the previous state was TurnToGoal.")
 
     ordered = component_class(config)
     first_goal = NavigationGoal(0.0, 0.0)
@@ -593,6 +666,23 @@ def _navigation_controller(component_class):
     _close("completed turn rate (rad/s)", stopped.turn_rate_rad_s, 0.0, exact=True)
     if not navigation.is_complete():
         raise AssertionError("NavigationController.is_complete() must return True at the final required pose. Mark the route complete after both position and final-heading conditions are satisfied.")
+
+    aligning = component_class(config)
+    final_goal = NavigationGoal(0.0, 0.0, 0.0)
+    aligning.start((final_goal,))
+    small_alignment = aligning.update(Pose(0.0, 0.0, -0.1))
+    larger_alignment = aligning.update(Pose(0.0, 0.0, -0.2))
+    if not 0.0 < small_alignment.turn_rate_rad_s <= larger_alignment.turn_rate_rad_s <= config.turn_rate_rad_s:
+        raise AssertionError("AlignAtGoal.command() must increase its positive turn rate with final-heading error until reaching the configured limit. Apply TURN_GAIN to the wrapped error and bound the result.")
+    if small_alignment.turn_rate_rad_s == larger_alignment.turn_rate_rad_s:
+        _close("AlignAtGoal equal rates must be at the limit (rad/s)",
+               small_alignment.turn_rate_rad_s, config.turn_rate_rad_s)
+    negative_alignment = aligning.update(Pose(0.0, 0.0, 0.1))
+    if negative_alignment.turn_rate_rad_s >= 0.0:
+        raise AssertionError("AlignAtGoal.command() must request a negative turn rate for a negative final-heading error. Keep the sign of the wrapped error when applying TURN_GAIN.")
+    recovered = aligning.update(Pose(-50.0, 0.0, 0.0))
+    if recovered.forward_speed_mm_s <= 0.0 or aligning.current_goal() != final_goal:
+        raise AssertionError("When GPS moves the position outside tolerance during alignment, navigation must approach the same goal again.")
     return (
         "update() requested {:.3g} mm/s toward the goal ahead and "
         "{:.3g}/{:.3g} rad/s toward the left/right goals. The heading-wrap "
@@ -966,6 +1056,14 @@ _CHECKS = (
         _differential_drive,
     ),
     (
+        "Localization: pose prediction from wheel travel",
+        "localization",
+        "Localization.predict() converts measured wheel increments into a new arena Pose. Supplied support incorporates that prediction into navigation and optional camera correction.",
+        "The examples use a 100 mm track width, straight and reverse travel, small moving and in-place turns, and a nonzero pose crossing the heading representation boundary.",
+        "Each independent call returns a Pose in mm and radians using the midpoint heading for short-interval displacement. It neither changes the input Pose nor relies on earlier predictions.",
+        _localization,
+    ),
+    (
         "Odometry: position and heading from wheel travel",
         "odometry",
         "Odometry.update() converts measured wheel increments into the position and heading used to end turns and navigate.",
@@ -985,13 +1083,13 @@ _CHECKS = (
         "NavigationController: reaching route goals and stopping",
         "navigation_controller",
         (
-            "NavigationController.update() converts route goals and the estimated "
-            "pose into forward-speed and turn-rate requests that Robot can execute."
+            "TurnToGoal, DriveToGoal and AlignAtGoal calculate motion commands. "
+            "The supplied NavigationController selects states and advances route goals."
         ),
         (
             "The examples use empty and ordered routes, goals ahead and on "
-            "either side, a heading-boundary crossing, realignment during travel "
-            "and a required final heading."
+            "either side, a heading-boundary crossing, proportional feedback, "
+            "arrival during turning and a changed GPS position during alignment."
         ),
         (
             "The controller advances goals in order and uses the shorter signed "
@@ -1052,6 +1150,7 @@ _CONTRACT_KEYS = {
     "wheel_speed_controller": "wheel_speed_controller",
     "differential_drive": "differential_drive",
     "odometry": "odometry",
+    "localization": "localization",
     "navigation_controller": "navigation_controller",
     "grid_planner": "grid_planner",
     "line_follower": "line_follower",
@@ -1064,13 +1163,14 @@ _CLASS_KEYS = {
     "SensorProcessor": "sensor_model", "SensorModel": "sensor_model",
     "WheelSpeedController": "wheel_speed_controller", "DifferentialDrive": "differential_drive",
     "Odometry": "odometry", "NavigationController": "navigation_controller", "GridPlanner": "grid_planner",
+    "Localization": "localization",
     "LineFollower": "line_follower", "RangeSafetyController": "range_safety_controller",
     "PoseCorrector": "pose_corrector", "VisitOrderPlanner": "visit_order_planner",
 }
 _SOURCE_FILES = {"sensor_model": "sensor_processor", "range_estimator": "sensor_processor", "reflectance": "sensor_processor"}
 _METHODS = {"sensor_model": "reset, update", "range_estimator": "estimate_range", "reflectance": "reset, update",
-            "differential_drive": "wheel_speeds", "odometry": "reset, update", "grid_planner": "plan",
-            "navigation_controller": "start, current_goal, is_complete, update", "wheel_speed_controller": "reset, update",
+            "differential_drive": "wheel_speeds", "odometry": "reset, update", "localization": "predict", "grid_planner": "plan",
+            "navigation_controller": "TurnToGoal.command, DriveToGoal.command, AlignAtGoal.command", "wheel_speed_controller": "reset, update",
             "line_follower": "reset, update", "pose_corrector": "reset, observe_x, observe_y, corrected_pose",
             "visit_order_planner": "plan", "range_safety_controller": "update"}
 
@@ -1082,7 +1182,8 @@ _INSPECTIONS = {
     "wheel_speed_controller": "Inspect the requested-minus-measured speed error and each wheel's sign. Apply max_drive_command to both directions, and return exactly zero for a zero requested wheel speed.",
     "differential_drive": "Check left = forward - turn_rate * track_width / 2 and right = forward + turn_rate * track_width / 2. Keep distance in mm and turn rate in rad/s.",
     "odometry": "Calculate heading change from (right_increment_mm - left_increment_mm) / track_width_mm. Integrate the constant-curvature arc at the previous heading and wrap the updated heading to [-pi, pi).",
-    "navigation_controller": "Check the active goal and wrapped heading error before choosing translation or rotation. Advance reached goals in order and request exactly zero motion when complete.",
+    "localization": "Use the supplied pose and signed wheel increments. Calculate mean travel and heading change, resolve displacement at the starting heading plus half the heading change, and return a new Pose. Do not retain prediction state between calls.",
+    "navigation_controller": "Check the wrapped bearing error in TurnToGoal and DriveToGoal, the requested final-heading error in AlignAtGoal, and the proportional gains and turn-rate limits. The supplied controller owns transitions and route progress.",
     "grid_planner": "Inspect endpoint validity, obstacle checks and parent/path reconstruction. Consecutive cells must share a horizontal or vertical side; unreachable goals return None.",
     "line_follower": "Use left-minus-right darkness for the steering sign, include the provided dt_s in controller history, and enforce the example's speed and turn limits. reset() must clear previous and accumulated errors.",
     "range_safety_controller": "Check stopping distance from measured speed, response delay and braking deceleration. Include sensor margin and enforce the requested and maximum speed limits; missing range requires an exact stop.",

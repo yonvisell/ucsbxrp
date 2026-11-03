@@ -29,23 +29,37 @@
           "type": "waypoint",
           "name": "route_1",
           "x_mm": 400,
-          "y_mm": 0,
+          "y_mm": -220,
           "label": "1"
         },
         {
           "type": "waypoint",
           "name": "route_2",
-          "x_mm": 400,
-          "y_mm": 300,
+          "x_mm": 820,
+          "y_mm": 270,
           "label": "2"
         },
         {
           "type": "waypoint",
           "name": "route_3",
-          "x_mm": 0,
-          "y_mm": 300,
-          "heading_rad": 3.141592653589793,
+          "x_mm": -150,
+          "y_mm": 330,
           "label": "3"
+        },
+        {
+          "type": "waypoint",
+          "name": "route_4",
+          "x_mm": -580,
+          "y_mm": -260,
+          "label": "4"
+        },
+        {
+          "type": "waypoint",
+          "name": "route_5",
+          "x_mm": -1224,
+          "y_mm": 0,
+          "heading_rad": 0,
+          "label": "5"
         }
       ]
     }

@@ -2,7 +2,9 @@
 
 from math import isfinite
 
-from .config import NavigationConfig, RobotConfig
+from .config import RobotConfig
+from .localization import LocalizationBase
+from .navigation import NavigationControllerBase
 
 
 class _ConfiguredComponent:
@@ -112,48 +114,6 @@ class OdometryBase(_ConfiguredComponent):
     @property
     def pose(self):
         """Return the latest Pose after reset()."""
-        raise NotImplementedError
-
-
-class NavigationControllerBase:
-    """Generate motion commands for an ordered sequence of navigation goals.
-
-    An implementation keeps the goal sequence, the active goal, and any
-    internal navigation mode. Mission code supplies the latest odometry
-    ``Pose`` and sends the returned ``MotionCommand`` to ``Robot``.
-    """
-
-    __slots__ = ("_config",)
-
-    def __init__(self, config):
-        if not isinstance(config, NavigationConfig):
-            raise TypeError("config must be a NavigationConfig")
-        self._config = config
-
-    def set_config(self, config):
-        """Replace travel settings without clearing the active goal or mode."""
-        if not isinstance(config, NavigationConfig):
-            raise TypeError("config must be a NavigationConfig")
-        self._config = config
-
-    @property
-    def config(self):
-        return self._config
-
-    def start(self, goals):
-        """Store an ordered navigation-goal sequence and begin it."""
-        raise NotImplementedError
-
-    def update(self, pose):
-        """Return the next MotionCommand from odometry Pose, or stop when done."""
-        raise NotImplementedError
-
-    def current_goal(self):
-        """Return the active NavigationGoal, or None after completion."""
-        raise NotImplementedError
-
-    def is_complete(self):
-        """Return whether every required position and heading is complete."""
         raise NotImplementedError
 
 

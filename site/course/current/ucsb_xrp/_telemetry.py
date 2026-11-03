@@ -93,7 +93,11 @@ _EMPTY_HARDWARE = (0, 0, None, False, None, None, None, None, None, None, None)
 
 def _expand_frame(frame):
     fields = _COURSE_FIELDS if len(frame) == len(_COURSE_FIELDS) else _RAW_FIELDS
-    return dict(zip(fields, frame))
+    sample = dict(zip(fields, frame))
+    diagnostics = frame[-1]
+    if diagnostics is not None and len(diagnostics) > 5:
+        sample["localization"] = diagnostics[5]
+    return sample
 
 
 def _acquire_snapshot():
@@ -323,6 +327,7 @@ def publish_state(
     overrun_ms=None,
     kind="course",
     wheel_control_values=None,
+    localization=None,
 ):
     if DEBUG_VALIDATION:
         if not isinstance(state, RobotState):
@@ -357,6 +362,9 @@ def publish_state(
     reflectance = measurements.reflectance
     plots = _plot_sample_snapshot()
     timing = _publication_timing(kind, measurements.dt_s * 1000.0, sample_period_ms, overrun_ms)
+    diagnostics = (
+        _diagnostics_latest if localization is None else _diagnostics_latest + (localization,)
+    )
     snapshot = (
         sample_seq, sample_time_ms, pose.x_mm, pose.y_mm, pose.heading_rad,
         measurements.left_speed_mm_s, measurements.right_speed_mm_s,
@@ -368,12 +376,15 @@ def publish_state(
         None if reflectance is None else reflectance.right,
         drive_left, drive_right,
         requested_forward, requested_turn, target_left, target_right,
-        plots, timing, _diagnostics_latest,
+        plots, timing, diagnostics,
     )
     # A short lock commits the immutable frame and its ordered ring position.
     _retain_snapshot(snapshot)
     if _publish_browser_state is not None:
         try:
+            publication = {"timing": timing, "diagnostics": _diagnostics_latest}
+            if localization is not None:
+                publication["localization"] = localization
             _publish_browser_state(
                 state.pose.x_mm,
                 state.pose.y_mm,
@@ -390,7 +401,7 @@ def publish_state(
                     {"name": name, "label": label, "unit": unit, "value": value}
                     for name, label, unit, value in plots
                 ]),
-                json.dumps({"timing": timing, "diagnostics": _diagnostics_latest}),
+                json.dumps(publication),
             )
         except Exception:
             # Diagnostics must never stop a student control loop.

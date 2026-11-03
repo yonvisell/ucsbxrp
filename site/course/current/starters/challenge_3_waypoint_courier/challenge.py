@@ -1,8 +1,11 @@
-# World-coordinate route for Challenge 3: Waypoint Courier.
-
+# Supplied starting pose and five ordered navigation goals in the arena.
+from math import pi
 from ucsb_xrp import load_world
 
+# Fixed course acceptance; these are not controller tuning settings.
+POSITION_TOLERANCE_MM = 50.0
+HEADING_TOLERANCE_RAD = pi / 18.0  # Ten degrees at the final return.
 
-WORLD = load_world()  # Load the world selected in Monitor.
-INITIAL_POSE = WORLD.initial_pose  # Starting axle-midpoint position (mm) and heading (rad).
-ROUTE = WORLD.waypoints()  # Ordered NavigationGoal records: x_mm, y_mm, optional heading_rad.
+WORLD = load_world()
+INITIAL_POSE = WORLD.initial_pose
+ROUTE = WORLD.waypoints()

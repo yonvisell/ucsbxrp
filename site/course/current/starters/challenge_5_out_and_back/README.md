@@ -20,11 +20,13 @@ Follow the assigned outbound route, stop at the observation pose, determine whet
 2. **Check sample batches.** Use **Run code tests** (`component_checks.py`) to compare the method with supplied examples that include missing readings and an unusually large reading. These checks use fixed inputs, not your collected batches. `MINIMUM_USABLE_RANGE_COUNT` in `challenge.py` currently passes four; it is a configurable decision setting.
 3. **Select the component.** In `robot_setup.py`, set `USE_STUDENT_SENSOR_PROCESSOR = True` after checking it so Run uses your range estimate. Keep the wheel-measurement methods completed in Robot Curling and reuse the other completed component files and robot settings from Mapped Route. Set their matching flags to `True`; `False` selects supplied versions. The supplied helpers handle route execution, stopping checks, and return-map construction. `main.py` shows their sequence and calls your range estimator; `mission_policy.py` applies the gate threshold.
 
+Reuse the checked `localization.py` and the three navigation state commands from Challenge 3. Transfer physical calibration and tested navigation values into this project's `settings.py`; retain this project's setup and mission files. Keep `USE_GPS = True`. Camera-based GPS supplies world pose on both targets, and wheel travel updates pose between fixes. The supplied route helper acquires GPS before starting each route. Keep the virtual GPS and driving drift fixed when comparing routes.
+
 ## 3. Compare return routes and physical runs
 
 1. **Compare virtual decisions.** Check whether the two observations lead to different return plans. Restore **Actions for main.py → Make main**, then **Compile**. With **Virtual XRP** selected, choose **Center gate blocked** and then **Center gate open** in **Monitor → World**, running each case. `world.json` defines the simulated obstacles; `main.py` infers the gate state from range samples. Calculate the median of the printed `stationary_range_samples_mm` and compare it with `range_estimate_mm`. Record `gate_blocked`, return path length, result, and return time when available. The outbound route is the same in both worlds.
 2. **Record map settings.** `GRID_RESOLUTION_MM` and `CLEARANCE_MM` in `challenge.py` set the return grid and obstacle expansion; their defaults are 100 mm/cell and 95 mm. `plan_return()` in `return_route.py` changes the known map's `center_gate` feature from the range decision before calling the selected `GridPlanner`. Record these settings with the threshold; change them to test a stated reason.
-3. **Run physical conditions.** Run with gate blocked and open, fixed during each run. The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` applies changes after the next robot sample; approach speed is 80% of cruise speed. Slider endpoints are configured limits. Use the same motion settings for a blocked/open comparison.
+3. **Run physical conditions.** Run with gate blocked and open, fixed during each run. The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` applies changes after the next robot sample; approach speed starts at 80% of cruise speed at the slowdown distance, then decreases in proportion to remaining distance. Slider endpoints are configured limits. Use the same motion settings for a blocked/open comparison.
 4. **Measure arrival.** Record the stop at observation, gate decision, return route, and arrival home. Measure final axle-midpoint position and heading against the home mark, or record an early stopping location. If using a front-center mark, account for its axle offset and final heading. Repeat the selected condition three times and record measurement precision.
 
 ## Save and plot each trial
@@ -89,10 +91,11 @@ the arrival time of a telemetry message in the browser is not the sample time.
    settings, decision rule, and return-planning helpers. `make_robot()`
    assembles the reused components; `make_navigation_controller()` creates
    the route controller. `robot.start(INITIAL_POSE)` returns the first
-   measurements and estimated axle-midpoint pose in a `RobotState` record.
-2. **Follow the outbound route.** `follow_route()` loads the ordered goals,
-   requests motion from successive estimated poses, and applies it through
-   `robot.step()`. It returns the latest state and an arrival/stop reason.
+   measurements and starting axle-midpoint pose in a `RobotState` record.
+   The route helper waits for GPS before requesting motion.
+2. **Follow the outbound route.** `follow_route()` acquires GPS, loads the ordered
+   goals, and applies motion through `robot.step()`.
+   It returns the latest state and an arrival/stop reason.
    `robot.stop()` removes effort before observation. Failed arrival ends
    the mission with an outbound result.
 3. **Confirm rest and collect distinct attempts.** `wait_until_stationary()`
@@ -111,13 +114,12 @@ the arrival time of a telemetry message in the browser is not the sample time.
    checks its path, and converts cells into homebound goals. A path error
    ends the mission. A valid path is sent to the route controller.
 6. **Return and report.** A second `follow_route()` call follows those goals
-   using measured wheel travel and odometry. The program prints return time
+   using GPS and measured wheel travel. The program prints return time
    from sample timestamps and final estimated pose, publishes the result,
    and removes motor effort. `finally` also stops after a Python exception. IDE **Stop** requests
    a stop through the target service; it may interrupt Python before
    `finally` executes.
 
-The optional zero target-feedback gains stay in `navigation_controller.py`.
 Only the known gate changes after the stationary range observation; this
 mission does not construct a new map from moving measurements.
 
@@ -132,7 +134,7 @@ Submit one report per pair with both names, robot identification, selected compo
 
 ## Project files
 
-<strong class="student-file">Blue *</strong>: code to implement. <strong class="config-file">Amber †</strong>: settings to adjust. <span class="supplied-file">Gray S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.
+<strong class="student-file">Implement *</strong>: code to implement. <span class="config-file">Configure †</span>: settings to adjust. <span class="supplied-file">Supplied S</span>: code provided or completed in an earlier challenge. `main.py` is supplied; controlled experiments may edit it.
 
 <div class="project-file-table">
 
@@ -141,10 +143,12 @@ Submit one report per pair with both names, robot identification, selected compo
 | <span class="supplied-file"><code>main.py</code> S</span> | Sequences outbound travel, the stopping check, range estimation, return planning, and return travel. |
 | <strong class="student-file"><code>sensor_processor.py</code> *</strong> | Estimates range from a batch; also contains earlier wheel measurements. |
 | <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |
-| <span class="supplied-file"><code>odometry.py</code> S</span> | Accumulates wheel increments to estimate position and heading. |
-| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Uses estimated pose to reach ordered destinations. |
+| <span class="supplied-file"><code>localization.py</code> S</span> | Updates world pose from wheel increments between supplied GPS fixes. |
+| <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Reuses the Turn, Drive and Align commands; supplied states manage transitions and ordered goals. |
 | <span class="supplied-file"><code>grid_planner.py</code> S</span> | Searches the occupancy grid for a connected free-cell path. |
-| <strong class="config-file"><code>robot_setup.py</code> †</strong> | `sample_period_ms` — scheduled measurement interval in ms; 20 ms requests 50 Hz.<br>`wheel_diameter_mm` — wheel diameter in mm used to convert encoder counts to travel.<br>`encoder_counts_per_revolution` — encoder counts for one wheel revolution.<br>`track_width_mm` — wheel spacing in mm used for turning and odometry.<br>`left_start_command`, `right_start_command` — supplied motor commands for starting each wheel.<br>`left_speed_command_gain`, `right_speed_command_gain` — supplied motor-command coefficients per requested wheel speed.<br>`wheel_speed_kp` — supplied correction per wheel-speed error.<br>`wheel_speed_ki`, `wheel_speed_kd` — reserved settings; keep zero because the supplied controller does not use them.<br>`max_drive_command` — largest permitted absolute motor command.<br>`USE_STUDENT_SENSOR_PROCESSOR`, `USE_STUDENT_DIFFERENTIAL_DRIVE`, `USE_STUDENT_ODOMETRY`, `USE_STUDENT_NAVIGATION_CONTROLLER`, `USE_STUDENT_GRID_PLANNER` — True uses each corresponding project class; False uses its supplied class.<br>`cruise_speed_mm_s` — forward speed in mm/s away from a goal.<br>`approach_speed_mm_s` — forward speed near a goal; 80% of the Cruise speed setting.<br>`slowdown_distance_mm` — distance in mm at which approach speed replaces cruise speed.<br>`turn_rate_rad_s` — maximum turning rate in rad/s.<br>`position_tolerance_mm` — distance error in mm accepted at a goal.<br>`heading_tolerance_rad` — heading error in rad accepted for alignment.<br>`realign_heading_rad` — heading error in rad that pauses forward travel for turning. |
+| <strong class="config-file"><code>robot_setup.py</code> †</strong> | Selects each project component with `USE_STUDENT_*`; True selects your class and False its supplied counterpart. |
+| <strong class="config-file"><code>settings.py</code> †</strong> | Physical calibration, navigation defaults, `USE_GPS` and virtual drift; carry forward the tested values from the previous challenge. |
+| <span class="supplied-file"><code>supplied_settings.py</code> S</span> | Control timing, separate physical/virtual profiles and virtual GPS delay/dropout settings. |
 | <strong class="config-file"><code>challenge.py</code> †</strong> | `OUTBOUND_ROUTE`, `HOME` — ordered observation-route goals and return destination.<br>`GRID_RESOLUTION_MM` — return-grid cell width in mm.<br>`CLEARANCE_MM` — distance in mm kept from obstacles and arena edges.<br>`MAXIMUM_GRID_CELLS` — maximum grid-cell count accepted before return planning.<br>`RANGE_SAMPLE_COUNT` — number of distinct range attempts to collect.<br>`MINIMUM_USABLE_RANGE_COUNT` — usable readings required for an estimate.<br>`BLOCKED_RANGE_THRESHOLD_MM` — range in mm at or below which the gate is classified blocked.<br>`GATE_FEATURE` — name of the map feature changed by that decision.<br>`STATIONARY_SPEED_MM_S` — maximum absolute wheel speed in mm/s counted as stopped.<br>`STATIONARY_DURATION_S` — continuous stopped interval in s before range collection.<br>`MAXIMUM_STOP_WAIT_S` — maximum wait in s for confirming rest.<br>`RANGE_COLLECTION_TIMEOUT_S` — maximum collection time in s before missing attempts are reported. |
 | <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |
 | <span class="supplied-file"><code>mission_policy.py</code> S</span> | Classifies an available range as blocked or open. |
@@ -161,7 +165,7 @@ Submit one report per pair with both names, robot identification, selected compo
 
 Keep the template method names and arguments. Use measured `dt_s` or sample
 timestamps for calculations involving time. Keep the supplied wheel-controller
-settings in `robot_setup.py`. The API Reference gives the full record fields
+settings in `supplied_settings.py`. The API Reference gives the full record fields
 and method requirements.
 
 
