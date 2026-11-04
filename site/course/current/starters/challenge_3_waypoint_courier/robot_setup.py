@@ -43,10 +43,10 @@ from ucsb_xrp_reference import (
 )
 
 # True: use this project's class. False: use the supplied class.
-USE_STUDENT_SENSOR_PROCESSOR = False
-USE_STUDENT_DIFFERENTIAL_DRIVE = False
-USE_STUDENT_LOCALIZATION = False
-USE_STUDENT_NAVIGATION_CONTROLLER = False
+USE_STUDENT_SENSOR_PROCESSOR = True
+USE_STUDENT_DIFFERENTIAL_DRIVE = True
+USE_STUDENT_LOCALIZATION = True
+USE_STUDENT_NAVIGATION_CONTROLLER = True
 
 
 # Create robot with selected components
