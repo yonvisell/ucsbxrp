@@ -7,7 +7,8 @@ from .records import Pose
 
 def configure_pose_source(rate_hz=2.0, latency_ms=0, dropout_start_ms=-1,
                           dropout_duration_ms=0, position_drift_mm=3.0,
-                          heading_drift_rad=0.005, driving_drift_percent=1.0):
+                          heading_drift_rad=0.005, driving_drift_percent=1.0,
+                          driving_bias_percent=1.0):
     """Configure simulated GPS and driving drift; the Pi sets the physical GPS rate.
 
     Dropout times are relative to the first observation requested in this run.
@@ -23,7 +24,7 @@ def configure_pose_source(rate_hz=2.0, latency_ms=0, dropout_start_ms=-1,
 
     configure = getattr(xrp_sim_bridge, "configure_gps", None)
     if configure is not None:
-        configure(position_drift_mm, heading_drift_rad, driving_drift_percent)
+        configure(position_drift_mm, heading_drift_rad, driving_bias_percent, driving_drift_percent)
 
     def observe(now_ms):
         value = read(now_ms, rate_hz, latency_ms, dropout_start_ms, dropout_duration_ms)

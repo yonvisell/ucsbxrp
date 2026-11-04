@@ -1,4 +1,4 @@
-# Publish waypoint progress, route time and the pose errors used for steering.
+# Publish goal count, route time and navigation errors
 
 from ucsb_xrp import live, distance_to_goal, bearing_to_goal, wrap_angle_rad
 from settings import CRUISE_SPEED_MM_S, TURN_RATE_RAD_S
@@ -6,8 +6,7 @@ from settings import CRUISE_SPEED_MM_S, TURN_RATE_RAD_S
 
 DEFAULT_CRUISE_SPEED_MM_S = CRUISE_SPEED_MM_S  # Initial forward-speed slider value, mm/s.
 DEFAULT_TURN_RATE_RAD_S = TURN_RATE_RAD_S  # Initial magnitude limit for turning, rad/s.
-# Create sliders in Monitor; .value reads each applied setting.
-# Each declaration lists the initial value, lower/upper bounds, and adjustment step.
+# Monitor controls: .value gives the current setting
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
@@ -18,7 +17,7 @@ TURN_RATE = live.number(
 )
 
 
-# Register signal names and units once; the loop writes only each value.
+# Register Monitor signals
 _PLOT_WAYPOINTS_REACHED = live.register_plot("waypoints_reached", label="Waypoints")
 _PLOT_ROUTE_TIME = live.register_plot("route_time_s", initial=0.0, unit="s", label="Route time")
 _WATCH_ACTIVE_GOAL = live.register_watch("active_goal", label="Active goal (0 = done)")
@@ -40,16 +39,14 @@ def publish_heading(pose):
 
 
 def publish_navigation(pose, goal, goal_number, config):
-    # These errors use the pose that produced the upcoming motion command.
-    # Robot.step records them with that command and the next acquired sample.
+    # Publish errors for the pose used to calculate the command
     _WATCH_ACTIVE_GOAL.value = goal_number if goal is not None else 0
     if goal is None:
         _PLOT_GOAL_DISTANCE.value = 0.0
         _PLOT_GOAL_HEADING.value = 0.0
         return
     distance = distance_to_goal(pose, goal)
-    # At an accepted position, steering corrects any required final heading.
-    # Otherwise it corrects the direction toward the goal position.
+    # At goal position use required heading; otherwise use direction toward goal
     if distance <= config.position_tolerance_mm:
         heading_error = (0.0 if goal.heading_rad is None else
                          wrap_angle_rad(goal.heading_rad - pose.heading_rad))

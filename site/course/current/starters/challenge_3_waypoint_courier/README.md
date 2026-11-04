@@ -89,64 +89,60 @@ Complete `Localization.predict()` in [localization.py](localization.py). It rece
 
 ## 3. Use the estimated pose to navigate toward a goal
 
-The updated position and heading from localization become the `pose` input to the navigation commands. Use them to find the direction of the active goal, calculate a heading error, and request a turn that reduces that error. While driving, repeat this calculation as the robot's position changes.
-
-### Complete the driving command
-
-In [navigation_controller.py](navigation_controller.py), complete `DriveToGoal.command()`. It receives the current `pose`, active `goal`, and navigation settings `config`. Return a `MotionCommand` containing forward speed \(V\) [mm/s] and turn rate \(\omega\) [rad/s]. The turn rate is the change in robot heading per second; positive \(\omega\) turns counterclockwise.
-
-1. **Find the heading toward the active goal.** For robot position \((x,y)\) and goal position \((x_g,y_g)\), calculate
-
-   \[
-   \phi=\operatorname{atan2}(y_g-y,\;x_g-x).
-   \]
-
-   Use `goal.y_mm - pose.y_mm` and `goal.x_mm - pose.x_mm` as the two `atan2` arguments, in that order. The function uses both coordinate differences to determine the direction.
-
-2. **Calculate the heading error.** Compare the goal direction with the current robot heading:
-
-   \[
-   \Delta\phi=\operatorname{wrap}(\phi-\theta).
-   \]
-
-   Apply `wrap_angle_rad` to the difference from `pose.heading_rad`. It expresses the turn between \(-\pi\) and \(\pi\): positive error calls for a left turn, and negative error for a right turn.
-
-![Robot heading and heading toward a navigation goal, with their angular difference.](course-assets/navigation-steering.svg)
-
-*Figure 4. The robot heading \(\theta\) and the heading toward the navigation goal, \(\phi\), are shown. The difference between them, \(\Delta\phi\), is the heading error.*
-
-3. **Calculate the turn rate.** Use proportional feedback:
-
-   \[
-   \omega=k\Delta\phi.
-   \]
-
-   For driving, use `HEADING_GAIN` as \(k\), in \(\mathrm{s}^{-1}\). A larger gain requests a faster turn for the same heading error. Use `clamp(value, lower, upper)` to limit the result between `-config.turn_rate_rad_s` and `config.turn_rate_rad_s`. This is the turn rate to return in your command.
-
-4. **Set forward speed from the remaining distance.** Slow the final approach to allow time for the remaining heading correction. Find the distance with `distance_to_goal(pose, goal)`. Outside `config.slowdown_distance_mm`, request `config.cruise_speed_mm_s`. Within that distance, multiply `config.approach_speed_mm_s` by the remaining distance divided by `config.slowdown_distance_mm`.
-
-5. **Return the motion command.** Return `MotionCommand(forward_speed, turn_rate)` using the speed from step 4 and the turn rate from step 3. Your differential-drive component from Challenge 2 converts these requests into left and right wheel speeds.
-
-### Complete turning and final alignment
-
-The navigation controller selects the active behavior and advances to the next goal when its arrival conditions are met. The driving command above controls travel between goals; the other two commands orient the robot before driving and at the end of the route.
+Use the estimated position and heading to steer toward the active navigation goal. In [navigation_controller.py](navigation_controller.py), each behavior's `execute()` method calculates a motion command and selects the behavior for the next update. Complete the two geometry helpers and the motion calculations described below. The controller and transition conditions are already present in that file.
 
 <div class="navigation-behaviors">
 
 | Behavior class | When active | Function |
 | --- | --- | --- |
-| `TurnToGoal` | Before driving toward a new goal, or when a large heading error interrupts driving. | Turn in place to face the goal. |
-| `DriveToGoal` | Once facing the goal. | Drive forward and correct the heading until reaching the goal position. |
-| `AlignAtGoal` | At the final goal. | Turn in place to restore the starting heading. |
+| `TurnToGoal` | At the start of navigation toward a goal. | Turn in place until facing the goal, then begin driving. |
+| `DriveToGoal` | After the initial turn. | Drive forward while correcting heading. On reaching the goal position, advance to the next goal or begin final alignment. |
+| `AlignAtGoal` | At a goal that requires a final heading. | Turn in place to reach that heading, then advance. At the last goal, complete the route. |
 
 </div>
 
-- Complete `TurnToGoal.command()` using the same goal direction and heading error as the driving command. Use `TURN_GAIN` for the proportional gain, apply the turn-rate limit, and return zero forward speed with the resulting turn rate.
-- Complete `AlignAtGoal.command()` by comparing `goal.heading_rad` with `pose.heading_rad`. Apply `wrap_angle_rad`, `TURN_GAIN`, and the turn-rate limit, then return zero forward speed with the resulting turn rate.
+### Calculate distance and heading error
 
-The controller starts driving within 10° of the goal direction. If the error later exceeds `REALIGN_HEADING_RAD` in [settings.py](settings.py), it turns in place before continuing.
+The behavior classes use two helpers in [navigation_controller.py](navigation_controller.py):
 
-The two gains control different motions: `TURN_GAIN` controls changes of heading at a fixed position; `HEADING_GAIN` controls steering while the goal direction changes with the robot's position.
+- Complete `distance_to_goal(pose, goal)` to return the straight-line distance in mm from the robot position to the goal position. Use the differences in their world x and y coordinates.
+- Complete `heading_error(pose, goal)` to return the angle through which the robot must turn to face the goal position, using the calculation below.
+
+For robot position \((x,y)\) and goal position \((x_g,y_g)\), the heading toward the goal is
+
+\[
+\phi=\operatorname{atan2}(y_g-y,\;x_g-x).
+\]
+
+Use the y-coordinate difference as the first `atan2` argument and the x-coordinate difference as the second. The difference between this direction and the robot heading gives the heading error:
+
+\[
+\Delta\phi=\operatorname{wrap}(\phi-\theta).
+\]
+
+Apply `wrap_angle_rad` to express the error between \(-\pi\) and \(\pi\). Positive error calls for a left turn; negative error calls for a right turn.
+
+![Robot heading and heading toward a navigation goal, with their angular difference.](course-assets/navigation-steering.svg)
+
+*Figure 4. The robot heading \(\theta\) and the heading toward the navigation goal, \(\phi\), are shown. The difference between them, \(\Delta\phi\), is the heading error.*
+
+### Calculate motion in each behavior
+
+Use proportional feedback to turn toward the goal:
+
+\[
+\omega=k\Delta\phi.
+\]
+
+The turn rate \(\omega\) is the change in robot heading per second, in rad/s. The gain \(k\), named `K_Heading` in the code, has units of \(\mathrm{s}^{-1}\). A larger gain requests a faster turn for the same error. Each behavior returns a pair: `MotionCommand(forward_speed, turn_rate)` and the state to use next. Positive forward speed moves the robot forward; positive turn rate turns counterclockwise.
+
+Complete the calculations inside these `execute()` methods:
+
+- In `TurnToGoal.execute()`, use the error returned by `heading_error()` to calculate turn rate. Request zero forward speed while turning toward the goal.
+- In `DriveToGoal.execute()`, use the same helper and gain to correct heading while requesting `navigation.config.cruise_speed_mm_s`. Recalculate the error on each update as the robot moves. Your differential-drive component from Challenge 2 converts this forward speed and turn rate into left and right wheel speeds.
+- In `AlignAtGoal.execute()`, calculate the error between the required `goal.heading_rad` and the current `pose.heading_rad`. Wrap the difference and use the same proportional feedback with zero forward speed. This final orientation can differ from the direction used to approach the goal.
+
+You may refine the driving speed for a large heading error or a close approach, using `navigation.config.slowdown_distance_mm` if useful. You may also use `clamp` to limit turn rate to `±navigation.config.turn_rate_rad_s`.
 
 ## 4. Test the program, then improve route time
 
@@ -154,39 +150,38 @@ The two gains control different motions: `TURN_GAIN` controls changes of heading
 
 Use Run code tests to check each completed component. The tests exercise the project classes directly; unfinished methods are reported as Not implemented. In [robot_setup.py](robot_setup.py), enable your reused components by setting `USE_STUDENT_SENSOR_PROCESSOR` and `USE_STUDENT_DIFFERENTIAL_DRIVE` to `True`. Then test the new components in Virtual XRP:
 
-1. Set `USE_STUDENT_LOCALIZATION = True` and `USE_STUDENT_NAVIGATION_CONTROLLER = False` to test your pose update with the reference navigation commands.
+1. Set `USE_STUDENT_LOCALIZATION = True` and `USE_STUDENT_NAVIGATION_CONTROLLER = False` to test your pose update with the reference navigation controller.
 2. Set `USE_STUDENT_NAVIGATION_CONTROLLER = True` and run again to test your complete implementation.
 
 Inspect the path in World. Confirm that the Waypoints count advances through the goals and that the robot returns to the start, aligns, and stops.
 
-Use the motion to diagnose your implementation: the robot should turn toward the active goal, drive toward it while correcting its heading, and align with the starting direction at the finish. During driving, inspect Command heading error and Requested turn rate together to check the sign, magnitude and limit of your steering correction.
+Use the motion to diagnose your implementation: the robot should turn toward the active goal, drive toward it while correcting its heading, and align with the starting direction at the finish. During driving, inspect Command heading error and Requested turn rate together to check the direction and magnitude of your steering correction.
 
 ### Reduce the time on Physical XRP
 
 Copy your physical robot's calibration from Challenge 2 into [settings.py](settings.py), place the wheel midpoint at the start mark facing world \(+x\), and run your tested components with camera based gps. Use the Waypoints count to confirm completion and Route time to measure performance. The program also prints the final route time as `elapsed_s`.
 
-Identify where the robot spends unnecessary time. Adjust speeds and the turn-rate limit in [settings.py](settings.py), or the two gains in [navigation_controller.py](navigation_controller.py), using the observed motion to guide your choice:
+Identify where the robot spends unnecessary time. Adjust cruise speed in [settings.py](settings.py) and `K_Heading` in [navigation_controller.py](navigation_controller.py), using the observed motion to guide your choice:
 
 | Observed motion | Adjustment to evaluate |
 | --- | --- |
 | Direct, steady travel between goals, with little heading error. | Increase cruise speed and check that the route still completes. |
-| Long turns in place before or after driving. | Increase `TURN_GAIN` if the turn-rate request is below its limit; otherwise evaluate a higher turn-rate limit. |
-| While driving, the heading error persists in one direction and the turn-rate request is below its limit. | Increase `HEADING_GAIN` to correct the error more quickly. |
-| While driving, the heading error persists and the turn-rate request remains at its limit. | Reduce cruise speed or evaluate a higher turn-rate limit. Increasing the gain alone cannot increase the requested turn rate. |
-| Steering repeatedly carries the robot across the direction of the goal. | Reduce `HEADING_GAIN` and compare the path and route time. |
+| Long turns in place or persistent heading error while driving. | Increase `K_Heading` to request a faster correction. If you limit turn rate, inspect whether the request has reached that limit. |
+| Steering repeatedly carries the robot across the direction of the goal. | Reduce `K_Heading` and compare the path and route time. |
+| The robot passes the goal without reaching its position tolerance. | Reduce cruise speed or add approach slowing. |
 
 Repeat promising settings to establish that the faster route completes reliably. Use the physical runs to choose your final settings.
 
 ## Explain the improvement in your submission
 
-Export the selected runs from Monitor with Include code in ZIP. Record the Waypoints count, Route time, cruise speed, turn-rate limit and two gains for the runs that support your choice.
+Export the selected runs from Monitor with Include code in ZIP. Record the Waypoints count, Route time, cruise speed, `K_Heading` and any speed or turn-rate limits used in the runs that support your choice.
 
 Plot the robot's path from `estimated_x_mm` and `estimated_y_mm`, with equal axis scales and the navigation goals from [world.json](world.json). To explain a steering change during driving, plot `program_goal_heading_error_rad` and `requested_turn_rate_rad_s` against `acquired_at_s` over the relevant part of the route. The recorded route time is `program_route_time_s`.
 
 Answer these questions in your submission:
 
 1. How does unequal wheel travel change the robot's heading, and why does the world displacement use the direction halfway through that change?
-2. How does the updated pose determine the command in `DriveToGoal.command()`? Explain how turning in place and final alignment modify that calculation.
+2. How does the updated pose determine the command in `DriveToGoal.execute()`? Explain how turning in place and final alignment modify that calculation.
 3. Which change improved your physical route time? Use the path or steering plots to explain the improvement and report the completion counts and times that support your final settings.
 
 ## Test the pose and navigation calculations
@@ -199,7 +194,7 @@ The calculation tests call the classes in your project files, independently of t
 
 | File | Work |
 | --- | --- |
-| `localization.py`, `navigation_controller.py` | Complete the pose update and three motion commands. |
+| `localization.py`, `navigation_controller.py` | Complete the pose update, two geometry helpers and steering calculations in three behaviors. |
 | `settings.py`, `robot_setup.py` | Enter calibration, tune navigation and select components. |
 | `sensor_processor.py`, `differential_drive.py` | Reuse your Challenge 2 calculations. |
 | `challenge.py`, `world.json` | Define the route and arrival criteria. |
@@ -218,14 +213,15 @@ After `robot.start(INITIAL_POSE)`, `main.py` starts navigation and the route clo
 
 ## Appendix B: State objects and method selection
 
-The controller creates one object for each behavior class and reuses it throughout the route. Each object combines the class's motion command with a decision about which behavior comes next.
+A behavior class defines how the robot acts and when it changes behavior. For example, `DriveToGoal` defines driving toward a goal; an object created by `DriveToGoal()` represents that active behavior. The controller keeps this object in `current_state`.
 
-In `class DriveToGoal(DriveToGoalState):`, `DriveToGoalState` is the parent class. It provides `execute()`, which decides whether to continue driving or change state. Your `DriveToGoal` class provides `command()`, the calculation you completed in section 3. When the inherited `execute()` calls `self.command(pose, goal, config)`, Python uses the command method defined by that object's class.
-
-The controller advances the active behavior with
+Each call to `navigation.update(pose)` runs the current object's `execute()` method:
 
 ```python
-self._state = self._state.execute(pose, goal, self)
+command, self.current_state = self.current_state.execute(pose, self.current_goal(), self)
+return command
 ```
 
-Here, `self` is the controller; the last argument passes it to the active state. The call runs that state's `execute()` method. Returning the same state continues its behavior; returning another state changes behavior. Calling the appropriate method through the active object is polymorphic execution.
+Here, `self` is the controller. The last argument gives the behavior access to the route and configuration. The method returns both the motion command and the state for the next update. Returning `self` from a behavior retains that object; returning `AlignAtGoal()` changes to an alignment object. This selection of a method through the active object is polymorphic execution.
+
+At a completed goal, the behavior calls `navigation.advance_goal()`, which selects `TurnToGoal()` for the next goal or `RouteComplete()` after the last goal. The complete-route behavior returns `STOP_COMMAND`. In `main.py`, the command returned by `navigation.update()` is passed to `robot.step()` to apply the motion and obtain the next pose.

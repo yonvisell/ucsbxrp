@@ -1,15 +1,15 @@
-# Select components and combine control settings with fixed course conditions.
+# Select components and configure robot and navigation
 from challenge import POSITION_TOLERANCE_MM, HEADING_TOLERANCE_RAD
 from live_variables import CRUISE_SPEED, TURN_RATE
 from settings import (
     WHEEL_DIAMETER_MM, ENCODER_COUNTS_PER_REVOLUTION, TRACK_WIDTH_MM,
     CRUISE_SPEED_MM_S, TURN_RATE_RAD_S, APPROACH_SPEED_RATIO,
-    SLOWDOWN_DISTANCE_MM, REALIGN_HEADING_RAD,
+    SLOWDOWN_DISTANCE_MM,
     USE_GPS, VIRTUAL_GPS_RATE_HZ,
-    GPS_POSITION_DRIFT_MM, GPS_HEADING_DRIFT_RAD, DRIVING_DRIFT_PERCENT,
+    GPS_POSITION_DRIFT_MM, GPS_HEADING_DRIFT_RAD, DRIVING_BIAS, DRIVING_DRIFT,
 )
 from supplied_settings import (
-    SAMPLE_PERIOD_MS, make_robot_config,
+    IS_PHYSICAL_XRP, SAMPLE_PERIOD_MS, make_robot_config,
     VIRTUAL_GPS_LATENCY_MS, VIRTUAL_GPS_DROPOUT_START_MS,
     VIRTUAL_GPS_DROPOUT_DURATION_MS,
 )
@@ -30,10 +30,10 @@ NAVIGATION_CONFIG = NavigationConfig(
     turn_rate_rad_s=TURN_RATE_RAD_S,
     position_tolerance_mm=POSITION_TOLERANCE_MM,
     heading_tolerance_rad=HEADING_TOLERANCE_RAD,
-    realign_heading_rad=REALIGN_HEADING_RAD,
+    realign_heading_rad=0.25,
 )
 
-# Wheel-speed control always uses this supplied library class.
+# Library component implementations
 from ucsb_xrp_reference import (
     DifferentialDrive as SuppliedDifferentialDrive,
     NavigationController as SuppliedNavigationController,
@@ -49,7 +49,7 @@ USE_STUDENT_LOCALIZATION = False
 USE_STUDENT_NAVIGATION_CONTROLLER = False
 
 
-# Create the robot and its sensing, drive, and localization components.
+# Create robot with selected components
 def make_robot(config):
     from differential_drive import DifferentialDrive as StudentDifferentialDrive
     from localization import Localization as StudentLocalization
@@ -58,7 +58,7 @@ def make_robot(config):
     SensorProcessor = StudentSensorProcessor if USE_STUDENT_SENSOR_PROCESSOR else SuppliedSensorProcessor
     DifferentialDrive = StudentDifferentialDrive if USE_STUDENT_DIFFERENTIAL_DRIVE else SuppliedDifferentialDrive
     Localization = StudentLocalization if USE_STUDENT_LOCALIZATION else SuppliedLocalization
-    if USE_GPS:
+    if not IS_PHYSICAL_XRP:
         configure_pose_source(
             rate_hz=VIRTUAL_GPS_RATE_HZ,
             latency_ms=VIRTUAL_GPS_LATENCY_MS,
@@ -66,7 +66,8 @@ def make_robot(config):
             dropout_duration_ms=VIRTUAL_GPS_DROPOUT_DURATION_MS,
             position_drift_mm=GPS_POSITION_DRIFT_MM,
             heading_drift_rad=GPS_HEADING_DRIFT_RAD,
-            driving_drift_percent=DRIVING_DRIFT_PERCENT,
+            driving_bias_percent=DRIVING_BIAS,
+            driving_drift_percent=DRIVING_DRIFT,
         )
     localization = Localization(
         config, use_gps=USE_GPS,
@@ -75,7 +76,7 @@ def make_robot(config):
                  WheelSpeedController(config), DifferentialDrive(config), localization)
 
 
-# Create the selected navigation controller.
+# Create selected navigation controller
 def make_navigation_controller(config):
     from navigation_controller import NavigationController as StudentNavigationController
 
@@ -83,7 +84,7 @@ def make_navigation_controller(config):
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
-# Apply Monitor speed and turn-rate controls while retaining route progress.
+# Apply Monitor speed and turn-rate settings
 def apply_navigation_controls(navigation):
     current = navigation.config
     cruise_speed_mm_s = CRUISE_SPEED.value

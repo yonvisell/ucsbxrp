@@ -4,7 +4,6 @@ from math import cos, pi, sin
 
 from .config import NavigationConfig, RobotConfig
 from .localization import LocalizationBase
-from .navigation import TurnToGoalState, DriveToGoalState, AlignAtGoalState
 from .maps import OccupancyGrid
 from .records import (
     DriveCommand,
@@ -161,11 +160,14 @@ class _CheckedInstance:
             _active_case.update({"actual": None, "units": None, "tolerance": None})
             try:
                 result = value(*args)
-            except NotImplementedError:
+            except NotImplementedError as error:
                 if self.contract == "navigation_controller" and name == "update":
-                    state = getattr(self.instance, "_state", None)
-                    if isinstance(state, (TurnToGoalState, DriveToGoalState, AlignAtGoalState)):
-                        _active_case["source"]["method"] = type(state).__name__ + ".command"
+                    state = getattr(self.instance, "current_state", None)
+                    if state is not None:
+                        _active_case["source"]["method"] = type(state).__name__ + ".execute"
+                    for helper in ("distance_to_goal", "heading_error"):
+                        if str(error).startswith("Complete " + helper):
+                            _active_case["source"]["method"] = helper
                 raise
             entry["result"] = _data(result)
             _active_case["actual"] = entry["result"]
@@ -524,7 +526,7 @@ def _odometry(component_class):
 def _navigation_controller(component_class):
     config = NavigationConfig(
         cruise_speed_mm_s=120.0,
-        approach_speed_mm_s=50.0,
+        approach_speed_mm_s=45.0,
         slowdown_distance_mm=100.0,
         turn_rate_rad_s=0.8,
         position_tolerance_mm=10.0,
@@ -534,117 +536,84 @@ def _navigation_controller(component_class):
     navigation = component_class(config)
     navigation.start(())
     if not navigation.is_complete() or navigation.current_goal() is not None:
-        raise AssertionError("After start() receives an empty route, is_complete() must return True and current_goal() must return None. Handle the empty route before selecting a goal.")
+        raise AssertionError("After start() receives an empty route, is_complete() must return True and current_goal() must return None.")
     stopped = navigation.update(Pose(0.0, 0.0, 0.0))
     _close("empty-route forward speed (mm/s)", stopped.forward_speed_mm_s, 0.0, exact=True)
     _close("empty-route turn rate (rad/s)", stopped.turn_rate_rad_s, 0.0, exact=True)
 
     navigation.start((NavigationGoal(200.0, 0.0),))
+    transition = navigation.update(Pose(0.0, 0.0, 0.0))
+    _close("turn-to-drive transition rate (rad/s)", transition.turn_rate_rad_s, 0.0, exact=True)
+    # Current states begin their next action on the next sample; saved projects
+    # may begin it in the transition call. Both must drive on this next update.
     command = navigation.update(Pose(0.0, 0.0, 0.0))
-    if not isinstance(command, MotionCommand):
-        raise AssertionError("NavigationController.update() must return a MotionCommand containing forward_speed_mm_s and turn_rate_rad_s.")
     if command.forward_speed_mm_s <= 0.0:
-        raise AssertionError("NavigationController.update() must request positive forward speed for this goal straight ahead. Check the position and heading errors before choosing a motion command.")
+        raise AssertionError("DriveToGoal.execute() must request forward speed for a goal straight ahead, outside the position tolerance.")
     _close("aligned driving turn rate (rad/s)", command.turn_rate_rad_s, 0.0)
     if navigation.current_goal() != NavigationGoal(200.0, 0.0):
-        raise AssertionError("NavigationController.current_goal() must return the active NavigationGoal. Keep the current route index consistent with start() and update().")
+        raise AssertionError("NavigationController.current_goal() must return the active NavigationGoal.")
 
     near_navigation = component_class(config)
     near_navigation.start((NavigationGoal(50.0, 0.0),))
+    near_navigation.update(Pose(0.0, 0.0, 0.0))
     near_command = near_navigation.update(Pose(0.0, 0.0, 0.0))
-    _close(
-        "near-goal forward speed (mm/s)",
-        near_command.forward_speed_mm_s,
-        config.approach_speed_mm_s / 2.0,
-    )
+    if not 0.0 < near_command.forward_speed_mm_s <= config.cruise_speed_mm_s:
+        raise AssertionError("DriveToGoal.execute() must continue toward a goal outside its position tolerance. Cruise speed or a lower approach speed is acceptable.")
 
     side_navigation = component_class(config)
     side_navigation.start((NavigationGoal(0.0, 200.0),))
     side_turn = side_navigation.update(Pose(0.0, 0.0, 0.0))
     _close("side-goal forward speed (mm/s)", side_turn.forward_speed_mm_s, 0.0, exact=True)
     if side_turn.turn_rate_rad_s <= 0.0:
-        raise AssertionError(
-            "For the goal on the left, update() must request a positive turn_rate_rad_s. It returned {} rad/s. Check the bearing-minus-heading error and its sign.".format(
-                format_number(side_turn.turn_rate_rad_s)
-            )
-        )
+        raise AssertionError("TurnToGoal.execute() must request a positive turn rate for a goal to the left. Check heading_error(pose, goal).")
 
     right_navigation = component_class(config)
     right_navigation.start((NavigationGoal(0.0, -200.0),))
     right_turn = right_navigation.update(Pose(0.0, 0.0, 0.0))
     _close("right-goal forward speed (mm/s)", right_turn.forward_speed_mm_s, 0.0, exact=True)
     if right_turn.turn_rate_rad_s >= 0.0:
-        raise AssertionError(
-            "For the goal on the right, update() must request a negative turn_rate_rad_s. It returned {} rad/s. Check the bearing-minus-heading error and its sign.".format(
-                format_number(right_turn.turn_rate_rad_s)
-            )
-        )
+        raise AssertionError("TurnToGoal.execute() must request a negative turn rate for a goal to the right. Check heading_error(pose, goal).")
 
     wrap_navigation = component_class(config)
     wrap_navigation.start((NavigationGoal(-200.0, -10.0),))
     wrap_turn = wrap_navigation.update(Pose(0.0, 0.0, pi - 0.05))
     _close("wrapped-goal forward speed (mm/s)", wrap_turn.forward_speed_mm_s, 0.0, exact=True)
     if wrap_turn.turn_rate_rad_s <= 0.0:
-        raise AssertionError(
-            (
-                "For the heading-boundary example, update() must request the shorter positive "
-                "turn across -pi/pi. It returned {} rad/s. Wrap the heading error before choosing the turn direction."
-            ).format(
-                format_number(wrap_turn.turn_rate_rad_s)
-            )
-        )
+        raise AssertionError("For this heading-boundary example, heading_error() must return the shorter positive turn across -pi/pi.")
 
     proportional = component_class(config)
     proportional.start((NavigationGoal(200.0, 0.0),))
     small_turn = proportional.update(Pose(0.0, 0.0, -0.1))
     larger_turn = proportional.update(Pose(0.0, 0.0, -0.2))
-    if not 0.0 < small_turn.turn_rate_rad_s <= larger_turn.turn_rate_rad_s <= config.turn_rate_rad_s:
-        raise AssertionError("TurnToGoal.command() must increase its positive turn rate with heading error until reaching the configured limit. Apply TURN_GAIN to the wrapped error and bound the result.")
+    if not 0.0 < small_turn.turn_rate_rad_s <= larger_turn.turn_rate_rad_s:
+        raise AssertionError("TurnToGoal.execute() must increase positive turn rate with heading error, until any chosen turn-rate limit is reached. Apply K_Heading to the heading error.")
     if small_turn.turn_rate_rad_s == larger_turn.turn_rate_rad_s:
-        _close("TurnToGoal equal rates must be at the limit (rad/s)",
-               small_turn.turn_rate_rad_s, config.turn_rate_rad_s)
-
-    realign_navigation = component_class(config)
-    realign_navigation.start((NavigationGoal(200.0, 0.0),))
-    driving = realign_navigation.update(Pose(0.0, 0.0, 0.0))
-    if driving.forward_speed_mm_s <= 0.0:
-        raise AssertionError("NavigationController.update() must begin with positive forward speed when the goal is aligned and outside the position tolerance. Check the heading and distance conditions.")
-    realign_turn = realign_navigation.update(Pose(0.0, 0.0, 0.4))
-    _close(
-        "realignment forward speed (mm/s)",
-        realign_turn.forward_speed_mm_s,
-        0.0,
-        exact=True,
-    )
-    if realign_turn.turn_rate_rad_s >= 0.0:
-        raise AssertionError(
-            "For this realignment example, update() must request a negative turn_rate_rad_s. It returned {} rad/s. Recompute the signed heading error from the current pose.".format(
-                format_number(realign_turn.turn_rate_rad_s)
-            )
-        )
+        _close("TurnToGoal equal rates must be at the limit (rad/s)", larger_turn.turn_rate_rad_s, config.turn_rate_rad_s)
+    negative_turn = proportional.update(Pose(0.0, 0.0, 0.1))
+    if negative_turn.turn_rate_rad_s >= 0.0:
+        raise AssertionError("TurnToGoal.execute() must request a negative turn rate for a negative heading error.")
 
     feedback = component_class(config)
     feedback.start((NavigationGoal(200.0, 0.0),))
     feedback.update(Pose(0.0, 0.0, 0.0))
     small_correction = feedback.update(Pose(0.0, 0.0, -0.05))
     larger_correction = feedback.update(Pose(0.0, 0.0, -0.1))
-    if not 0.0 < small_correction.turn_rate_rad_s <= larger_correction.turn_rate_rad_s <= config.turn_rate_rad_s:
-        raise AssertionError("DriveToGoal.command() must increase its positive heading correction with error until reaching the configured limit. Apply HEADING_GAIN to the wrapped error and bound the result.")
+    if not 0.0 < small_correction.turn_rate_rad_s <= larger_correction.turn_rate_rad_s:
+        raise AssertionError("DriveToGoal.execute() must increase positive turn rate with heading error, until any chosen turn-rate limit is reached. Apply K_Heading to the heading error.")
     if small_correction.turn_rate_rad_s == larger_correction.turn_rate_rad_s:
-        _close("DriveToGoal equal rates must be at the limit (rad/s)",
-               small_correction.turn_rate_rad_s, config.turn_rate_rad_s)
-    negative_correction = feedback.update(Pose(0.0, 0.0, 0.05))
+        _close("DriveToGoal equal rates must be at the limit (rad/s)", larger_correction.turn_rate_rad_s, config.turn_rate_rad_s)
+    negative_correction = feedback.update(Pose(0.0, 0.0, 0.4))
     if negative_correction.turn_rate_rad_s >= 0.0:
-        raise AssertionError("DriveToGoal.command() must request a negative turn rate for a negative heading error. Keep the sign of the wrapped error when applying HEADING_GAIN.")
+        raise AssertionError("DriveToGoal.execute() must request a negative turn rate for a negative heading error.")
 
     arrived_while_turning = component_class(config)
     arrived_while_turning.start((NavigationGoal(0.0, 200.0),))
     arrived_while_turning.update(Pose(0.0, 0.0, 0.0))
-    arrival = arrived_while_turning.update(Pose(0.0, 200.0, 0.0))
+    arrival = arrived_while_turning.update(Pose(6.0, 192.0, 0.0))
     _close("arrival-during-turn forward speed (mm/s)", arrival.forward_speed_mm_s, 0.0, exact=True)
     _close("arrival-during-turn rate (rad/s)", arrival.turn_rate_rad_s, 0.0, exact=True)
     if not arrived_while_turning.is_complete():
-        raise AssertionError("A reached position without a final heading must complete even when the previous state was TurnToGoal.")
+        raise AssertionError("A position at the 10 mm tolerance must advance the goal even while turning. Check distance_to_goal() for the 6 mm by 8 mm displacement.")
 
     ordered = component_class(config)
     first_goal = NavigationGoal(0.0, 0.0)
@@ -652,48 +621,43 @@ def _navigation_controller(component_class):
     ordered.start((first_goal, second_goal))
     ordered.update(Pose(0.0, 0.0, 0.0))
     if ordered.current_goal() != second_goal:
-        raise AssertionError(
-            "After update() reaches the first goal, current_goal() must return the second goal. Advance the route index while preserving the supplied goal order."
-        )
+        raise AssertionError("After reaching the first goal, current_goal() must return the second goal.")
 
     navigation.start((NavigationGoal(0.0, 0.0, pi / 2.0),))
+    transition = navigation.update(Pose(0.0, 0.0, 0.0))
+    _close("turn-to-align transition speed (mm/s)", transition.forward_speed_mm_s, 0.0, exact=True)
     turn = navigation.update(Pose(0.0, 0.0, 0.0))
     _close("final-align forward speed (mm/s)", turn.forward_speed_mm_s, 0.0, exact=True)
     if turn.turn_rate_rad_s <= 0.0:
-        raise AssertionError("NavigationController.update() must turn left for a positive final-heading error. Check the final heading even when the goal position has been reached.")
+        raise AssertionError("AlignAtGoal.execute() must request a positive turn rate for a positive final-heading error.")
     stopped = navigation.update(Pose(0.0, 0.0, pi / 2.0))
     _close("completed forward speed (mm/s)", stopped.forward_speed_mm_s, 0.0, exact=True)
     _close("completed turn rate (rad/s)", stopped.turn_rate_rad_s, 0.0, exact=True)
     if not navigation.is_complete():
-        raise AssertionError("NavigationController.is_complete() must return True at the final required pose. Mark the route complete after both position and final-heading conditions are satisfied.")
+        raise AssertionError("Navigation must complete after both final position and final heading meet their tolerances.")
 
     aligning = component_class(config)
     final_goal = NavigationGoal(0.0, 0.0, 0.0)
     aligning.start((final_goal,))
+    aligning.update(Pose(0.0, 0.0, -0.1))
     small_alignment = aligning.update(Pose(0.0, 0.0, -0.1))
     larger_alignment = aligning.update(Pose(0.0, 0.0, -0.2))
-    if not 0.0 < small_alignment.turn_rate_rad_s <= larger_alignment.turn_rate_rad_s <= config.turn_rate_rad_s:
-        raise AssertionError("AlignAtGoal.command() must increase its positive turn rate with final-heading error until reaching the configured limit. Apply TURN_GAIN to the wrapped error and bound the result.")
+    if not 0.0 < small_alignment.turn_rate_rad_s <= larger_alignment.turn_rate_rad_s:
+        raise AssertionError("AlignAtGoal.execute() must increase positive turn rate with final-heading error, until any chosen turn-rate limit is reached. Apply K_Heading to that error.")
     if small_alignment.turn_rate_rad_s == larger_alignment.turn_rate_rad_s:
-        _close("AlignAtGoal equal rates must be at the limit (rad/s)",
-               small_alignment.turn_rate_rad_s, config.turn_rate_rad_s)
+        _close("AlignAtGoal equal rates must be at the limit (rad/s)", larger_alignment.turn_rate_rad_s, config.turn_rate_rad_s)
     negative_alignment = aligning.update(Pose(0.0, 0.0, 0.1))
     if negative_alignment.turn_rate_rad_s >= 0.0:
-        raise AssertionError("AlignAtGoal.command() must request a negative turn rate for a negative final-heading error. Keep the sign of the wrapped error when applying TURN_GAIN.")
+        raise AssertionError("AlignAtGoal.execute() must request a negative turn rate for a negative final-heading error.")
+    transition = aligning.update(Pose(-50.0, 0.0, 0.0))
+    _close("alignment-recovery transition rate (rad/s)", transition.turn_rate_rad_s, 0.0, exact=True)
+    aligning.update(Pose(-50.0, 0.0, 0.0))
     recovered = aligning.update(Pose(-50.0, 0.0, 0.0))
     if recovered.forward_speed_mm_s <= 0.0 or aligning.current_goal() != final_goal:
-        raise AssertionError("When GPS moves the position outside tolerance during alignment, navigation must approach the same goal again.")
+        raise AssertionError("When camera based gps moves position outside tolerance during alignment, navigation must approach the same goal again.")
     return (
-        "update() requested {:.3g} mm/s toward the goal ahead and "
-        "{:.3g}/{:.3g} rad/s toward the left/right goals. The heading-wrap "
-        "example requested {:.3g} rad/s, and realignment requested {:.3g} rad/s. "
-        "The completed route produced an exact stop."
-    ).format(
-        command.forward_speed_mm_s,
-        side_turn.turn_rate_rad_s,
-        right_turn.turn_rate_rad_s,
-        wrap_turn.turn_rate_rad_s,
-        realign_turn.turn_rate_rad_s,
+        "The controller drove toward the goal ahead, turned in both directions, "
+        "applied heading feedback and completed ordered goals."
     )
 
 
@@ -1084,7 +1048,7 @@ _CHECKS = (
         "navigation_controller",
         (
             "TurnToGoal, DriveToGoal and AlignAtGoal calculate motion commands. "
-            "The supplied NavigationController selects states and advances route goals."
+            "Each execute() returns a motion command and the next behavior; NavigationController stores that behavior and returns the command."
         ),
         (
             "The examples use empty and ordered routes, goals ahead and on "
@@ -1093,7 +1057,7 @@ _CHECKS = (
         ),
         (
             "The controller advances goals in order and uses the shorter signed "
-            "turn. A large heading error suspends forward motion; completion "
+            "turn. Turning and final alignment use zero forward speed; completion "
             "produces exactly zero forward speed and turn rate."
         ),
         _navigation_controller,
@@ -1170,7 +1134,7 @@ _CLASS_KEYS = {
 _SOURCE_FILES = {"sensor_model": "sensor_processor", "range_estimator": "sensor_processor", "reflectance": "sensor_processor"}
 _METHODS = {"sensor_model": "reset, update", "range_estimator": "estimate_range", "reflectance": "reset, update",
             "differential_drive": "wheel_speeds", "odometry": "reset, update", "localization": "predict", "grid_planner": "plan",
-            "navigation_controller": "TurnToGoal.command, DriveToGoal.command, AlignAtGoal.command", "wheel_speed_controller": "reset, update",
+            "navigation_controller": "distance_to_goal, heading_error, TurnToGoal.execute, DriveToGoal.execute, AlignAtGoal.execute", "wheel_speed_controller": "reset, update",
             "line_follower": "reset, update", "pose_corrector": "reset, observe_x, observe_y, corrected_pose",
             "visit_order_planner": "plan", "range_safety_controller": "update"}
 
@@ -1183,7 +1147,7 @@ _INSPECTIONS = {
     "differential_drive": "Check left = forward - turn_rate * track_width / 2 and right = forward + turn_rate * track_width / 2. Keep distance in mm and turn rate in rad/s.",
     "odometry": "Calculate heading change from (right_increment_mm - left_increment_mm) / track_width_mm. Integrate the constant-curvature arc at the previous heading and wrap the updated heading to [-pi, pi).",
     "localization": "Use the supplied pose and signed wheel increments. Calculate mean travel and heading change, resolve displacement at the starting heading plus half the heading change, and return a new Pose. Do not retain prediction state between calls.",
-    "navigation_controller": "Check the wrapped bearing error in TurnToGoal and DriveToGoal, the requested final-heading error in AlignAtGoal, and the proportional gains and turn-rate limits. The supplied controller owns transitions and route progress.",
+    "navigation_controller": "Complete distance_to_goal and heading_error, then apply K_Heading in each behavior. AlignAtGoal uses the required final heading. Each execute() returns a MotionCommand and its next state.",
     "grid_planner": "Inspect endpoint validity, obstacle checks and parent/path reconstruction. Consecutive cells must share a horizontal or vertical side; unreachable goals return None.",
     "line_follower": "Use left-minus-right darkness for the steering sign, include the provided dt_s in controller history, and enforce the example's speed and turn limits. reset() must clear previous and accumulated errors.",
     "range_safety_controller": "Check stopping distance from measured speed, response delay and braking deceleration. Include sensor margin and enforce the requested and maximum speed limits; missing range requires an exact stop.",

@@ -1,5 +1,5 @@
-# Supplied timing, wheel feedback, and separate physical/virtual target profiles.
-# Put physical measurements and navigation settings in settings.py.
+# Robot configuration for physical and virtual XRP
+# Physical measurements and navigation settings are in settings.py
 from sys import platform
 from settings import (
     LEFT_START_COMMAND, RIGHT_START_COMMAND,
@@ -8,10 +8,10 @@ from settings import (
 from ucsb_xrp import RobotConfig
 
 IS_PHYSICAL_XRP = platform == "rp2"
-SAMPLE_PERIOD_MS = 20  # Scheduled encoder/control interval [ms], independent of camera rate.
-# Optional virtual experiments; physical timing is supplied by the camera service.
+SAMPLE_PERIOD_MS = 20  # Control interval [ms]
+# Virtual camera timing
 VIRTUAL_GPS_LATENCY_MS = 100
-VIRTUAL_GPS_DROPOUT_START_MS = -1  # -1 disables the deliberate dropout.
+VIRTUAL_GPS_DROPOUT_START_MS = -1  # -1 disables dropout
 VIRTUAL_GPS_DROPOUT_DURATION_MS = 0
 
 PHYSICAL_ROBOT_SETTINGS = dict(
@@ -28,7 +28,7 @@ VIRTUAL_ROBOT_SETTINGS = dict(
     wheel_diameter_mm=60.0,
     encoder_counts_per_revolution=585.0,
     track_width_mm=155.0,
-    left_start_command=0.12,
+    left_start_command=0.13,
     right_start_command=0.13,
     left_speed_command_gain=0.0031,
     right_speed_command_gain=0.0031,

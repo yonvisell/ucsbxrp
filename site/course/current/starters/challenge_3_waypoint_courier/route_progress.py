@@ -1,11 +1,10 @@
-# Count ordered arrivals from the estimated pose, independently of controller progress.
+# Count goals reached in order
 
 from challenge import POSITION_TOLERANCE_MM, HEADING_TOLERANCE_RAD
 from ucsb_xrp import distance_to_goal, wrap_angle_rad
 
 
-# Return whether distance [mm] and any required heading error [rad]
-# satisfy the course acceptance limits for this goal.
+# Return True if position and required heading meet goal tolerances
 def goal_is_reached(pose, goal):
     if distance_to_goal(pose, goal) > POSITION_TOLERANCE_MM:
         return False
@@ -15,7 +14,7 @@ def goal_is_reached(pose, goal):
     return abs(heading_error) <= HEADING_TOLERANCE_RAD
 
 
-# Continue from the prior count; only the next unmet goal can advance the count.
+# Continue counting from the next unmet goal
 def count_reached_goals(pose, route, reached_count):
     while reached_count < len(route) and goal_is_reached(pose, route[reached_count]):
         reached_count += 1

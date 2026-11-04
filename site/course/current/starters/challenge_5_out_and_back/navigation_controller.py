@@ -1,63 +1,101 @@
-"""Calculate motion toward the active world-coordinate goal.
+# Navigate goal sequence using the behavior classes
 
-pose gives the current world position x_mm/y_mm [mm] and heading_rad [rad].
-goal gives a target world position and an optional heading for alignment.
-config supplies speeds and limits.
-Return MotionCommand(forward_speed, turn_rate), in mm/s and rad/s; positive turn
-rate is counterclockwise.
+from math import atan2, sqrt
+from ucsb_xrp import MotionCommand, STOP_COMMAND, clamp, wrap_angle_rad
 
-Each supplied parent class provides execute(), which selects the next behavior.
-While its behavior continues, it calls this class's command() with the current
-pose, goal and config. The controller retains progress and reuses these objects.
-"""
+K_Heading = 2.0  # Turn rate per heading error [1/s].
 
-from math import atan2
-from ucsb_xrp import (
-    MotionCommand, clamp, distance_to_goal, wrap_angle_rad,
-)
-from ucsb_xrp.navigation import (
-    NavigationControllerBase, TurnToGoalState, DriveToGoalState, AlignAtGoalState,
-)
+class NavigationController:
 
-TURN_GAIN = 2.0      # Turn rate per heading error when turning in place [1/s].
-HEADING_GAIN = 2.0   # Turn rate per heading error while driving [1/s].
+    def __init__(self, config):
+        self.config = config
+        self.start(())
 
+    def start(self, goals):     # Load navigation goal sequence and reset progress
+        self.goals = tuple(goals)
+        self.goal_index = 0
+        self.current_state = TurnToGoal() if self.goals else RouteComplete()
 
-class TurnToGoal(TurnToGoalState):
-    def command(self, pose, goal, config):
-        """Request an in-place turn toward the goal position."""
-        # Find world displacement from robot to goal; atan2(y, x) gives its direction.
-        # Use wrap_angle_rad for the shortest signed turn from pose.heading_rad
-        # toward that direction.
-        # Scale the error by TURN_GAIN; clamp to +/- config.turn_rate_rad_s.
-        # Return zero forward speed and the calculated turn rate.
-        raise NotImplementedError("Complete TurnToGoal.command")
+    def update(self, pose):     # Execute the active behavior, retain its next state and return its command
+        command, self.current_state = self.current_state.execute(pose, self.current_goal(), self)
+        return command
 
+    def current_goal(self):
+        if self.is_complete():
+            return None
+        return self.goals[self.goal_index]
 
-class DriveToGoal(DriveToGoalState):
-    def command(self, pose, goal, config):
-        """Request forward travel with steering toward the goal position."""
-        # Recalculate the goal direction and signed heading error as in TurnToGoal.
-        # Use HEADING_GAIN here and the same turn-rate limit.
-        # Find remaining distance [mm] with distance_to_goal(pose, goal).
-        # Beyond config.slowdown_distance_mm, request config.cruise_speed_mm_s.
-        # At or inside that distance, scale config.approach_speed_mm_s by the
-        # fraction of the slowdown distance remaining, allowing time to steer.
-        # Return the forward speed and turn rate together in a MotionCommand.
-        raise NotImplementedError("Complete DriveToGoal.command")
+    def advance_goal(self):     # Advance to next goal if any remain
+        self.goal_index += 1
+        return RouteComplete() if self.is_complete() else TurnToGoal()
 
+    def is_complete(self):
+        return self.goal_index >= len(self.goals)
 
-class AlignAtGoal(AlignAtGoalState):
-    def command(self, pose, goal, config):
-        """Request an in-place turn to the heading required at the reached goal."""
-        # Use goal.heading_rad as the target orientation, replacing goal direction.
-        # Wrap its error from the current heading; apply TURN_GAIN and the limit.
-        # Return zero forward speed and the calculated turn rate.
-        raise NotImplementedError("Complete AlignAtGoal.command")
+    def set_config(self, config):
+        self.config = config
 
+class TurnToGoal:  # Turn toward goal without driving forward
+    def execute(self, pose, goal, navigation):
+        # Upon reaching a goal either align or continue to next
+        if distance_to_goal(pose, goal) <= navigation.config.position_tolerance_mm:
+            if goal.heading_rad is not None:
+                return STOP_COMMAND, AlignAtGoal()
+            return STOP_COMMAND, navigation.advance_goal()
 
-# Connect the three command classes to the supplied controller's state selection.
-class NavigationController(NavigationControllerBase):
-    turn_state_class = TurnToGoal
-    drive_state_class = DriveToGoal
-    align_state_class = AlignAtGoal
+        error_radians = heading_error(pose,goal)
+        if abs(error_radians) <= navigation.config.heading_tolerance_rad:
+            return STOP_COMMAND, DriveToGoal()
+
+        turn_rate = None       # Complete the calculation for the turn rate using gain K_Heading
+                               # Constrain to maximum turn rate (navigation.config.turn_rate_rad_s) if desired
+        raise NotImplementedError("Complete TurnToGoal.execute: turn_rate")
+        return MotionCommand(0.0, turn_rate), self
+
+class DriveToGoal:  # Drive toward goal while correcting heading
+    def execute(self, pose, goal, navigation):
+        # Upon reaching a goal either align or continue to next ***
+        if distance_to_goal(pose, goal) <= navigation.config.position_tolerance_mm:
+            if goal.heading_rad is not None:
+                return STOP_COMMAND, AlignAtGoal()
+            return STOP_COMMAND, navigation.advance_goal()
+
+        target_heading = None  # Complete the calculations
+        error_radians = None   # for the heading to target and the heading error
+
+        # Drive forward while correcting the heading, using the heading error returned by heading_error(pose,goal)
+        #    Optional: slow down if heading error very large; other dynamic speed changes can also be optionally used
+        #    Optional: Reduce speed if within slowdown distance (navigation.config.slowdown_distance_mm)
+        forward_speed = navigation.config.cruise_speed_mm_s
+        turn_rate = None       # Complete the calculation for the yaw (turn) rate to correct for error_radians, using gain K_Heading
+                               # Constrain to maximum turn rate (navigation.config.turn_rate_rad_s) if desired
+
+        raise NotImplementedError("Complete DriveToGoal.execute: turn_rate")
+        return MotionCommand(forward_speed, turn_rate), self
+
+class AlignAtGoal:  # Turn to required heading at goal
+    def execute(self, pose, goal, navigation):
+        if distance_to_goal(pose, goal) > navigation.config.position_tolerance_mm:
+            return STOP_COMMAND, TurnToGoal()
+
+        error_radians = None   # Complete the calculation for the error between goal.heading_rad and pose.heading_rad
+        raise NotImplementedError("Complete AlignAtGoal.execute: heading error")
+        if abs(error_radians) <= navigation.config.heading_tolerance_rad:
+            return STOP_COMMAND, navigation.advance_goal()
+
+        turn_rate = None       # Complete the calculation for the turn rate using gain K_Heading
+                               # Constrain to maximum turn rate (navigation.config.turn_rate_rad_s) if desired
+        raise NotImplementedError("Complete AlignAtGoal.execute: turn_rate")
+        return MotionCommand(0.0, turn_rate), self
+
+class RouteComplete:
+    def execute(self, pose, goal, navigation):
+        return STOP_COMMAND, self
+
+def distance_to_goal(pose,goal):
+    # Complete this to compute and return the distance to the goal in mm
+    raise NotImplementedError("Complete distance_to_goal")
+
+def heading_error(pose,goal):
+    # Complete this to compute and return the heading error.
+    raise NotImplementedError("Complete heading_error")

@@ -1,4 +1,4 @@
-# Execute the route from the known initial pose.
+# Run the navigation goal sequence
 
 from challenge import INITIAL_POSE, ROUTE
 from live_variables import (
@@ -27,19 +27,17 @@ try:
         publish_goal_count(reached_count)
         publish_route_time(route_time_s)
         apply_navigation_controls(navigation)
-        # The active behavior converts the current pose and goal into a command.
+        # Compute command for current navigation goal
         command_goal = navigation.current_goal()
         command = navigation.update(state.pose)
         publish_navigation(state.pose, command_goal, active_goal_number, navigation.config)
-        # Apply the command; update pose from wheel travel and available camera based gps.
-        # The returned state supplies the pose for the next navigation command.
+        # Apply command and update pose
         state = robot.step(command)
         if navigation.current_goal() is not command_goal:
             active_goal_number += 1
         publish_heading(state.pose)
         step_count += 1
-        # Count arrivals from the new pose. Retain the time of the first sample
-        # that reaches all goals, including the final orientation.
+        # Update goal count and route time; retain time after final arrival
         if reached_count < len(ROUTE):
             route_time_s = elapsed_time_s(state.measurements.time_ms, start_ms)
         reached_count = count_reached_goals(state.pose, ROUTE, reached_count)
@@ -47,7 +45,7 @@ try:
     publish_navigation(state.pose, None, 0, navigation.config)
     publish_goal_count(reached_count)
     publish_route_time(route_time_s)
-    # Confirm waypoint arrivals independently of controller completion.
+    # Report goals reached and route time
     result = "complete" if reached_count == len(ROUTE) else "route_incomplete"
     print(
         "Challenge 3: result={} goals_reached={}/{} elapsed_s={} navigation_steps={} "
