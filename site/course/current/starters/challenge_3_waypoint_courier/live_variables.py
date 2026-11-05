@@ -13,7 +13,7 @@ CRUISE_SPEED = live.number(
 )
 TURN_RATE = live.number(
     "navigation_turn_rate_rad_s", DEFAULT_TURN_RATE_RAD_S,
-    minimum=0.4, maximum=1.6, step=0.1, unit="rad/s", label="Turn rate",
+    minimum=0.4, maximum=1.6, step=0.1, unit="rad/s", label="max. steering rate",
 )
 
 
