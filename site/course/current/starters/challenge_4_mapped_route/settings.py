@@ -19,7 +19,7 @@ HEADING_TOLERANCE_RAD = 0.08  # Accept alignment within this heading error [rad]
 USE_GPS = True  # Use camera based gps on either target
 
 # Virtual XRP only
-VIRTUAL_GPS_RATE_HZ = 2.0  # Camera based gps updates per second
+VIRTUAL_GPS_RATE_HZ = 1.0  # Camera based gps updates per second
 GPS_POSITION_DRIFT_MM = 3.0  # Maximum position bias [mm]
 GPS_HEADING_DRIFT_RAD = 0.005  # Maximum heading bias [rad]
 DRIVING_BIAS = 1.0  # Fixed difference in left/right ground travel [%]
