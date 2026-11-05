@@ -159,6 +159,8 @@ Use the motion to diagnose your implementation: the robot should turn toward the
 
 ### Reduce the time on Physical XRP
 
+Assign your robot's tag once in IDE Settings: choose **Assign camera tag**, place the robot directly under the arena camera, and click **Assign tag**. The assignment is shared by the Projects in your Working folder.
+
 Copy your physical robot's calibration from Challenge 2 into [settings.py](settings.py), place the wheel midpoint at the start mark facing world \(+x\), and run your tested components with camera based gps. Use the Waypoints count to confirm completion and Route time to measure performance. The program also prints the final route time as `elapsed_s`.
 
 Identify where the robot spends unnecessary time. Adjust cruise speed in [settings.py](settings.py) and `K_Heading` in [navigation_controller.py](navigation_controller.py), using the observed motion to guide your choice:
@@ -222,6 +224,8 @@ command, self.current_state = self.current_state.execute(pose, self.current_goal
 return command
 ```
 
-Here, `self` is the controller. The last argument gives the behavior access to the route and configuration. The method returns both the motion command and the state for the next update. Returning `self` from a behavior retains that object; returning `AlignAtGoal()` changes to an alignment object. This selection of a method through the active object is polymorphic execution.
+Here, `self` is the controller. Inside a behavior's `execute(pose, goal, navigation)` method, `self` instead refers to that behavior object, and `navigation` refers to the controller passed as the last argument. The method returns both the motion command and the state for the next update.
+
+For example, a `DriveToGoal` object returns itself while driving. When it reaches a goal that requires alignment, it returns an `AlignAtGoal` object. The next call to `navigation.update()` therefore runs `AlignAtGoal.execute()`. Python selects the method from the object stored in `current_state`; this is polymorphic execution. The controller uses the same call for every behavior, while each behavior keeps its action and transition logic together.
 
 At a completed goal, the behavior calls `navigation.advance_goal()`, which selects `TurnToGoal()` for the next goal or `RouteComplete()` after the last goal. The complete-route behavior returns `STOP_COMMAND`. In `main.py`, the command returned by `navigation.update()` is passed to `robot.step()` to apply the motion and obtain the next pose.
