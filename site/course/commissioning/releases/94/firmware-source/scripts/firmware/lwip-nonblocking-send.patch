@@ -1,0 +1,31 @@
+diff --git a/extmod/modlwip.c b/extmod/modlwip.c
+--- a/extmod/modlwip.c
++++ b/extmod/modlwip.c
+@@ -794,17 +794,22 @@
+ 
+     // If tcp_write returns ERR_MEM then there's currently not enough memory to
+     // queue the write, so wait and keep trying until it succeeds (with 10s limit).
+-    // Note: if the socket is non-blocking then this code will actually block until
+-    // there's enough memory to do the write, but by this stage we have already
+-    // committed to being able to write the data.
++    // tcp_write leaves the payload unqueued on ERR_MEM. Non-blocking callers
++    // must retry from their scheduler instead of waiting inside this function.
+     err_t err;
+     for (int i = 0; i < 200; ++i) {
+         err = tcp_write(socket->pcb.tcp, buf, write_len, TCP_WRITE_FLAG_COPY);
+         if (err != ERR_MEM) {
+             break;
+         }
+-        err = tcp_output(socket->pcb.tcp);
+-        if (err != ERR_OK) {
++        if (socket->timeout == 0) {
++            MICROPY_PY_LWIP_EXIT
++            *_errno = MP_EAGAIN;
++            return MP_STREAM_ERROR;
++        }
++        err_t output_err = tcp_output(socket->pcb.tcp);
++        if (output_err != ERR_OK) {
++            err = output_err;
+             break;
+         }
+         MICROPY_PY_LWIP_EXIT

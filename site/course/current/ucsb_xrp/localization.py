@@ -158,7 +158,7 @@ class LocalizationBase:
     __slots__ = ("_config", "_use_gps", "_pose",
                  "_wheel_pose", "_transform", "_history", "_history_next",
                  "_history_count", "_time_ms", "_source_epoch",
-                 "_source_sequences", "_retired_epochs", "_accepted_capture_ms",
+                 "_source_sequences", "_source_sequence_epochs", "_retired_epochs", "_accepted_capture_ms",
                  "_observation_event", "_innovation_event", "_fix_status")
 
     def __init__(self, config, use_gps=True):
@@ -175,7 +175,8 @@ class LocalizationBase:
         self._time_ms = None
         self._source_epoch = None
         self._source_sequences = {}
-        self._retired_epochs = set()
+        self._source_sequence_epochs = []
+        self._retired_epochs = []
         self._accepted_capture_ms = None
         self._observation_event = None
         self._innovation_event = None
@@ -328,9 +329,12 @@ class LocalizationBase:
             fix.capture_time_ms, fix.received_time_ms, fix.sequence,
             epoch, fix.clock_uncertainty_ms,
         )
-        if epoch not in self._source_sequences and len(self._source_sequences) >= _MAX_SOURCE_EPOCHS:
-            self._fix_status = "source_restart_limit"
-            return
+        if epoch not in self._source_sequences:
+            if len(self._source_sequences) >= _MAX_SOURCE_EPOCHS:
+                # Keep the active sequence even after many rejected sources.
+                oldest = 1 if self._source_sequence_epochs[0] == self._source_epoch else 0
+                del self._source_sequences[self._source_sequence_epochs.pop(oldest)]
+            self._source_sequence_epochs.append(epoch)
         self._source_sequences[epoch] = fix.sequence
         if epoch in self._retired_epochs:
             self._fix_status = "retired_source"
@@ -372,7 +376,9 @@ class LocalizationBase:
             heading, cosine, sine,
         )
         if self._source_epoch is not None and epoch != self._source_epoch:
-            self._retired_epochs.add(self._source_epoch)
+            if len(self._retired_epochs) >= _MAX_SOURCE_EPOCHS:
+                self._retired_epochs.pop(0)
+            self._retired_epochs.append(self._source_epoch)
         self._source_epoch = epoch
         self._accepted_capture_ms = fix.capture_time_ms
         self._fix_status = "accepted"

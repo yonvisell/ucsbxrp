@@ -269,6 +269,7 @@ class Robot:
             return self._state
         except Exception:
             self._bot.stop()
+            self._wheel_controller.reset()
             raise
 
     def collect_range_samples(self, count, timeout_s=2.0):
@@ -323,6 +324,7 @@ class Robot:
 
     def stop(self):
         self._bot.stop()
+        self._wheel_controller.reset()
         apply_updates()
         if self._state is not None:
             publish_state(

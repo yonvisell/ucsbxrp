@@ -234,12 +234,12 @@ class RobotConfig(_ValueRecord):
 
     @property
     def wheel_speed_ki(self):
-        """Reserved integral coefficient; the supplied controller uses P only."""
+        """Integral wheel-speed feedback gain in effort per millimeter."""
         return self._wheel_speed_ki
 
     @property
     def wheel_speed_kd(self):
-        """Reserved derivative coefficient; the supplied controller uses P only."""
+        """Reserved derivative coefficient; the supplied controller does not use it."""
         return self._wheel_speed_kd
 
     @property

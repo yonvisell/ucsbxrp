@@ -1,0 +1,75 @@
+{
+  "status": "local dev94 integration: bounded stationary backpressure and one normal-course 220 mm/s arena route passed; no public publication",
+  "firmwareBuildId": "ucsbxrp-rp2350-1.29.0-gcsync-net-20261105.1",
+  "firmwareSha256": "bbb7f832c65e2aa8c8973037767053c1411c612ade0b1bc676e213d2c99c8587",
+  "runtimeManifestSha256": "ef032161d3a364fe3ce8f24e096ad6f808fd68d526c3033a58b1e4a9c3cbfc17",
+  "promotedRuntimeManifestSha256": "a6b19643ded06ea698e26a4c5caf24967ba92849289300265f1175713766cea8",
+  "runtimeDifference": "All runtime file bytes identical; only compatibility.minimumRobotReleaseSequence changes from 85 to 94. Installed dev94 satisfies browser sequence/build identity checks without reinstall.",
+  "releaseId": "2026.11-dev.94",
+  "automaticGcEnabled": true,
+  "clockMHz": 150,
+  "safetyTier": "bounded motion authorized by hardware owner; stationary paused-reader test used motors off",
+  "passed": [
+    "Host extracted-C proof: immediate no-byte EAGAIN, later ordered retry/partial writes, zero capacity, blocking exhaustion without false success, blocking recovery and terminal errors",
+    "Exact maintained nonallocating RAM read helper: sector/offset/bounds readback; same-prepared normal-course starts",
+    "Fixed three-second paused telemetry reader: resumed stream, independent lease, successful Stop reply and original Project restoration",
+    "Normal-course 220 mm/s, 0.8 rad/s steering, effort capped at 0.3: five ordered arena goals confirmed by independent camera; contiguous telemetry and successful leases"
+  ],
+  "pausedReader": {
+    "actualPauseSeconds": 3.005,
+    "stopReplySeconds": 0.726,
+    "maximumLeaseReplySeconds": 2.449,
+    "scope": "Earlier no-motion source trial used the same maintained RAM helper; not the later installed runtime hash above."
+  },
+  "normalCourse220": {
+    "bootId": "ba1d77a911a9",
+    "runId": 1,
+    "projectGeneration": 21,
+    "routeScoreSeconds": 52.599,
+    "sampleCount": 2239,
+    "sampleSequencesContiguous": true,
+    "goalDistancesMm": [24.72, 16.15, 39.24, 17.69],
+    "settledReturnDistanceMm": [16.72, 16.78],
+    "settledReturnHeadingDegrees": [8.9, 8.99],
+    "courseAcceptanceMm": 50,
+    "courseAcceptanceDegrees": 10,
+    "encoderCruiseMeanMmPerSecond": 219.48,
+    "cameraCruiseMedianMmPerSecond": 213.39,
+    "leaseRequestsSucceeded": 33,
+    "maximumLeaseSeconds": 1.046,
+    "scope": "One robot, private robot-specific coefficients, normal five-signal live publication and 1 Hz GPS; source Project restored afterward."
+  },
+  "evidence": [
+    {
+      "path": "revisions/2026-11-05-physical-gps-reliability/evidence/actual-course-220-installed-transactions.json",
+      "sha256": "78937dc727d2d4ec88e883f3635f057f6db4392d84c33c3fe2ee84495019aded"
+    },
+    {
+      "path": "revisions/2026-11-05-physical-gps-reliability/evidence/actual-course-220-installed-camera.json",
+      "sha256": "ef871bcdabf0f8e6436555c9933aa6b52c76fd06e1fc9c11afc3a2a2aae7923a"
+    },
+    {
+      "path": "revisions/2026-11-05-physical-gps-reliability/evidence/native-exact-ram-fixed-pause-transactions.json",
+      "sha256": "759842f1b18e7d764cb8eba21fc97fe9857afcaf6c02a1653e6212400e5cfaa9"
+    },
+    {
+      "path": "revisions/2026-11-05-physical-gps-reliability/evidence/native-exact-ram-fixed-pause-usb.json",
+      "sha256": "95c6fb6316b3585ff67e28ec4e13209237ee51f9d4b5f96c452579f949ed724e"
+    }
+  ],
+  "buildRecord": {
+    "path": "outputs/firmware-candidates/2026-11-05-gcsync-net-1/build-results.json",
+    "sha256": "24f77ea8b49488bc346c6d6b2d8f1501b9bdd9962bcb0f3f437faf4411107747",
+    "scope": "Private build-time record; its unqualified status predates the later hardware tests above."
+  },
+  "limitations": [
+    "No claim of exact initiating cause for prior freeze or valid-source SyntaxError.",
+    "One successful 220 mm/s route does not establish repeatability or universal wheel coefficients; final heading margin was approximately one degree.",
+    "Substantial wheel/GPS correction and one missing-camera-observation gap remain; passage does not establish smooth or uniformly accurate wheel prediction.",
+    "Three-second bounded backpressure is not unlimited slow-reader tolerance; TCP send budget remains unchanged.",
+    "Prior GC-only crypto, clean-WPI commissioning and native browser matrix were not wholly rerun on this image.",
+    "Native Windows, arbitrary blocking native extensions, WLAN.scan with an active worker and hard Python IRQ callbacks remain unqualified.",
+    "Current maintained helper has source-transition/artifact/macro proof; a new complete rebuild of the promoted variant has not yet been run."
+  ],
+  "integrationState": "Local source checkpoint only. Final app build, offline output verification and browser verification pending; no public publication and no overall revision acceptance."
+}

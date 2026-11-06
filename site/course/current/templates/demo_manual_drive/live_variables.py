@@ -2,6 +2,7 @@
 
 from ucsb_xrp import live
 
+live.clear()  # Start each manual driving session with zero speed and turn rate.
 
 # Each number lists initial value, minimum, maximum, and slider step in the stated unit.
 # Negative forward speed reverses; positive turn rate rotates counterclockwise.
