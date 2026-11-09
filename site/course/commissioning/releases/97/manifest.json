@@ -19,7 +19,7 @@
     "bootstrapVersion": 1,
     "courseApiRevision": "0.8.0-draft",
     "courseLibraryVersion": "0.8.0-dev",
-    "minimumRobotReleaseSequence": 97,
+    "minimumRobotReleaseSequence": 95,
     "protocolRevision": 5,
     "protocolVersion": 1,
     "serviceVersion": "0.1.0"
@@ -132,7 +132,7 @@
       },
       {
         "bytes": 5837,
-        "sha256": "ae1c08d4f4c372ced41ef0fee69dd8b40bbbc934f5ec9a2e6d8e481c019f1f79",
+        "sha256": "422a36f2c7ddae943e9e078211e9ceb1b0f3bddbcb5ed22458842b335e6d33b4",
         "source": "vendor/current/release.json",
         "url": "firmware-source/vendor/current/release.json"
       },
@@ -728,7 +728,7 @@
     ],
     "manifest": {
       "bytes": 8973,
-      "sha256": "e4b62a5481328fe5b9b9070c52b0c9036767375f5cdcfa8a5c0a9a8a70315734",
+      "sha256": "fa9b796d36e193608e40549b7c036552d53db438c9084ba5580099945826e8d4",
       "url": "files/runtime/runtime-manifest.json"
     }
   },
