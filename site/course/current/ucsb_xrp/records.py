@@ -185,7 +185,9 @@ class MotionCommand(_ValueRecord):
     __slots__ = ("_forward_speed_mm_s", "_steering_rate_rad_s")
     _field_names = ("forward_speed_mm_s", "steering_rate_rad_s")
 
-    def __init__(self, forward_speed_mm_s, steering_rate_rad_s):
+    def __init__(self, forward_speed_mm_s, steering_rate_rad_s=None, *, turn_rate_rad_s=None):
+        if steering_rate_rad_s is None:
+            steering_rate_rad_s = turn_rate_rad_s
         if DEBUG_VALIDATION:
             self._forward_speed_mm_s = require_number(
                 "forward_speed_mm_s", forward_speed_mm_s
@@ -202,6 +204,8 @@ class MotionCommand(_ValueRecord):
     @property
     def steering_rate_rad_s(self):
         return self._steering_rate_rad_s
+
+    turn_rate_rad_s = steering_rate_rad_s
 
 
 class Measurements(_ValueRecord):
