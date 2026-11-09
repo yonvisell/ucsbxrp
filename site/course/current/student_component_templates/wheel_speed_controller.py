@@ -23,4 +23,4 @@ class WheelSpeedController(WheelSpeedControllerBase):
         # estimates. Return DriveCommand(left, right) with dimensionless
         # motor requests bounded by self.config.max_drive_command. A target
         # of zero mm/s must produce a zero request for that wheel.
-        raise NotImplementedError("Complete WheelSpeedController.update")
+        raise NotImplementedError("TODO: Complete WheelSpeedController.update")

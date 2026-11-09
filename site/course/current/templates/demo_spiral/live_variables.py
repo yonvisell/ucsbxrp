@@ -12,9 +12,9 @@ IGNORE_OBSTACLES = live.toggle("ignore_obstacles", False, label="Ignore obstacle
 
 # Register signal names and units once; the loop writes only each value.
 _PLOT_TRAVEL_MM = live.register_plot('travel_mm', unit="mm", label="Travel")
-_PLOT_TURN_RATE_RAD_S = live.register_plot('turn_rate_rad_s', unit="rad/s", label="Yaw rate")
+_PLOT_STEERING_RATE_RAD_S = live.register_plot('steering_rate_rad_s', unit="rad/s", label="Yaw rate")
 
 
-def publish_spiral_values(travel_mm, turn_rate_rad_s):
+def publish_spiral_values(travel_mm, steering_rate_rad_s):
     _PLOT_TRAVEL_MM.value = travel_mm
-    _PLOT_TURN_RATE_RAD_S.value = turn_rate_rad_s
+    _PLOT_STEERING_RATE_RAD_S.value = steering_rate_rad_s

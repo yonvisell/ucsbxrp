@@ -1,18 +1,18 @@
 # Publish goal count, route time and navigation errors
 
 from ucsb_xrp import live, distance_to_goal, bearing_to_goal, wrap_angle_rad
-from settings import CRUISE_SPEED_MM_S, TURN_RATE_RAD_S
+from settings import CRUISE_SPEED_MM_S, STEERING_RATE_RAD_S
 
 
 DEFAULT_CRUISE_SPEED_MM_S = CRUISE_SPEED_MM_S  # Initial forward-speed slider value, mm/s.
-DEFAULT_TURN_RATE_RAD_S = TURN_RATE_RAD_S  # Initial magnitude limit for turning, rad/s.
+DEFAULT_STEERING_RATE_RAD_S = STEERING_RATE_RAD_S  # Initial magnitude limit for turning, rad/s.
 # Monitor controls: .value gives the current setting
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
 )
-TURN_RATE = live.number(
-    "navigation_turn_rate_rad_s", DEFAULT_TURN_RATE_RAD_S,
+STEERING_RATE = live.number(
+    "navigation_steering_rate_rad_s", DEFAULT_STEERING_RATE_RAD_S,
     minimum=0.4, maximum=1.6, step=0.1, unit="rad/s", label="max. steering rate",
 )
 

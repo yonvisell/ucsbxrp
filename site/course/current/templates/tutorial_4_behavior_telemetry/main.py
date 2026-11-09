@@ -13,7 +13,7 @@ from student_work import (
     STOP_DISTANCE,
     TURN,
     TURN_DIRECTION,
-    TURN_RATE,
+    STEERING_RATE,
     command_for_phase,
     next_phase,
     publish_telemetry,
@@ -77,7 +77,7 @@ else:
                 raise RuntimeError("Turn heading did not reach the target")
 
             command = command_for_phase(
-                phase, FORWARD_SPEED.value, TURN_RATE.value, TURN_DIRECTION.value
+                phase, FORWARD_SPEED.value, STEERING_RATE.value, TURN_DIRECTION.value
             )
             publish_telemetry(state, phase)
             if phase == DONE:

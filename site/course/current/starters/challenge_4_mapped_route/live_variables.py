@@ -1,20 +1,20 @@
 # Publish the route follower's current progress.
 
 from ucsb_xrp import live
-from settings import CRUISE_SPEED_MM_S, TURN_RATE_RAD_S
+from settings import CRUISE_SPEED_MM_S, STEERING_RATE_RAD_S
 
 
 DEFAULT_CRUISE_SPEED_MM_S = CRUISE_SPEED_MM_S  # Initial forward-speed slider value, mm/s.
-DEFAULT_TURN_RATE_RAD_S = TURN_RATE_RAD_S  # Initial magnitude limit for turning, rad/s.
+DEFAULT_STEERING_RATE_RAD_S = STEERING_RATE_RAD_S  # Initial magnitude limit for turning, rad/s.
 # Create sliders in Monitor; .value reads each applied setting.
 # Each declaration lists the initial value, lower/upper bounds, and adjustment step.
 CRUISE_SPEED = live.number(
     "navigation_cruise_speed_mm_s", DEFAULT_CRUISE_SPEED_MM_S,
     minimum=80.0, maximum=220.0, step=10.0, unit="mm/s", label="Cruise speed",
 )
-TURN_RATE = live.number(
-    "navigation_turn_rate_rad_s", DEFAULT_TURN_RATE_RAD_S,
-    minimum=0.4, maximum=1.6, step=0.1, unit="rad/s", label="Turn rate",
+STEERING_RATE = live.number(
+    "navigation_steering_rate_rad_s", DEFAULT_STEERING_RATE_RAD_S,
+    minimum=0.4, maximum=1.6, step=0.1, unit="rad/s", label="Steering rate",
 )
 
 

@@ -1,8 +1,8 @@
 # Select the project components; numerical settings live in settings.py.
-from live_variables import CRUISE_SPEED, TURN_RATE
+from live_variables import CRUISE_SPEED, STEERING_RATE
 from settings import (
     WHEEL_DIAMETER_MM, ENCODER_COUNTS_PER_REVOLUTION, TRACK_WIDTH_MM,
-    CRUISE_SPEED_MM_S, TURN_RATE_RAD_S, APPROACH_SPEED_RATIO,
+    CRUISE_SPEED_MM_S, STEERING_RATE_RAD_S, APPROACH_SPEED_RATIO,
     SLOWDOWN_DISTANCE_MM, POSITION_TOLERANCE_MM,
     HEADING_TOLERANCE_RAD,
     USE_GPS, VIRTUAL_GPS_RATE_HZ,
@@ -27,7 +27,7 @@ NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=CRUISE_SPEED_MM_S,
     approach_speed_mm_s=APPROACH_SPEED_RATIO * CRUISE_SPEED_MM_S,
     slowdown_distance_mm=SLOWDOWN_DISTANCE_MM,
-    turn_rate_rad_s=TURN_RATE_RAD_S,
+    steering_rate_rad_s=STEERING_RATE_RAD_S,
     position_tolerance_mm=POSITION_TOLERANCE_MM,
     heading_tolerance_rad=HEADING_TOLERANCE_RAD,
     realign_heading_rad=0.25,
@@ -72,11 +72,9 @@ def make_robot(config):
             driving_bias_percent=DRIVING_BIAS,
             driving_drift_percent=DRIVING_DRIFT,
         )
-    localization = Localization(
-        config, use_gps=USE_GPS,
-    )
+    localization = Localization(config)
     return Robot(config, XRPBot(config), SensorProcessor(config),
-                 WheelSpeedController(config), DifferentialDrive(config), localization)
+                 WheelSpeedController(config), DifferentialDrive(config), localization, use_gps=USE_GPS)
 
 
 # Create the selected navigation controller.
@@ -101,17 +99,17 @@ def make_grid_planner():
 def apply_navigation_controls(navigation):
     current = navigation.config
     cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed slider.
-    turn_rate_rad_s = TURN_RATE.value  # Read the turn-rate slider.
+    steering_rate_rad_s = STEERING_RATE.value  # Read the steering-rate slider.
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
-        and current.turn_rate_rad_s == turn_rate_rad_s
+        and current.steering_rate_rad_s == steering_rate_rad_s
     ):
         return  # Neither slider changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=APPROACH_SPEED_RATIO * cruise_speed_mm_s,
         slowdown_distance_mm=current.slowdown_distance_mm,
-        turn_rate_rad_s=turn_rate_rad_s,
+        steering_rate_rad_s=steering_rate_rad_s,
         position_tolerance_mm=current.position_tolerance_mm,
         heading_tolerance_rad=current.heading_tolerance_rad,
         realign_heading_rad=current.realign_heading_rad,

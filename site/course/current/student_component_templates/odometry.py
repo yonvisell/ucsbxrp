@@ -17,7 +17,7 @@ class Odometry(OdometryBase):
         # Store and return initial_pose: x_mm and y_mm locate the robot's
         # axle midpoint in the fixed arena frame; heading_rad is its angle
         # from the positive x axis, measured counterclockwise in radians.
-        raise NotImplementedError("Complete Odometry.reset")
+        raise NotImplementedError("TODO: Complete Odometry.reset")
 
     def update(self, left_increment_mm, right_increment_mm):
         # left_increment_mm and right_increment_mm are signed distances
@@ -26,10 +26,10 @@ class Odometry(OdometryBase):
         # retained axle-midpoint x_mm/y_mm in the fixed arena frame and wrap
         # heading_rad in radians; return that Pose. Use measured travel rather
         # than requested commands or simulator ground truth.
-        raise NotImplementedError("Complete Odometry.update")
+        raise NotImplementedError("TODO: Complete Odometry.update")
 
     @property
     def pose(self):
         # Return the retained Pose(x_mm, y_mm, heading_rad) after reset()
         # or update(); positions are arena-frame mm and heading is radians.
-        raise NotImplementedError("Complete Odometry.pose")
+        raise NotImplementedError("TODO: Complete Odometry.pose")

@@ -30,5 +30,5 @@ else:
     D_GAIN_RAD = 0.025
 
 MINIMUM_SPEED_MM_S = 45.0  # Keep at least this forward speed in turns, without exceeding cruise [mm/s].
-MAXIMUM_TURN_RATE_RAD_S = 1.4  # Limit the magnitude of the requested steering rate [rad/s].
+MAXIMUM_STEERING_RATE_RAD_S = 1.4  # Limit the magnitude of the requested steering rate [rad/s].
 TURN_SLOWDOWN = 0.45  # Reduce cruise speed by this fraction at the maximum steering rate.

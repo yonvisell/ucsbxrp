@@ -3,7 +3,7 @@ from ucsb_xrp import Robot, XRPBot
 from settings import (
     WHEEL_DIAMETER_MM, ENCODER_COUNTS_PER_REVOLUTION, TRACK_WIDTH_MM,
     CRUISE_SPEED_MM_S, P_GAIN_RAD_S, I_GAIN_RAD_S2, D_GAIN_RAD,
-    MAXIMUM_TURN_RATE_RAD_S, MINIMUM_SPEED_MM_S, TURN_SLOWDOWN,
+    MAXIMUM_STEERING_RATE_RAD_S, MINIMUM_SPEED_MM_S, TURN_SLOWDOWN,
 )
 from live_variables import CRUISE_SPEED, P_GAIN
 from supplied_settings import (
@@ -31,7 +31,7 @@ LINE_FOLLOWER_SETTINGS = dict(
     kd_rad=D_GAIN_RAD,
     minimum_speed_mm_s=MINIMUM_SPEED_MM_S,
     integral_limit_s=INTEGRAL_LIMIT_S,
-    maximum_turn_rate_rad_s=MAXIMUM_TURN_RATE_RAD_S,
+    maximum_steering_rate_rad_s=MAXIMUM_STEERING_RATE_RAD_S,
     turn_slowdown=TURN_SLOWDOWN,
     waypoint_dark_threshold=WAYPOINT_DARK_THRESHOLD,
 )

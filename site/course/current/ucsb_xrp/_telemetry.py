@@ -74,7 +74,7 @@ _COURSE_FIELDS = (
     "rightWheelDistanceMm", "leftEncoderCount", "rightEncoderCount",
     "rangeMm", "buttonPressed", "leftReflectance", "rightReflectance",
     "leftEffort", "rightEffort", "requestedForwardSpeedMmS",
-    "requestedTurnRateRadS", "targetLeftWheelSpeedMmS", "targetRightWheelSpeedMmS",
+    "requestedSteeringRateRadS", "targetLeftWheelSpeedMmS", "targetRightWheelSpeedMmS",
     "plotValues", "timing", "diagnostics",
 )
 _RAW_FIELDS = (
@@ -341,7 +341,7 @@ def publish_state(
     requested_forward = (
         None if motion_command is None else motion_command.forward_speed_mm_s
     )
-    requested_turn = None if motion_command is None else motion_command.turn_rate_rad_s
+    requested_turn = None if motion_command is None else motion_command.steering_rate_rad_s
     target_left = (
         None if target_wheel_speeds is None else target_wheel_speeds.left_mm_s
     )

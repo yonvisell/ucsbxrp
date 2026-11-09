@@ -386,7 +386,7 @@ command = MotionCommand(speed_mm_s, 0.0)
 Each `while True` iteration calculates remaining distance and calls your stopping controller.
 After the first zero-speed command, the conditional expression keeps speed at zero
 without calling your controller again. `MotionCommand` stores forward speed
-and turn rate; `0.0` requests no turn. Its constructor rejects invalid
+and steering rate; `0.0` requests no turn. Its constructor rejects invalid
 numeric values. The following check rejects negative speed, and the next line
 saves whether any zero-speed command has occurred.
 

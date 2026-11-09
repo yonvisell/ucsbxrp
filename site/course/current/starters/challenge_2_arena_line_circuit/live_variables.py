@@ -10,7 +10,7 @@ P_GAIN = live.number("line_gain", P_GAIN_RAD_S, 0.0, None, 0.01, label="P gain",
 _PLOT_REFLECTANCE_LEFT = live.register_plot('reflectance_left')
 _PLOT_REFLECTANCE_RIGHT = live.register_plot('reflectance_right')
 _PLOT_LINE_ERROR = live.register_plot('line_error')
-_PLOT_TURN_RATE_RAD_S = live.register_plot('turn_rate_rad_s', unit="rad/s", label="Requested turn rate")
+_PLOT_STEERING_RATE_RAD_S = live.register_plot('steering_rate_rad_s', unit="rad/s", label="Requested steering rate")
 _PLOT_WAYPOINTS_REACHED = live.register_plot("waypoints_reached", label="Waypoints")
 _WATCH_PHASE = live.register_watch('phase')
 
@@ -24,7 +24,7 @@ def publish_line_values(readings, command, follower, waypoints_reached, phase):
     _PLOT_REFLECTANCE_LEFT.value = readings.left  # Plot left reflectance: 0 = light, 1 = dark.
     _PLOT_REFLECTANCE_RIGHT.value = readings.right
     _PLOT_LINE_ERROR.value = follower.line_error  # Plot the steering error calculated by LineFollower.
-    _PLOT_TURN_RATE_RAD_S.value = command.turn_rate_rad_s
+    _PLOT_STEERING_RATE_RAD_S.value = command.steering_rate_rad_s
     _PLOT_WAYPOINTS_REACHED.value = waypoints_reached
     _PLOT_P_TERM.value = follower.p if phase == "following" else 0.0
     _PLOT_I_TERM.value = follower.i if phase == "following" else 0.0

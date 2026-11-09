@@ -24,7 +24,7 @@ Reuse your checked `localization.py` and the complete `navigation_controller.py`
 
 ## 3. Run and assess the route
 
-1. **Record motion settings.** The **Cruise speed** (mm/s) and **Turn rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` updates navigation settings after the next robot sample. The approach-speed setting is 80% of selected cruise speed. Approach slowing and the turn-rate limit apply only if implemented in your navigation code. Slider endpoints are configured control limits. Record values used; `settings.py` holds navigation defaults, slowing distance and pose tolerances.
+1. **Record motion settings.** The **Cruise speed** (mm/s) and **Steering rate** (rad/s) Monitor controls in `live_variables.py` start at 150 mm/s and 0.8 rad/s. `apply_navigation_controls()` in `robot_setup.py` updates navigation settings after the next robot sample. The approach-speed setting is 80% of selected cruise speed. Approach slowing and the steering-rate limit apply only if implemented in your navigation code. Slider endpoints are configured control limits. Record values used; `settings.py` holds navigation defaults, slowing distance and pose tolerances.
 2. **Follow the virtual path.** For **Mapped route**, set `EXECUTE_ROUTE = True` in `challenge.py` and run the Virtual XRP. Supplied `main.py` converts the checked `GridPath` into goals; `route_runner.py` follows them with the selected `NavigationController` and checks arrival. Compare the printed path with the trajectory, obstacle clearance, contact, and final pose. If the robot contacts an obstacle or misses the destination, compare the planned clearance with its path and adjust clearance or navigation settings based on the discrepancy.
 3. **Measure a physical route if performed.** A physical trial is optional. First compare floor geometry and robot dimensions with `world.json`. Record closest obstacle gap and measurement method, contact, and final axle-midpoint pose. Distinguish measurements from estimated pose and virtual trajectory.
 
@@ -71,8 +71,8 @@ axis equal; xlabel('Estimated x (mm)'); ylabel('Estimated y (mm)'); grid on;
 figure;
 subplot(2,1,1); plot(t,T.requested_forward_speed_mm_s);
 xlabel('Time from first encoder acquisition (s)'); ylabel('Requested forward speed (mm/s)'); grid on;
-subplot(2,1,2); plot(t,T.requested_turn_rate_rad_s);
-xlabel('Time from first encoder acquisition (s)'); ylabel('Requested turn rate (rad/s)'); grid on;
+subplot(2,1,2); plot(t,T.requested_steering_rate_rad_s);
+xlabel('Time from first encoder acquisition (s)'); ylabel('Requested steering rate (rad/s)'); grid on;
 exportgraphics(gcf,'trial01_requests.png','Resolution',200);
 ```
 
@@ -134,7 +134,7 @@ Submit one report per pair with both names, selected components, worlds, grid se
 | <span class="supplied-file"><code>route_validation.py</code> S</span> | Checks path traversability and final estimated-pose arrival. |
 | <strong class="student-file"><code>grid_planner.py</code> *</strong> | Searches the occupancy grid for a connected free-cell path. |
 | <span class="supplied-file"><code>sensor_processor.py</code> S</span> | Converts encoder readings into wheel travel and speed; also contains range estimation. |
-| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and turn rate into wheel-speed targets. |
+| <span class="supplied-file"><code>differential_drive.py</code> S</span> | Converts forward speed and steering rate into wheel-speed targets. |
 | <span class="supplied-file"><code>localization.py</code> S</span> | Updates world pose from wheel increments between supplied GPS fixes. |
 | <span class="supplied-file"><code>navigation_controller.py</code> S</span> | Reuses the complete controller, behavior `execute()` methods and local geometry helpers from Challenge 3. |
 | <strong class="config-file"><code>robot_setup.py</code> †</strong> | Selects each project component with `USE_STUDENT_*`; True selects your class and False its supplied counterpart. |
@@ -142,7 +142,7 @@ Submit one report per pair with both names, selected components, worlds, grid se
 | <span class="supplied-file"><code>supplied_settings.py</code> S</span> | Control timing, separate physical/virtual profiles and virtual GPS delay/dropout settings. |
 | <strong class="config-file"><code>challenge.py</code> †</strong> | `INITIAL_POSE`, `DESTINATION` — starting pose and destination read from the world.<br>`ARENA_MAP` — geometry used to build the occupancy grid.<br>`GRID_RESOLUTION_MM` — square grid-cell width in mm.<br>`CLEARANCE_MM` — distance in mm kept from obstacles and arena edges.<br>`MAXIMUM_GRID_CELLS` — maximum grid-cell count accepted before planning.<br>`EXECUTE_ROUTE` — False prints a checked path; True also drives that path. |
 | <span class="supplied-file"><code>component_checks.py</code> S</span> | Runs component input/output examples without driving. |
-| <strong class="config-file"><code>live_variables.py</code> †</strong> | `CRUISE_SPEED` — Monitor Cruise speed setting in mm/s.<br>`TURN_RATE` — Monitor Turn rate limit in rad/s. |
+| <strong class="config-file"><code>live_variables.py</code> †</strong> | `CRUISE_SPEED` — Monitor Cruise speed setting in mm/s.<br>`STEERING_RATE` — Monitor Steering rate limit in rad/s. |
 | <span class="supplied-file"><code>grid_display.py</code> S</span> | Prints the grid, endpoints, and path. |
 | <strong class="config-file"><code>world.json</code> †</strong> | `default_world` — world used when none has been selected.<br>`bounds` — arena edges in mm.<br>`initial_pose` — starting position in mm and heading in rad.<br>`markers` — start, target, or waypoint locations in mm.<br>`obstacles` — fixed blocked regions in mm. |
 

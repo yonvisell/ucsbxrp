@@ -4,7 +4,7 @@ from math import pi
 
 from challenge import WORLD, RANDOM_SEED, SEGMENT_COUNT, TURN_TOLERANCE_RAD, TURN_TIMEOUT_S, SEGMENT_TIMEOUT_S, MINIMUM_SEGMENT_TRAVEL_MM, MAXIMUM_SEGMENT_TRAVEL_MM
 from robot_setup import make_robot
-from live_variables import FORWARD_SPEED_MM_S, TURN_RATE_RAD_S, publish_phase, publish_segment, publish_travel
+from live_variables import FORWARD_SPEED_MM_S, STEERING_RATE_RAD_S, publish_phase, publish_segment, publish_travel
 from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, elapsed_time_s, wrap_angle_rad
 
@@ -69,8 +69,8 @@ try:  # Ensure finally stops motors on exit.
                 raise RuntimeError("Rotation did not finish within 8 s; check wheel motion and encoder readings")
             direction = -1.0 if error_rad < 0.0 else 1.0
             # Scale down near the target while limiting yaw rate to the slider setting.
-            turn_rate = direction * min(TURN_RATE_RAD_S.value, 3.0 * abs(error_rad))
-            state = robot.step(MotionCommand(0.0, turn_rate))
+            steering_rate = direction * min(STEERING_RATE_RAD_S.value, 3.0 * abs(error_rad))
+            state = robot.step(MotionCommand(0.0, steering_rate))
             total_travel_mm += body_travel_mm(state)
 
         publish_travel(total_travel_mm)

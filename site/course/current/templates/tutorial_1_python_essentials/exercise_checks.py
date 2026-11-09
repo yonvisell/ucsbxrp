@@ -22,7 +22,7 @@ def _expect_value_error(function, *arguments):
 def _check_average_speed():
     result = average_speed_mm_s(600.0, 4.0)
     if result is None:
-        raise NotImplementedError("average_speed_mm_s returned no result")
+        raise NotImplementedError("TODO: average_speed_mm_s returned no result")
     _close(result, 150.0, "mm/s", "average_speed_mm_s")
     _close(average_speed_mm_s(125.0, 0.5), 250.0, "mm/s", "average_speed_mm_s")
     _expect_value_error(average_speed_mm_s, -1.0, 2.0)
@@ -46,7 +46,7 @@ def _check_range_state():
 def _check_route_distance():
     result = route_distance_mm([120.0, 80.0, 50.0])
     if result is None:
-        raise NotImplementedError("route_distance_mm returned no result")
+        raise NotImplementedError("TODO: route_distance_mm returned no result")
     _close(result, 250.0)
     _close(route_distance_mm(()), 0.0)
     _expect_value_error(route_distance_mm, (100.0, -5.0))
@@ -59,7 +59,7 @@ def _check_wheel_speed_summary():
         (90.0, 110.0, 130.0),
     )
     if result is None:
-        raise NotImplementedError("wheel_speed_summary returned no result")
+        raise NotImplementedError("TODO: wheel_speed_summary returned no result")
     if not isinstance(result, dict):
         raise AssertionError("return a dictionary")
     expected_keys = {

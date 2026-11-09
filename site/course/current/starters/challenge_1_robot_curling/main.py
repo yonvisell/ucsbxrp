@@ -22,7 +22,7 @@ try:  # Normal completion or a Python exception reaches the motor stop in finall
     while True:  # Use the latest measurements to choose the next straight-motion request.
         remaining_mm = TRAVEL_DISTANCE_MM - travel_mm
         speed_mm_s = 0.0 if stop_requested else stopping_controller(remaining_mm)
-        command = MotionCommand(speed_mm_s, 0.0)  # Forward mm/s; zero turn rate in rad/s.
+        command = MotionCommand(speed_mm_s, 0.0)  # Forward mm/s; zero steering rate in rad/s.
         if command.forward_speed_mm_s < 0.0:
             raise ValueError("stopping_controller must return a nonnegative speed")
         stop_requested = stop_requested or speed_mm_s == 0.0  # Keep requesting zero after the first stop decision.

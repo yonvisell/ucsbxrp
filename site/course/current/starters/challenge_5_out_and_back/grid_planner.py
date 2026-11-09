@@ -20,4 +20,4 @@ class GridPlanner(GridPlannerBase):
         # missing or blocked endpoints or when no route exists. A valid path includes
         # both endpoints, stays in free cells, and crosses one horizontal or
         # vertical cell edge at each step.
-        raise NotImplementedError("Complete GridPlanner.plan")
+        raise NotImplementedError("TODO: Complete GridPlanner.plan")

@@ -74,7 +74,7 @@ def _check_mean_wheel_position():
     state = _state_for_step(5)
     result = mean_wheel_position_mm(state)
     if result is None:
-        raise NotImplementedError("mean_wheel_position_mm returned no result")
+        raise NotImplementedError("TODO: mean_wheel_position_mm returned no result")
     _close(result, 11.0)
 
 
@@ -100,8 +100,8 @@ def _check_robot_program():
                 "step {} did not receive a MotionCommand".format(index + 1)
             )
         finite_number("forward_speed_mm_s", command.forward_speed_mm_s)
-        finite_number("turn_rate_rad_s", command.turn_rate_rad_s)
-        if (command.forward_speed_mm_s, command.turn_rate_rad_s) != (80.0, 0.0):
+        finite_number("steering_rate_rad_s", command.steering_rate_rad_s)
+        if (command.forward_speed_mm_s, command.steering_rate_rad_s) != (80.0, 0.0):
             raise AssertionError(
                 "step {} should request 80.0 mm/s straight motion".format(
                     index + 1

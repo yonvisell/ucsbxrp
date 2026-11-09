@@ -32,20 +32,20 @@ class DrawingSegment:
 # TurnSegment — request an in-place left turn until estimated heading changes.
 # Called by: Tutorial 2 main.py between straight sides.
 # Methods: command(), is_complete(start_state, current_state).
-# Inputs: turn rate (rad/s), target angle (rad), and RobotState samples.
+# Inputs: steering rate (rad/s), target angle (rad), and RobotState samples.
 # State: name, rate, and target angle; no accumulated timer.
 # Returns: MotionCommand and a completion Boolean from estimated heading.
 
 class TurnSegment:
-    def __init__(self, name: str, turn_rate_rad_s: float, angle_rad: float) -> None:
-        if not name or turn_rate_rad_s <= 0.0 or angle_rad <= 0.0:
+    def __init__(self, name: str, steering_rate_rad_s: float, angle_rad: float) -> None:
+        if not name or steering_rate_rad_s <= 0.0 or angle_rad <= 0.0:
             raise ValueError("turn segment needs a name, rate, and angle")
         self.name = name
-        self.turn_rate_rad_s = turn_rate_rad_s
+        self.steering_rate_rad_s = steering_rate_rad_s
         self.angle_rad = angle_rad
 
     def command(self) -> MotionCommand:
-        return MotionCommand(0.0, self.turn_rate_rad_s)
+        return MotionCommand(0.0, self.steering_rate_rad_s)
 
     def is_complete(self, start_state: RobotState, current_state: RobotState) -> bool:
         # A wrapped difference measures the commanded left turn across ±pi.
@@ -58,12 +58,12 @@ class TurnSegment:
 def build_drawing(
     side_speed_mm_s: float,
     side_distance_mm: float,
-    turn_rate_rad_s: float,
+    steering_rate_rad_s: float,
     turn_angle_rad: float,
 ) -> list:
     # Alternate four measured sides with four measured left turns.
     segments = []
     for index in range(4):
         segments.append(DrawingSegment("side {}".format(index + 1), side_speed_mm_s, side_distance_mm))
-        segments.append(TurnSegment("corner {}".format(index + 1), turn_rate_rad_s, turn_angle_rad))
+        segments.append(TurnSegment("corner {}".format(index + 1), steering_rate_rad_s, turn_angle_rad))
     return segments

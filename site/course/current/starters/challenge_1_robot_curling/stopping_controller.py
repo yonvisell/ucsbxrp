@@ -20,4 +20,4 @@ def stopping_controller(remaining_mm):
     # Read CRUISE_SPEED_MM_S.value and SLOWDOWN_DISTANCE_MM.value on each call.
     # For the initial proportional controller, multiply by KP and cap at cruise speed.
     # Return a finite, nonnegative speed in mm/s. See README Steps 2.1–2.3.
-    raise NotImplementedError("Implement cruise, proportional approach, and distance stop")
+    raise NotImplementedError("TODO: Implement cruise, proportional approach, and distance stop")

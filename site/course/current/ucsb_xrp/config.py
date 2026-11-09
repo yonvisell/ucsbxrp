@@ -272,7 +272,7 @@ class NavigationConfig(_ValueRecord):
         "_cruise_speed_mm_s",
         "_approach_speed_mm_s",
         "_slowdown_distance_mm",
-        "_turn_rate_rad_s",
+        "_steering_rate_rad_s",
         "_position_tolerance_mm",
         "_heading_tolerance_rad",
         "_realign_heading_rad",
@@ -281,7 +281,7 @@ class NavigationConfig(_ValueRecord):
         "cruise_speed_mm_s",
         "approach_speed_mm_s",
         "slowdown_distance_mm",
-        "turn_rate_rad_s",
+        "steering_rate_rad_s",
         "position_tolerance_mm",
         "heading_tolerance_rad",
         "realign_heading_rad",
@@ -292,7 +292,7 @@ class NavigationConfig(_ValueRecord):
         cruise_speed_mm_s,
         approach_speed_mm_s,
         slowdown_distance_mm,
-        turn_rate_rad_s,
+        steering_rate_rad_s,
         position_tolerance_mm,
         heading_tolerance_rad,
         realign_heading_rad,
@@ -306,8 +306,8 @@ class NavigationConfig(_ValueRecord):
         self._slowdown_distance_mm = require_positive(
             "slowdown_distance_mm", slowdown_distance_mm
         )
-        self._turn_rate_rad_s = require_positive(
-            "turn_rate_rad_s", turn_rate_rad_s
+        self._steering_rate_rad_s = require_positive(
+            "steering_rate_rad_s", steering_rate_rad_s
         )
         self._position_tolerance_mm = require_nonnegative(
             "position_tolerance_mm", position_tolerance_mm
@@ -338,8 +338,8 @@ class NavigationConfig(_ValueRecord):
         return self._slowdown_distance_mm
 
     @property
-    def turn_rate_rad_s(self):
-        return self._turn_rate_rad_s
+    def steering_rate_rad_s(self):
+        return self._steering_rate_rad_s
 
     @property
     def position_tolerance_mm(self):

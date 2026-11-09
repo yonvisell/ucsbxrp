@@ -11,7 +11,7 @@ RIGHT_SPEED_COMMAND_GAIN = 0.0031  # Right motor effort per requested speed [s/m
 # Navigation speeds and limits for tuning route performance.
 # Fixed waypoint and final-heading acceptance conditions are supplied in challenge.py.
 CRUISE_SPEED_MM_S = 150.0  # Forward driving speed [mm/s].
-TURN_RATE_RAD_S = 0.8  # Maximum turn-rate magnitude [rad/s].
+STEERING_RATE_RAD_S = 0.8  # Maximum steering-rate magnitude [rad/s].
 APPROACH_SPEED_RATIO = 0.8  # Optional approach-speed fraction of cruise speed.
 SLOWDOWN_DISTANCE_MM = 100.0  # Distance [mm] for optional approach slowdown.
 

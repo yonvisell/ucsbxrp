@@ -9,7 +9,7 @@ between 70 and 160 degrees.
 A fixed random seed repeats the same sequence of turn choices on each run.
 Watch the phase, distance and number of turns under **Program watches**.
 The **Live controls** sliders adjust forward and reverse speed, obstacle
-distance, and turn rate during the run. Their current values appear in Monitor.
+distance, and steering rate during the run. Their current values appear in Monitor.
 
 ## Change the experiment
 

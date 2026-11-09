@@ -1,6 +1,6 @@
 # Runnable measured behavior and telemetry functions for Tutorial 4.
 
-from live_variables import FORWARD_SPEED, RUN_BEHAVIOR, STOP_DISTANCE, TURN_DIRECTION, TURN_RATE
+from live_variables import FORWARD_SPEED, RUN_BEHAVIOR, STOP_DISTANCE, TURN_DIRECTION, STEERING_RATE
 from ucsb_xrp import MotionCommand, RobotState, live
 
 
@@ -36,18 +36,18 @@ def next_phase(
     return phase
 
 
-# Inputs: phase, forward speed (mm/s), turn rate (rad/s), left/right direction.
+# Inputs: phase, forward speed (mm/s), steering rate (rad/s), left/right direction.
 # Returns: MotionCommand with forward mm/s and turn rad/s for that phase.
 def command_for_phase(
     phase: str,
     forward_speed_mm_s: float,
-    turn_rate_rad_s: float,
+    steering_rate_rad_s: float,
     turn_direction: str,
 ) -> MotionCommand:
     if phase not in (APPROACH, TURN, DONE):
         raise ValueError("unknown phase")
-    if forward_speed_mm_s <= 0.0 or turn_rate_rad_s <= 0.0:
-        raise ValueError("speed and turn rate must be positive")
+    if forward_speed_mm_s <= 0.0 or steering_rate_rad_s <= 0.0:
+        raise ValueError("speed and steering rate must be positive")
     if turn_direction not in ("left", "right"):
         raise ValueError("turn direction must be left or right")
     if phase == APPROACH:
@@ -55,7 +55,7 @@ def command_for_phase(
     if phase == TURN:
         # Left is positive yaw in the course coordinate convention.
         direction = 1.0 if turn_direction == "left" else -1.0
-        return MotionCommand(0.0, direction * turn_rate_rad_s)
+        return MotionCommand(0.0, direction * steering_rate_rad_s)
     return MotionCommand(0.0, 0.0)
 
 

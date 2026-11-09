@@ -4,7 +4,7 @@ from math import pi
 
 from challenge import WORLD, RANDOM_SEED, REVERSE_TIME_S, MINIMUM_TURN_ANGLE_DEG, MAXIMUM_TURN_ANGLE_DEG, TURN_TOLERANCE_RAD, TURN_TIMEOUT_S
 from robot_setup import make_robot
-from live_variables import OBSTACLE_DISTANCE_MM, FORWARD_SPEED_MM_S, REVERSE_SPEED_MM_S, TURN_RATE_RAD_S, publish_avoidance_count, publish_phase, publish_range
+from live_variables import OBSTACLE_DISTANCE_MM, FORWARD_SPEED_MM_S, REVERSE_SPEED_MM_S, STEERING_RATE_RAD_S, publish_avoidance_count, publish_phase, publish_range
 from robot_setup import ROBOT_CONFIG
 from ucsb_xrp import MotionCommand, STOP_COMMAND, elapsed_time_s, wrap_angle_rad
 
@@ -66,7 +66,7 @@ try:  # Ensure finally stops motors on exit.
                 raise RuntimeError("Rotation did not finish within 8 s; check wheel motion and encoder readings")
             turn_direction = 1.0 if error_rad > 0.0 else -1.0
             # Reduce yaw rate near the heading target to limit overshoot.
-            command = MotionCommand(0.0, turn_direction * min(TURN_RATE_RAD_S.value, 3.0 * abs(error_rad)))
+            command = MotionCommand(0.0, turn_direction * min(STEERING_RATE_RAD_S.value, 3.0 * abs(error_rad)))
         elif phase == "reverse":
             command = MotionCommand(REVERSE_SPEED_MM_S.value, 0.0)
         else:

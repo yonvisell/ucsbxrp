@@ -4,7 +4,7 @@
 
 Navigate the sequence of goals, in order, in minimum time, returning to the starting position and heading at the end. Use camera based gps and wheel travel to estimate the robot's pose, then use that pose to control its motion toward the active goal.
 
-The Waypoints counter confirms arrivals within 50 mm of each goal. At the final goal, the heading must also be within 10° of the starting heading. A successful run reaches the final goal number and stops. Route time is measured automatically from navigation start to the final accepted pose.
+The Waypoints counter confirms arrivals within 50 mm of each goal. The black goal disks in World show this position tolerance (100 mm diameter). At the final goal, the heading must also be within 10° of the starting heading. A successful run reaches the final goal number and stops. Route time is measured automatically from navigation start through the final stop command.
 
 Reuse your sensing and differential-drive components from Challenge 2. The new work is to update world position and heading in [localization.py](localization.py), and calculate motion commands in [navigation_controller.py](navigation_controller.py). Implement and test these calculations in Virtual XRP before running the physical robot.
 
@@ -16,17 +16,9 @@ Reuse your sensing and differential-drive components from Challenge 2. The new w
 
 Localization maintains the robot's position and heading in the arena. Camera based gps provides periodic updates of both quantities. Between these updates, estimate the robot's movement from the pair of wheel travel increments.
 
-In [localization.py](localization.py), `update_pose()` calls `predict()` to update the preceding pose using wheel travel. When a new camera based gps pose is available, its position and heading replace this prediction. Otherwise, the wheel-based prediction becomes the new pose.
+In [localization.py](localization.py), `update_pose(measurements, gps_fix)` calls `predict()` once with the preceding pose and the pair of wheel travel increments. It stores the resulting pose in `self.pose`, which becomes the starting pose for the next update.
 
-The `gps_pose` argument contains the new camera based gps pose, adjusted for wheel movement since image capture. Its value is `None` when no new update is available.
-
-```python
-def update_pose(self, pose, left_increment_mm, right_increment_mm, gps_pose=None):
-    predicted_pose = self.predict(pose, left_increment_mm, right_increment_mm)
-    if gps_pose is not None:
-        return gps_pose
-    return predicted_pose
-```
+When a new camera based gps update arrives, `apply_gps()` adds the wheel-derived displacement since image capture to its position and heading, then assigns the result to `self.pose`. This accounts for movement while the image was processed and transmitted. The short history records wheel-derived displacement; a GPS correction does not count as movement. With no new GPS update, `self.pose` remains the wheel-based prediction. Both methods are visible in the same file.
 
 ## 2. Estimation of robot position and heading
 
@@ -97,7 +89,7 @@ Use the estimated position and heading to steer toward the active navigation goa
 | --- | --- | --- |
 | `TurnToGoal` | At the start of navigation toward a goal. | Turn in place until facing the goal, then begin driving. |
 | `DriveToGoal` | After the initial turn. | Drive forward while correcting heading. On reaching the goal position, advance to the next goal or begin final alignment. |
-| `AlignAtGoal` | At a goal that requires a final heading. | Turn in place to reach that heading, then advance. At the last goal, complete the route. |
+| `AlignAtGoal` | At a goal that requires a final heading. | Finish the turn to that heading, then check position. Advance if within position tolerance; otherwise approach the same goal again. At the last goal, complete the route. |
 
 </div>
 
@@ -134,15 +126,28 @@ Use proportional feedback to turn toward the goal:
 \omega=k\Delta\phi.
 \]
 
-The turn rate \(\omega\) is the change in robot heading per second, in rad/s. The gain \(k\), named `K_Heading` in the code, has units of \(\mathrm{s}^{-1}\). A larger gain requests a faster turn for the same error. Each behavior returns a pair: `MotionCommand(forward_speed, turn_rate)` and the state to use next. Positive forward speed moves the robot forward; positive turn rate turns counterclockwise.
+The steering rate \(\omega\) requests a change in robot heading per second, in rad/s. The gain \(k\), named `K_Heading` in the code, has units of \(\mathrm{s}^{-1}\). A larger gain requests a faster turn for the same error. Each behavior returns a pair: `MotionCommand(forward_speed, steering_rate)` and the state to use next. Positive forward speed moves the robot forward; positive steering rate turns counterclockwise.
 
 Complete the calculations inside these `execute()` methods:
 
-- In `TurnToGoal.execute()`, use the error returned by `heading_error()` to calculate turn rate. Request zero forward speed while turning toward the goal.
-- In `DriveToGoal.execute()`, use the same helper and gain to correct heading while requesting `navigation.config.cruise_speed_mm_s`. Recalculate the error on each update as the robot moves. Your differential-drive component from Challenge 2 converts this forward speed and turn rate into left and right wheel speeds.
+- In `TurnToGoal.execute()`, use the error returned by `heading_error()` to calculate steering rate. Request zero forward speed while turning toward the goal.
+- In `DriveToGoal.execute()`, use the same helper and gain to correct heading while requesting `navigation.config.cruise_speed_mm_s`. Recalculate the error on each update as the robot moves. Your differential-drive component from Challenge 2 converts this forward speed and steering rate into left and right wheel speeds.
 - In `AlignAtGoal.execute()`, calculate the error between the required `goal.heading_rad` and the current `pose.heading_rad`. Wrap the difference and use the same proportional feedback with zero forward speed. This final orientation can differ from the direction used to approach the goal.
 
-You may refine the driving speed for a large heading error or a close approach, using `navigation.config.slowdown_distance_mm` if useful. You may also use `clamp` to limit turn rate to `±navigation.config.turn_rate_rad_s`.
+You may refine the driving speed for a large heading error or a close approach, using `navigation.config.slowdown_distance_mm` if useful. You may also use `clamp` to limit steering rate to `±navigation.config.steering_rate_rad_s`.
+
+### Choose the steering filter time constant
+
+A new camera based gps pose can change the heading error abruptly. Choose the time constant of the first-order low-pass filter in `NavigationController.update()` to spread the resulting steering change over successive updates:
+
+\[
+\beta=\frac{\Delta t}{T+\Delta t},\qquad
+\omega_k=\omega_{k-1}+\beta(\omega_k^{\mathrm{req}}-\omega_{k-1}).
+\]
+
+At sample \(k\), \(\omega_k^{\mathrm{req}}\) is the steering rate calculated by the active behavior, \(\omega_{k-1}\) is the preceding filtered command, and \(\omega_k\) is the new filtered command. The sample interval \(\Delta t\) and time constant \(T\) are in seconds. Increasing \(T\) reduces the fraction \(\beta\) of the command change applied at each update, but also delays the response.
+
+Adjust `STEERING_FILTER_TIME_S` in [navigation_controller.py](navigation_controller.py), which sets \(T\). A time constant of zero applies the requested steering rate directly. Use the Steering command plot and the path in World to assess both steering changes after a camera based gps update and the delay in turning toward the goal. Select the time constant using the route times of successfully completed runs.
 
 ## 4. Test the program, then improve route time
 
@@ -153,9 +158,9 @@ Use Run code tests to check each completed component. The tests exercise the pro
 1. Set `USE_STUDENT_LOCALIZATION = True` and `USE_STUDENT_NAVIGATION_CONTROLLER = False` to test your pose update with the reference navigation controller.
 2. Set `USE_STUDENT_NAVIGATION_CONTROLLER = True` and run again to test your complete implementation.
 
-Inspect the path in World. Confirm that the Waypoints count advances through the goals and that the robot returns to the start, aligns, and stops.
+Inspect the path in World. Camera based GPS correction markers show the position after adding wheel travel since image capture. Confirm that the Waypoints count advances through the goals and that the robot returns to the start, aligns, and stops.
 
-Use the motion to diagnose your implementation: the robot should turn toward the active goal, drive toward it while correcting its heading, and align with the starting direction at the finish. During driving, inspect Command heading error and Requested turn rate together to check the direction and magnitude of your steering correction.
+Use the motion to diagnose your implementation: the robot should turn toward the active goal, drive toward it while correcting its heading, and align with the starting direction at the finish. During driving, inspect Command heading error and Steering command together to check the direction and magnitude of your steering correction.
 
 ### Reduce the time on Physical XRP
 
@@ -168,7 +173,7 @@ Identify where the robot spends unnecessary time. Adjust cruise speed in [settin
 | Observed motion | Adjustment to evaluate |
 | --- | --- |
 | Direct, steady travel between goals, with little heading error. | Increase cruise speed and check that the route still completes. |
-| Long turns in place or persistent heading error while driving. | Increase `K_Heading` to request a faster correction. If you limit turn rate, inspect whether the request has reached that limit. |
+| Long turns in place or persistent heading error while driving. | Increase `K_Heading` to request a faster correction. If you limit steering rate, inspect whether the request has reached that limit. |
 | Steering repeatedly carries the robot across the direction of the goal. | Reduce `K_Heading` and compare the path and route time. |
 | The robot passes the goal without reaching its position tolerance. | Reduce cruise speed or add approach slowing. |
 
@@ -176,9 +181,9 @@ Repeat promising settings to establish that the faster route completes reliably.
 
 ## Explain the improvement in your submission
 
-Export the selected runs from Monitor with Include code in ZIP. Record the Waypoints count, Route time, cruise speed, `K_Heading` and any speed or turn-rate limits used in the runs that support your choice.
+Export the selected runs from Monitor with Include code in ZIP. Record the Waypoints count, Route time, cruise speed, `K_Heading`, `STEERING_FILTER_TIME_S` and any speed or steering-rate limits used in the runs that support your choice.
 
-Plot the robot's path from `estimated_x_mm` and `estimated_y_mm`, with equal axis scales and the navigation goals from [world.json](world.json). To explain a steering change during driving, plot `program_goal_heading_error_rad` and `requested_turn_rate_rad_s` against `acquired_at_s` over the relevant part of the route. The recorded route time is `program_route_time_s`.
+Plot the robot's path from `estimated_x_mm` and `estimated_y_mm`, with equal axis scales and the navigation goals from [world.json](world.json). To explain a steering change during driving, plot `program_goal_heading_error_rad` and `requested_steering_rate_rad_s` against `acquired_at_s` over the relevant part of the route. The recorded route time is `program_route_time_s`.
 
 Answer these questions in your submission:
 
@@ -209,22 +214,21 @@ The route is a feedback process: wheel travel and camera based gps update the po
 
 ![Pose estimation, navigation, wheel control and robot movement connected in a feedback loop.](course-assets/navigation-feedback-loop.svg)
 
-*Figure 5. Pose \((\boldsymbol{p},\theta)\) and the active goal determine forward speed \(V\) and turn rate \(\omega\). Wheel travel \(d_L,d_R\) and camera based gps provide the next pose update.*
+*Figure 5. Pose \((\boldsymbol{p},\theta)\) and the active goal determine forward speed \(V\) and steering rate \(\omega\). Wheel travel \(d_L,d_R\) and camera based gps provide the next pose update.*
 
-After `robot.start(INITIAL_POSE)`, `main.py` starts navigation and the route clock. Each iteration calls `navigation.update(state.pose)` to obtain a command, then `robot.step(command)` to apply it and obtain the next `RobotState`. That state contains the pose used in the following iteration. The loop updates the waypoint count and route time; completing the route stops the robot.
+After `robot.start(INITIAL_POSE)`, `main.py` starts navigation and the route clock. Each iteration calls `navigation.update(state.pose, state.measurements.dt_s)` to obtain a command, then `robot.step(command)` to apply it and obtain the next `RobotState`. That state contains the pose used in the following iteration. The loop updates the waypoint count and route time; completing the route stops the robot.
 
 ## Appendix B: State objects and method selection
 
 A behavior class defines how the robot acts and when it changes behavior. For example, `DriveToGoal` defines driving toward a goal; an object created by `DriveToGoal()` represents that active behavior. The controller keeps this object in `current_state`.
 
-Each call to `navigation.update(pose)` runs the current object's `execute()` method:
+Each call to `navigation.update(pose, dt_s)` runs the current object's `execute()` method:
 
 ```python
 command, self.current_state = self.current_state.execute(pose, self.current_goal(), self)
-return command
 ```
 
-Here, `self` is the controller. Inside a behavior's `execute(pose, goal, navigation)` method, `self` instead refers to that behavior object, and `navigation` refers to the controller passed as the last argument. The method returns both the motion command and the state for the next update.
+Here, `self` is the controller. Inside a behavior's `execute(pose, goal, navigation)` method, `self` instead refers to that behavior object, and `navigation` refers to the controller passed as the last argument. The method returns both the motion command and the state for the next update. The controller filters the steering rate before returning the command to `main.py`.
 
 For example, a `DriveToGoal` object returns itself while driving. When it reaches a goal that requires alignment, it returns an `AlignAtGoal` object. The next call to `navigation.update()` therefore runs `AlignAtGoal.execute()`. Python selects the method from the object stored in `current_state`; this is polymorphic execution. The controller uses the same call for every behavior, while each behavior keeps its action and transition logic together.
 

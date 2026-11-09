@@ -59,13 +59,13 @@ rad, then compare it with the table before running.
 ## 2. Predict a motion command
 
 `command_for_phase(...)` returns a `MotionCommand` with named
-`forward_speed_mm_s` and `turn_rate_rad_s` fields.
+`forward_speed_mm_s` and `steering_rate_rad_s` fields.
 
-| Phase | Forward speed | Turn rate |
+| Phase | Forward speed | Steering rate |
 | --- | --- | --- |
 | `APPROACH` | Positive live speed | 0 |
-| `TURN`, left | 0 | Positive live turn rate |
-| `TURN`, right | 0 | Negative live turn rate |
+| `TURN`, left | 0 | Positive live steering rate |
+| `TURN`, right | 0 | Negative live steering rate |
 | `DONE` | 0 | 0 |
 
 Positive turn is counterclockwise. At a selected speed of 110 mm/s and turn
@@ -77,7 +77,7 @@ motor effort.
 
 ## 3. Change one live control and compare evidence
 
-`live_variables.py` declares speed, stopping distance, turn rate,
+`live_variables.py` declares speed, stopping distance, steering rate,
 direction, and a Run behavior toggle. They appear under Monitor controls.
 Read current values through `.value`; the robot applies a changed control at
 a sample boundary. Changing a slider during a run does not rewrite the saved
@@ -87,7 +87,7 @@ project file.
    approach path, the range near the phase change, and the final heading.
 2. Reset. Set Stop distance to 340 mm and Run. Predict an earlier turn, farther
    from the wall, before inspecting the path. Compare the `range_mm` watch at
-   the transition and the two paths. Keep speed and turn rate fixed.
+   the transition and the two paths. Keep speed and steering rate fixed.
 3. Reset. Restore 260 mm, choose `right`, and Run. Predict the sign of the
    heading change. Compare the heading plot and final pose with the left run.
 4. Restore `left`. If you change `next_phase` or `command_for_phase` in

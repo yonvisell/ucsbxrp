@@ -10,5 +10,5 @@ drive = DriveCommand(0.30, 0.28)
 
 print("pose_mm_rad:", pose.x_mm, pose.y_mm, pose.heading_rad)
 print("wheel_speeds_mm_s:", wheel_speeds.left_mm_s, wheel_speeds.right_mm_s)
-print("motion_command_mm_s_rad_s:", command.forward_speed_mm_s, command.turn_rate_rad_s)
+print("motion_command_mm_s_rad_s:", command.forward_speed_mm_s, command.steering_rate_rad_s)
 print("drive_command_normalized:", drive.left, drive.right)

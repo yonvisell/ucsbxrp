@@ -40,7 +40,7 @@ SAMPLE_STATES = (
 def _read_report():
     report = preflight_report(SAMPLE_STATES)
     if report is None:
-        raise NotImplementedError("preflight_report returned no result")
+        raise NotImplementedError("TODO: preflight_report returned no result")
     if not isinstance(report, dict):
         raise AssertionError("return a dictionary")
     return report

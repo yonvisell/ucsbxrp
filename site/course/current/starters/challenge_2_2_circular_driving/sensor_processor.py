@@ -10,7 +10,7 @@ class SensorProcessor(SensorProcessorBase):
         # Store raw.time_ms, raw.left_encoder_count and raw.right_encoder_count.
         # Return Measurements with zero wheel travel, speed and dt_s.
         # Preserve raw.range_mm, raw.button_pressed and raw.reflectance.
-        raise NotImplementedError("Reuse your tested SensorProcessor.reset in sensor_processor.py")
+        raise NotImplementedError("TODO: Reuse your tested SensorProcessor.reset in sensor_processor.py")
 
     def update(self, raw):
         # Task: convert encoder counts and timestamps to wheel travel and speed.
@@ -19,4 +19,4 @@ class SensorProcessor(SensorProcessorBase):
         # and right_encoder_sign from self.config so forward travel is positive.
         # Calculate dt_s with elapsed_time_s(); retain your tested speed estimator.
         # Return Measurements with unsmoothed wheel increments for odometry.
-        raise NotImplementedError("Reuse your tested SensorProcessor.update in sensor_processor.py")
+        raise NotImplementedError("TODO: Reuse your tested SensorProcessor.update in sensor_processor.py")

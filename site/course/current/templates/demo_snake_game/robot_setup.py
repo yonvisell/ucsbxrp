@@ -20,7 +20,7 @@ def navigation_config_for_speed(speed_mm_s):
         cruise_speed_mm_s=speed_mm_s,
         approach_speed_mm_s=settings["approach_fraction"] * speed_mm_s,
         slowdown_distance_mm=settings["slowdown_distance_mm"],
-        turn_rate_rad_s=settings["turn_rate_rad_s"],
+        steering_rate_rad_s=settings["steering_rate_rad_s"],
         position_tolerance_mm=settings["position_tolerance_mm"],
         heading_tolerance_rad=settings["heading_tolerance_rad"],
         realign_heading_rad=settings["realign_heading_rad"],

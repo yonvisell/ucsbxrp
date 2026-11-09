@@ -182,26 +182,26 @@ MotorEfforts = DriveCommand
 
 
 class MotionCommand(_ValueRecord):
-    __slots__ = ("_forward_speed_mm_s", "_turn_rate_rad_s")
-    _field_names = ("forward_speed_mm_s", "turn_rate_rad_s")
+    __slots__ = ("_forward_speed_mm_s", "_steering_rate_rad_s")
+    _field_names = ("forward_speed_mm_s", "steering_rate_rad_s")
 
-    def __init__(self, forward_speed_mm_s, turn_rate_rad_s):
+    def __init__(self, forward_speed_mm_s, steering_rate_rad_s):
         if DEBUG_VALIDATION:
             self._forward_speed_mm_s = require_number(
                 "forward_speed_mm_s", forward_speed_mm_s
             )
-            self._turn_rate_rad_s = require_number("turn_rate_rad_s", turn_rate_rad_s)
+            self._steering_rate_rad_s = require_number("steering_rate_rad_s", steering_rate_rad_s)
         else:
             self._forward_speed_mm_s = forward_speed_mm_s
-            self._turn_rate_rad_s = turn_rate_rad_s
+            self._steering_rate_rad_s = steering_rate_rad_s
 
     @property
     def forward_speed_mm_s(self):
         return self._forward_speed_mm_s
 
     @property
-    def turn_rate_rad_s(self):
-        return self._turn_rate_rad_s
+    def steering_rate_rad_s(self):
+        return self._steering_rate_rad_s
 
 
 class Measurements(_ValueRecord):

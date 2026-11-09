@@ -15,6 +15,6 @@
 <text x="26" y="178" fill="#66717b" font-family="monospace" font-size="16">29</text>
 <text x="70" y="178" fill="#17334a" font-family="monospace" font-size="16">state = robot.step(command)</text>
 <text x="22" y="228" fill="#263e4b" font-family="sans-serif" font-size="18">The student function chooses forward speed from measured remaining distance.</text>
-<text x="22" y="266" fill="#263e4b" font-family="sans-serif" font-size="18">MotionCommand stores that speed and zero turn rate; it does not drive the motors.</text>
+<text x="22" y="266" fill="#263e4b" font-family="sans-serif" font-size="18">MotionCommand stores that speed and zero steering rate; it does not drive the motors.</text>
 <text x="22" y="304" fill="#263e4b" font-family="sans-serif" font-size="18">step applies the request through the component objects and returns the next state.</text>
 </svg>

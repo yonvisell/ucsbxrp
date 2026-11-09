@@ -8,7 +8,7 @@ The random seed makes the chosen distances and directions repeat on each run.
 Watch **phase**, **segment** and **travel** under **Program watches**. Travel is
 estimated motion of the midpoint between the wheels; rotating in place adds
 no forward travel.
-Use the **Forward speed** and **Turn rate** live sliders to compare two runs;
+Use the **Forward speed** and **Steering rate** live sliders to compare two runs;
 keep the random seed fixed so the requested segment sequence is comparable.
 
 ## Change the experiment

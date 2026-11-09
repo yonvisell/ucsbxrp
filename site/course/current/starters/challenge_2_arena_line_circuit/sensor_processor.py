@@ -10,7 +10,7 @@ class SensorProcessor(SensorProcessorBase):
         # Store raw.time_ms, raw.left_encoder_count and raw.right_encoder_count.
         # Return Measurements with zero wheel travel, speed and dt_s.
         # Copy raw.range_mm, raw.button_pressed and raw.reflectance unchanged.
-        raise NotImplementedError("Complete SensorProcessor.reset")
+        raise NotImplementedError("TODO: Complete SensorProcessor.reset")
 
     def update(self, raw):
         # Task: convert encoder counts and timestamps to wheel travel and speed.
@@ -20,8 +20,8 @@ class SensorProcessor(SensorProcessorBase):
         # Calculate dt_s with elapsed_time_s(); retain your tested speed estimator.
         # Return Measurements with unsmoothed wheel increments for odometry.
         # Copy raw.range_mm, raw.button_pressed and raw.reflectance unchanged.
-        raise NotImplementedError("Complete SensorProcessor.update")
+        raise NotImplementedError("TODO: Complete SensorProcessor.update")
 
     def estimate_range(self, samples, minimum_usable):
         # Assigned in Challenge 5; no implementation is needed here.
-        raise NotImplementedError("Complete SensorProcessor.estimate_range in Challenge 5")
+        raise NotImplementedError("TODO: Complete SensorProcessor.estimate_range in Challenge 5")

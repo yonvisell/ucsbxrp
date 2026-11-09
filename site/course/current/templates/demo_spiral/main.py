@@ -25,11 +25,11 @@ try:  # Ensure finally stops motors on exit.
         speed_mm_s = FORWARD_SPEED.value
         revolutions_per_mm = WINDING_RATE.value / 1000.0  # Convert turns/m to turns/mm.
         expansion = 1.0 + travel_mm / SPIRAL_EXPANSION_MM  # Reduce curvature as travel increases.
-        turn_rate_rad_s = 2.0 * pi * speed_mm_s * revolutions_per_mm / expansion  # rad/s
+        steering_rate_rad_s = 2.0 * pi * speed_mm_s * revolutions_per_mm / expansion  # rad/s
 
-        publish_spiral_values(travel_mm, turn_rate_rad_s)
+        publish_spiral_values(travel_mm, steering_rate_rad_s)
 
-        state = robot.step(MotionCommand(speed_mm_s, turn_rate_rad_s), read_range=True)
+        state = robot.step(MotionCommand(speed_mm_s, steering_rate_rad_s), read_range=True)
         measurements = state.measurements
         travel_mm += abs((measurements.left_increment_mm + measurements.right_increment_mm) / 2.0)  # Axle-center travel.
 finally:

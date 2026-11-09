@@ -6,7 +6,7 @@ from ucsb_xrp import live
 
 # Each number sets an initial value, lower/upper bounds, and step in the stated unit.
 # Forward speed applies during approach. A sensor range at or below stop distance
-# starts the turn; turn rate sets that rotation's magnitude.
+# starts the turn; steering rate sets that rotation's magnitude.
 FORWARD_SPEED = live.number(
     "tutorial_forward_speed_mm_s",
     110.0,
@@ -25,14 +25,14 @@ STOP_DISTANCE = live.number(
     unit="mm",
     label="Stop distance",
 )
-TURN_RATE = live.number(
-    "tutorial_turn_rate_rad_s",
+STEERING_RATE = live.number(
+    "tutorial_steering_rate_rad_s",
     0.8,
     minimum=0.4,
     maximum=1.2,
     step=0.1,
     unit="rad/s",
-    label="Turn rate",
+    label="Steering rate",
 )
 TURN_DIRECTION = live.choice(
     "tutorial_turn_direction",

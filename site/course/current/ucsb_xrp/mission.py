@@ -289,7 +289,7 @@ class DeliveryMission:
             self._navigation.start(goals)
             steps = 0
             while not self._navigation.is_complete():
-                state = robot.step(self._navigation.update(state.pose))
+                state = robot.step(self._navigation.update(state.pose, state.measurements.dt_s))
                 steps += 1
                 self._navigation_step_count = steps
             self._result = (

@@ -18,4 +18,4 @@ class RangeSafetyController(RangeSafetyControllerBase):
         # None when unavailable. Return a nonnegative speed in mm/s no greater
         # than the request or self.maximum_speed_mm_s. Return zero if range is
         # unavailable or stopping cannot leave self.stop_margin_mm of clearance.
-        raise NotImplementedError("Complete RangeSafetyController.update")
+        raise NotImplementedError("TODO: Complete RangeSafetyController.update")

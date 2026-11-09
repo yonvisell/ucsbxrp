@@ -44,7 +44,7 @@ controller. `settings.py` groups the numerical settings you will adjust;
 Implement `LineFollower.update(reflectance, dt_s)` in
 [line_follower.py](line_follower.py). Each call receives calibrated left and
 right reflectance readings and the elapsed sample time, `dt_s` [s]. Return
-`MotionCommand(forward_speed_mm_s, turn_rate_rad_s)`, using forward speed [mm/s]
+`MotionCommand(forward_speed_mm_s, steering_rate_rad_s)`, using forward speed [mm/s]
 and counterclockwise steering rate [rad/s]. The class is imported from `ucsb_xrp`.
 Add brief comments explaining your calculations.
 
@@ -106,8 +106,8 @@ when a positive error is decreasing, D opposes P and can reduce overshoot.
 
 Limit the sum of steering contributions so that the magnitude of <em>ω</em>
 is no greater than
-`self.settings["maximum_turn_rate_rad_s"]`, set by `MAXIMUM_TURN_RATE_RAD_S`.
-**Requested turn rate** shows this limited result.
+`self.settings["maximum_steering_rate_rad_s"]`, set by `MAXIMUM_STEERING_RATE_RAD_S`.
+**Requested steering rate** shows this limited result.
 
 Begin with **I = 0** and `self.i = 0`; a PD controller is sufficient.
 If integral action is needed later, accumulate error as
@@ -179,7 +179,7 @@ resolve sensor bias or poor wheel-speed tracking before changing steering gains.
 Place the physical robot with both sensors over the start bar, pointing along
 the line; use **Reset** for Virtual XRP. Compile changed source, then Run.
 Observe a straight section and a bend. In Monitor, compare **Reflectance left**,
-**Reflectance right**, **Line error**, **Requested turn rate**, and the P and D
+**Reflectance right**, **Line error**, **Requested steering rate**, and the P and D
 contributions over the interval where tracking deteriorates.
 
 Choose one change based on your observations of the motion and on the plots:
@@ -189,7 +189,7 @@ Choose one change based on your observations of the motion and on the plots:
 | The robot runs wide on a bend; tape is visible and steering remains below the limit. | Increase P for a stronger turn. If D is opposing most of P, reduce D instead. |
 | The robot repeatedly overshoots the line with smooth alternating error. | Reduce P when the corrections are too large. If their strength is adequate but they persist too long, increase D modestly. |
 | Steering changes sharply and D has rapid, large reversals. | Reduce D; check the reflectance traces for abrupt changes that D amplifies. |
-| Steering stays at its limit through the failing bend. | Reduce cruise speed or increase `MAXIMUM_TURN_RATE_RAD_S` if the wheels can follow the resulting targets. Increasing P cannot raise a saturated steering rate. |
+| Steering stays at its limit through the failing bend. | Reduce cruise speed or increase `MAXIMUM_STEERING_RATE_RAD_S` if the wheels can follow the resulting targets. Increasing P cannot raise a saturated steering rate. |
 | Measured wheel speeds depart substantially from their targets, or white and black readings overlap. | Revisit the motor settings or sensor measurements from parts 2.2 or 2.1 before tuning PID. |
 
 For a bend of cornering radius <em>R</em>, the required steering rate is
@@ -234,8 +234,8 @@ nexttile;
 plot(t, T.program_line_error);
 ylabel('Line error'); grid on;
 nexttile;
-plot(t, T.requested_turn_rate_rad_s);
-ylabel('Turn rate [rad/s]'); xlabel('Time [s]'); grid on;
+plot(t, T.requested_steering_rate_rad_s);
+ylabel('Steering rate [rad/s]'); xlabel('Time [s]'); grid on;
 exportgraphics(gcf, 'line_trial_01.png', 'Resolution', 200);
 ```
 

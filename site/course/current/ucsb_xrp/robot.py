@@ -20,12 +20,12 @@ except ImportError:  # CPython tests
     def _ticks_diff(newer, older):
         return newer - older
 
-from .config import RobotConfig
 from ._build_config import DEBUG_VALIDATION
 from ._validation import require_int, require_number, require_positive
 from ._telemetry import begin_course_samples, end_course_samples, publish_state
-from .records import DriveCommand, MotionCommand, Pose, RobotState, STOP_COMMAND
+from .records import DriveCommand, RobotState, STOP_COMMAND
 from .live import apply_updates
+from .localization import GPSInput
 
 
 _managed_start = False
@@ -54,8 +54,7 @@ class Robot:
         "_wheel_speeds",
         "_odometry_update",
         "_localization_update",
-        "_localization_snapshot",
-        "_gps_ready",
+        "_gps",
         "_wheel_control_values",
         "_scalar_targets",
         "_scalar_wheel_update",
@@ -81,43 +80,23 @@ class Robot:
         _ticks_add=None,
         _ticks_diff_fn=None,
         _ticks_ms=None,
+        use_gps=True,
     ):
-        if not isinstance(config, RobotConfig):
-            raise TypeError("config must be a RobotConfig")
-        required = (
-            (bot, ("read", "reset_encoders", "wait_for_button", "stop")),
-            (sensor_model, ("reset", "update", "estimate_range")),
-            (wheel_controller, ("reset", "update")),
-            (differential_drive, ("wheel_speeds",)),
-            (odometry, ("reset", "update")),
-        )
-        for component, methods in required:
-            if any(not callable(getattr(component, name, None)) for name in methods):
-                raise TypeError("robot component does not implement " + ", ".join(methods))
-        set_drive = getattr(bot, "set_drive", None)
-        if not callable(set_drive):
-            set_drive = getattr(bot, "set_efforts", None)
-        if not callable(set_drive):
-            raise TypeError("robot component does not implement set_drive")
         self._config = config
         self._bot = bot
         self._sensor_model = sensor_model
         self._wheel_controller = wheel_controller
         self._differential_drive = differential_drive
         self._odometry = odometry
-        self._set_drive = set_drive
+        self._set_drive = bot.set_drive
         # Bind the selected graph once; student methods remain the chosen path.
         self._read = bot.read
         self._sensor_update = sensor_model.update
         self._wheel_update = wheel_controller.update
         self._wheel_speeds = differential_drive.wheel_speeds
-        self._odometry_update = odometry.update
-        measured_update = getattr(odometry, "_update_measurements", None)
-        self._localization_update = measured_update if callable(measured_update) else None
-        self._localization_snapshot = (
-            odometry._telemetry_snapshot if self._localization_update is not None else None
-        )
-        self._gps_ready = getattr(odometry, "gps_ready", None)
+        self._localization_update = getattr(odometry, "update_pose", None)
+        self._odometry_update = None if self._localization_update is not None else odometry.update
+        self._gps = GPSInput(use_gps) if self._localization_update is not None else None
         self._wheel_control_values = None
         self._scalar_targets = None
         self._scalar_wheel_update = None
@@ -156,7 +135,7 @@ class Robot:
 
     @property
     def last_overrun_ms(self):
-        """Latest pre-wait lateness after applying drive, before the sensor read."""
+        """Lateness of the latest encoder acquisition relative to its deadline."""
         return self._last_overrun_ms
 
     @property
@@ -170,13 +149,6 @@ class Robot:
         return getattr(self._bot, "range_sample_age_s", None)
 
     def start(self, initial_pose, read_reflectance=False):
-        if not isinstance(initial_pose, Pose):
-            raise TypeError("initial_pose must be a Pose")
-        require_number("initial_pose.x_mm", initial_pose.x_mm)
-        require_number("initial_pose.y_mm", initial_pose.y_mm)
-        require_number("initial_pose.heading_rad", initial_pose.heading_rad)
-        if not isinstance(read_reflectance, bool):
-            raise TypeError("read_reflectance must be True or False")
         if not _managed_start:
             self._bot.wait_for_button()
         self._bot.reset_encoders()
@@ -187,10 +159,12 @@ class Robot:
             pose = self._odometry.reset(initial_pose)
         else:
             pose = self._odometry.reset(initial_pose, measurements.time_ms)
+            self._gps.reset(measurements.time_ms)
         self._state = RobotState(measurements, pose)
         publish_state(
             self._state, raw_sensors=raw, sample_period_ms=self.config.sample_period_ms,
-            localization=None if self._localization_snapshot is None else self._localization_snapshot(),
+            localization=None if self._gps is None else self._gps.snapshot(
+                measurements.time_ms, self._odometry.gps_capture_time_ms),
         )
         apply_updates()
         self._last_overrun_ms = 0
@@ -201,30 +175,15 @@ class Robot:
 
     def wait_for_gps(self):
         """Sample at rest until camera-based GPS supplies a usable world pose."""
-        if self._state is None:
-            raise RuntimeError("call start(initial_pose) before wait_for_gps()")
-        ready = self._gps_ready
-        if ready is not None and not ready(self._ticks_ms()):
-            print("Waiting for camera-based GPS.")
-            while not ready(self._ticks_ms()):
+        if self._gps is not None:
+            while not self._gps.ready(self._ticks_ms()):
                 self.step(STOP_COMMAND)
-            print("Camera-based GPS ready.")
         return self._state
 
     def step(self, command, read_range=False, read_reflectance=False):
-        if self._state is None:
-            raise RuntimeError("call start(initial_pose) before step(command)")
-        if DEBUG_VALIDATION:
-            if not isinstance(command, MotionCommand):
-                raise TypeError("command must be a MotionCommand")
-            if not isinstance(read_range, bool):
-                raise TypeError("read_range must be True or False")
-            if not isinstance(read_reflectance, bool):
-                raise TypeError("read_reflectance must be True or False")
-
         try:
             control_values = self._wheel_control_values
-            if control_values is not None and not DEBUG_VALIDATION:
+            if control_values is not None:
                 self._scalar_targets(command)
                 self._scalar_wheel_update(self._state.measurements)
                 self._scalar_set_drive(control_values[2], control_values[3])
@@ -240,10 +199,11 @@ class Robot:
                 self._set_drive(drive_command)
             now_ms = self._ticks_ms()
             remaining_ms = self._ticks_diff(self._next_sample_ms, now_ms)
-            self._last_overrun_ms = max(0, -remaining_ms)
             if remaining_ms > 0:
                 self._sleep_ms(remaining_ms)
             raw = self._read_sensors(read_range, read_reflectance)
+            self._last_overrun_ms = max(0, self._ticks_diff(raw.time_ms, self._next_sample_ms))
+            self._advance_deadline(raw.time_ms)
             measurements = self._sensor_update(raw)
             if self._localization_update is None:
                 pose = self._odometry_update(
@@ -251,7 +211,7 @@ class Robot:
                     measurements.right_increment_mm,
                 )
             else:
-                pose = self._localization_update(measurements)
+                pose = self._localization_update(measurements, self._gps.read(measurements.time_ms))
             self._state = RobotState(measurements, pose)
             publish_state(
                 self._state,
@@ -262,10 +222,10 @@ class Robot:
                 sample_period_ms=self.config.sample_period_ms,
                 overrun_ms=self._last_overrun_ms,
                 wheel_control_values=control_values,
-                localization=None if self._localization_snapshot is None else self._localization_snapshot(),
+                localization=None if self._gps is None else self._gps.snapshot(
+                    measurements.time_ms, self._odometry.gps_capture_time_ms),
             )
             apply_updates()
-            self._advance_deadline()
             return self._state
         except Exception:
             self._bot.stop()
@@ -330,7 +290,8 @@ class Robot:
             publish_state(
                 self._state, DriveCommand(0.0, 0.0),
                 sample_period_ms=self.config.sample_period_ms, kind="stop",
-                localization=None if self._localization_snapshot is None else self._localization_snapshot(False),
+                localization=None if self._gps is None else self._gps.snapshot(
+                    self._state.measurements.time_ms, self._odometry.gps_capture_time_ms, False),
             )
 
     def _read_sensors(self, include_range, include_reflectance):
@@ -347,16 +308,8 @@ class Robot:
         finally:
             end_course_samples()
 
-    def _advance_deadline(self):
-        """Advance one or more absolute periods without catch-up bursts."""
-        now_ms = self._ticks_ms()
-        self._next_sample_ms = self._ticks_add(
-            self._next_sample_ms, self.config.sample_period_ms
-        )
-        lateness_ms = -self._ticks_diff(self._next_sample_ms, now_ms)
-        if lateness_ms >= 0:
-            missed_periods = lateness_ms // self.config.sample_period_ms + 1
-            self._next_sample_ms = self._ticks_add(
-                self._next_sample_ms,
-                missed_periods * self.config.sample_period_ms,
-            )
+    def _advance_deadline(self, acquired_ms):
+        # Advance from acquisition time; later processing must not skip the next sample.
+        period = self.config.sample_period_ms
+        elapsed = max(0, self._ticks_diff(acquired_ms, self._next_sample_ms))
+        self._next_sample_ms = self._ticks_add(self._next_sample_ms, (1 + elapsed // period) * period)

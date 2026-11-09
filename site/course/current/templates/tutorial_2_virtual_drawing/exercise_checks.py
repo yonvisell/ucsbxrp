@@ -26,7 +26,7 @@ def _check_straight_segment():
     command = segment.command()
     if not isinstance(command, MotionCommand):
         raise AssertionError("command() must return MotionCommand")
-    if (command.forward_speed_mm_s, command.turn_rate_rad_s) != (120.0, 0.0):
+    if (command.forward_speed_mm_s, command.steering_rate_rad_s) != (120.0, 0.0):
         raise AssertionError("straight segment must request 120 mm/s and zero turn")
     start = _state(30.0, 34.0, 0.0)
     if segment.is_complete(start, _state(129.0, 133.0, 0.0)):
@@ -43,7 +43,7 @@ def _check_turn_segment():
     command = turn.command()
     if not isinstance(command, MotionCommand):
         raise AssertionError("command() must return MotionCommand")
-    if (command.forward_speed_mm_s, command.turn_rate_rad_s) != (0.0, 0.8):
+    if (command.forward_speed_mm_s, command.steering_rate_rad_s) != (0.0, 0.8):
         raise AssertionError("turn segment must request zero forward and 0.8 rad/s")
     start = _state(0.0, 0.0, 0.2)
     if turn.is_complete(start, _state(-60.0, 60.0, 1.7)):

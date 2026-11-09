@@ -17,7 +17,7 @@ class SensorProcessor(SensorProcessorBase):
         # Return Measurements with zero position, increment, speed, and dt_s.
         # Robot reads this record's named fields. Copy raw.range_mm,
         # raw.button_pressed, and raw.reflectance into the corresponding fields.
-        raise NotImplementedError("Complete SensorProcessor.reset")
+        raise NotImplementedError("TODO: Complete SensorProcessor.reset")
 
     def update(self, raw):
         # raw is the next sensor record: timestamp in ms and encoder counts.
@@ -29,10 +29,10 @@ class SensorProcessor(SensorProcessorBase):
         # wheel_speed_filter_time_constant_ms to set the response time.
         # Keep each latest wheel increment unsmoothed for odometry. Copy raw.range_mm,
         # raw.button_pressed, and raw.reflectance into Measurements.
-        raise NotImplementedError("Complete SensorProcessor.update")
+        raise NotImplementedError("TODO: Complete SensorProcessor.update")
 
     def estimate_range(self, samples, minimum_usable):
         # samples contains range readings in mm or None. Exclude nonfinite,
         # Boolean, zero, and negative readings; return the median usable value
         # in mm, or None when fewer than minimum_usable values remain.
-        raise NotImplementedError("Complete SensorProcessor.estimate_range in Challenge 5")
+        raise NotImplementedError("TODO: Complete SensorProcessor.estimate_range in Challenge 5")

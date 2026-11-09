@@ -3,7 +3,7 @@
 This demonstration lets you steer the XRP with two sliders in **Monitor → Live
 controls**. Open the Project in the IDE, choose the **virtual XRP** first, and
 press **Compile**, then **Run**. The robot starts stopped. Set **Forward speed** above zero to
-drive forward or below zero to reverse. Set **Turn rate** above zero to turn
+drive forward or below zero to reverse. Set **Steering rate** above zero to turn
 left or below zero to turn right. The two settings combine to make curves.
 Both sliders start at zero on a new run.
 

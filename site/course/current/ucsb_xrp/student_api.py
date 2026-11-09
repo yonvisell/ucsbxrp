@@ -3,8 +3,6 @@
 from math import isfinite
 
 from .config import RobotConfig
-from .localization import LocalizationBase
-from .navigation import NavigationControllerBase
 
 
 class _ConfiguredComponent:
@@ -86,7 +84,7 @@ class DifferentialDriveBase(_ConfiguredComponent):
     def wheel_speeds(self, command):
         """Return left/right WheelSpeeds in mm/s for one MotionCommand.
 
-        Use forward speed, counterclockwise turn rate, and configured track
+        Use forward speed, counterclockwise steering rate, and configured track
         width; this conversion does not depend on earlier calls.
         """
         raise NotImplementedError
@@ -142,7 +140,7 @@ class LineFollowerBase:
 
     Reflectance is normalized from 0 (light) to 1 (dark). Positive line error
     means the line is nearer the left sensor and therefore requests a positive
-    (counterclockwise) turn rate. Implementations may retain feedback state
+    (counterclockwise) steering rate. Implementations may retain feedback state
     between calls; :meth:`reset` clears it before each run.
     """
 

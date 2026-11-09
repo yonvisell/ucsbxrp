@@ -16,7 +16,7 @@ import sys
 # controls: each entry gives default, minimum, maximum, and step for the speed
 # (mm/s) or tail-growth (mm per pickup) slider.
 # navigation: approach_fraction multiplies cruise speed within slowdown_distance_mm.
-# turn_rate_rad_s limits rotation; position_tolerance_mm and heading_tolerance_rad
+# steering_rate_rad_s limits rotation; position_tolerance_mm and heading_tolerance_rad
 # qualify a goal. realign_heading_rad triggers turning in place before proceeding.
 # robot: starting commands and max_drive_command are dimensionless motor efforts;
 # speed_command_gain and wheel_speed_kp convert mm/s to effort (s/mm).

@@ -47,12 +47,12 @@ def _check_motion_commands():
         if not isinstance(command, MotionCommand):
             raise AssertionError("each phase should return a MotionCommand")
         finite_number("forward_speed_mm_s", command.forward_speed_mm_s)
-        finite_number("turn_rate_rad_s", command.turn_rate_rad_s)
+        finite_number("steering_rate_rad_s", command.steering_rate_rad_s)
     actual = (
-        (approach.forward_speed_mm_s, approach.turn_rate_rad_s),
-        (left.forward_speed_mm_s, left.turn_rate_rad_s),
-        (right.forward_speed_mm_s, right.turn_rate_rad_s),
-        (done.forward_speed_mm_s, done.turn_rate_rad_s),
+        (approach.forward_speed_mm_s, approach.steering_rate_rad_s),
+        (left.forward_speed_mm_s, left.steering_rate_rad_s),
+        (right.forward_speed_mm_s, right.steering_rate_rad_s),
+        (done.forward_speed_mm_s, done.steering_rate_rad_s),
     )
     expected = ((120.0, 0.0), (0.0, 0.8), (0.0, -0.8), (0.0, 0.0))
     if actual != expected:

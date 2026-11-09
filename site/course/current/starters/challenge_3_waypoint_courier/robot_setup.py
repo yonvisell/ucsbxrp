@@ -1,9 +1,9 @@
 # Select components and configure robot and navigation
 from challenge import POSITION_TOLERANCE_MM, HEADING_TOLERANCE_RAD
-from live_variables import CRUISE_SPEED, TURN_RATE
+from live_variables import CRUISE_SPEED, STEERING_RATE
 from settings import (
     WHEEL_DIAMETER_MM, ENCODER_COUNTS_PER_REVOLUTION, TRACK_WIDTH_MM,
-    CRUISE_SPEED_MM_S, TURN_RATE_RAD_S, APPROACH_SPEED_RATIO,
+    CRUISE_SPEED_MM_S, STEERING_RATE_RAD_S, APPROACH_SPEED_RATIO,
     SLOWDOWN_DISTANCE_MM,
     USE_GPS, VIRTUAL_GPS_RATE_HZ,
     GPS_POSITION_DRIFT_MM, GPS_HEADING_DRIFT_RAD, DRIVING_BIAS, DRIVING_DRIFT,
@@ -27,7 +27,7 @@ NAVIGATION_CONFIG = NavigationConfig(
     cruise_speed_mm_s=CRUISE_SPEED_MM_S,
     approach_speed_mm_s=APPROACH_SPEED_RATIO * CRUISE_SPEED_MM_S,
     slowdown_distance_mm=SLOWDOWN_DISTANCE_MM,
-    turn_rate_rad_s=TURN_RATE_RAD_S,
+    steering_rate_rad_s=STEERING_RATE_RAD_S,
     position_tolerance_mm=POSITION_TOLERANCE_MM,
     heading_tolerance_rad=HEADING_TOLERANCE_RAD,
     realign_heading_rad=0.25,
@@ -69,11 +69,9 @@ def make_robot(config):
             driving_bias_percent=DRIVING_BIAS,
             driving_drift_percent=DRIVING_DRIFT,
         )
-    localization = Localization(
-        config, use_gps=USE_GPS,
-    )
+    localization = Localization(config)
     return Robot(config, XRPBot(config), SensorProcessor(config),
-                 WheelSpeedController(config), DifferentialDrive(config), localization)
+                 WheelSpeedController(config), DifferentialDrive(config), localization, use_gps=USE_GPS)
 
 
 # Create selected navigation controller
@@ -84,21 +82,21 @@ def make_navigation_controller(config):
         return StudentNavigationController(config)
     return SuppliedNavigationController(config)
 
-# Apply Monitor speed and turn-rate settings
+# Apply Monitor speed and steering-rate settings
 def apply_navigation_controls(navigation):
     current = navigation.config
     cruise_speed_mm_s = CRUISE_SPEED.value
-    turn_rate_rad_s = TURN_RATE.value
+    steering_rate_rad_s = STEERING_RATE.value
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
-        and current.turn_rate_rad_s == turn_rate_rad_s
+        and current.steering_rate_rad_s == steering_rate_rad_s
     ):
         return
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=APPROACH_SPEED_RATIO * cruise_speed_mm_s,
         slowdown_distance_mm=current.slowdown_distance_mm,
-        turn_rate_rad_s=turn_rate_rad_s,
+        steering_rate_rad_s=steering_rate_rad_s,
         position_tolerance_mm=current.position_tolerance_mm,
         heading_tolerance_rad=current.heading_tolerance_rad,
         realign_heading_rad=current.realign_heading_rad,

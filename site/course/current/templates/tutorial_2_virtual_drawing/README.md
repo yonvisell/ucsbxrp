@@ -76,7 +76,7 @@ which kind it received.
 
 ## 3. Build and change an ordered path
 
-`build_drawing(side_speed_mm_s, side_distance_mm, turn_rate_rad_s,
+`build_drawing(side_speed_mm_s, side_distance_mm, steering_rate_rad_s,
 turn_angle_rad)` creates a list alternating side, corner, side, corner, and so
 on. Read the `for index in range(4)` loop and predict the first and last
 segment names. The first item is `side 1`; the eighth is `corner 4`.

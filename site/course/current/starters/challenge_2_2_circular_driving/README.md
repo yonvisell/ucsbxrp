@@ -13,7 +13,7 @@ Diameter means the path of the **midpoint between the drive wheels**, not a whee
   <path d="M212 148 L216 137 L224 146" fill="none" stroke="#245e98" stroke-width="3"/>
   <circle cx="140" cy="192" r="5" fill="#182b40"/>
   <path d="M147 192 H238 L229 187 M238 192 L229 197" fill="none" stroke="#182b40" stroke-width="2"/>
-  <text x="270" y="75" fill="#182b40" font-family="sans-serif" font-size="17">Counterclockwise: turn rate &gt; 0</text>
+  <text x="270" y="75" fill="#182b40" font-family="sans-serif" font-size="17">Counterclockwise: steering rate &gt; 0</text>
   <text x="270" y="107" fill="#182b40" font-family="sans-serif" font-size="17">Right wheel travels farther</text>
   <text x="270" y="184" fill="#182b40" font-family="sans-serif" font-size="17">Start: axle midpoint</text>
   <text x="270" y="207" fill="#182b40" font-family="sans-serif" font-size="17">Arrow: initial forward motion</text>
@@ -25,7 +25,7 @@ Diameter means the path of the **midpoint between the drive wheels**, not a whee
    `left_start_command`, `right_start_command`, `left_speed_command_gain`, and
    `right_speed_command_gain`. `VIRTUAL_ROBOT_CONFIG` is supplied separately.
 2. In `DifferentialDrive.wheel_speeds(command)`, use the forward speed,
-   `command.forward_speed_mm_s` [mm/s], turn rate, `command.turn_rate_rad_s`
+   `command.forward_speed_mm_s` [mm/s], steering rate, `command.steering_rate_rad_s`
    [rad/s], and wheel separation, `self.config.track_width_mm` [mm], to calculate
    left and right speeds. Return `WheelSpeeds(left_mm_s, right_mm_s)`.
    Their average must equal the forward speed; their difference must produce

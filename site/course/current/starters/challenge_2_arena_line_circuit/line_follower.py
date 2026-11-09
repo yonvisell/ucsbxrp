@@ -18,7 +18,7 @@ class LineFollower(LineFollowerBase):
         # Keep self.i at zero unless you implement the optional accumulated error in self.integral_error.
         # For a bar, both readings reach "waypoint_dark_threshold": continue the preceding trajectory.
         # Hold error history and set p = i = d = 0 on a bar; use zero derivative on the first sample afterward.
-        # Limit p + i + d to +/- "maximum_turn_rate_rad_s" and reduce "cruise_speed_mm_s" using "turn_slowdown".
+        # Limit p + i + d to +/- "maximum_steering_rate_rad_s" and reduce "cruise_speed_mm_s" using "turn_slowdown".
         # Apply "minimum_speed_mm_s" without exceeding cruise; zero cruise stops both speed and steering.
         # Return a MotionCommand containing the resulting forward speed and steering rate.
-        raise NotImplementedError("Complete LineFollower.update")
+        raise NotImplementedError("TODO: Complete LineFollower.update")
