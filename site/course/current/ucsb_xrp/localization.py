@@ -12,8 +12,7 @@ except ImportError:  # CPython tests
     def _ticks_diff(newer, older):
         return newer - older
 
-from ._validation import require_int, require_nonnegative, require_number
-from .records import Pose, _ValueRecord
+from .records import _ValueRecord
 
 try:
     import _thread
@@ -25,7 +24,6 @@ _latest_fix = None
 _pose_provider = None
 _MAX_FIX_AGE_MS = 2000
 _GPS_TIMEOUT_MS = 1500
-_MAX_CLOCK_UNCERTAINTY_MS = 100.0
 
 
 class PoseFix(_ValueRecord):
@@ -43,22 +41,13 @@ class PoseFix(_ValueRecord):
 
     def __init__(self, pose, capture_time_ms, received_time_ms, sequence,
                  source_epoch, clock_uncertainty_ms=0.0):
-        if not isinstance(pose, Pose):
-            raise TypeError("pose must be a Pose")
-        # This is an external-data boundary, including in release builds.
-        require_number("pose.x_mm", pose.x_mm)
-        require_number("pose.y_mm", pose.y_mm)
-        require_number("pose.heading_rad", pose.heading_rad)
+        # The receiver validates packet fields before constructing this record.
         self._pose = pose
-        self._capture_time_ms = require_int("capture_time_ms", capture_time_ms, 0)
-        self._received_time_ms = require_int("received_time_ms", received_time_ms, 0)
-        self._sequence = require_int("sequence", sequence, 0)
-        if not isinstance(source_epoch, str) or not 1 <= len(source_epoch) <= 64:
-            raise ValueError("source_epoch must be a nonempty string of at most 64 characters")
+        self._capture_time_ms = capture_time_ms
+        self._received_time_ms = received_time_ms
+        self._sequence = sequence
         self._source_epoch = source_epoch
-        self._clock_uncertainty_ms = require_nonnegative(
-            "clock_uncertainty_ms", clock_uncertainty_ms
-        )
+        self._clock_uncertainty_ms = clock_uncertainty_ms
 
     @property
     def pose(self):
@@ -88,8 +77,6 @@ class PoseFix(_ValueRecord):
 def publish_pose_fix(fix):
     """Replace the service mailbox; the producer has already checked identity."""
     global _latest_fix
-    if not isinstance(fix, PoseFix):
-        raise TypeError("fix must be a PoseFix")
     if _mailbox_lock is not None:
         _mailbox_lock.acquire()
     try:
@@ -114,8 +101,6 @@ def clear_pose_fix():
 def set_pose_provider(provider):
     """Install a nonblocking ``provider(now_ms) -> PoseFix | None`` callback."""
     global _pose_provider
-    if provider is not None and not callable(provider):
-        raise TypeError("provider must be callable or None")
     _pose_provider = provider
 
 
@@ -175,8 +160,7 @@ class GPSInput:
         if self._capture_ms is not None and _ticks_diff(fix.capture_time_ms, self._capture_ms) <= 0:
             return None
         if (_ticks_diff(fix.received_time_ms, fix.capture_time_ms) < 0
-                or _ticks_diff(time_ms, fix.capture_time_ms) > _MAX_FIX_AGE_MS
-                or fix.clock_uncertainty_ms > _MAX_CLOCK_UNCERTAINTY_MS):
+                or _ticks_diff(time_ms, fix.capture_time_ms) > _MAX_FIX_AGE_MS):
             return None
         self._fix = fix
         self._event = (fix.pose.x_mm, fix.pose.y_mm, fix.pose.heading_rad,

@@ -322,12 +322,6 @@ class NavigationConfig(_ValueRecord):
         self._realign_heading_rad = require_nonnegative(
             "realign_heading_rad", realign_heading_rad
         )
-        if self._approach_speed_mm_s > self._cruise_speed_mm_s:
-            raise ValueError("approach_speed_mm_s must not exceed cruise_speed_mm_s")
-        if self._realign_heading_rad < self._heading_tolerance_rad:
-            raise ValueError(
-                "realign_heading_rad must not be below heading_tolerance_rad"
-            )
 
     @property
     def cruise_speed_mm_s(self):

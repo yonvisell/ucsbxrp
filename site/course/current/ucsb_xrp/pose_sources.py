@@ -18,13 +18,10 @@ def configure_pose_source(rate_hz=2.0, latency_ms=0, dropout_start_ms=-1,
         import xrp_sim_bridge
     except ImportError:
         return
-    read = getattr(xrp_sim_bridge, "camera_observation", None)
-    if read is None:
-        return
-
-    configure = getattr(xrp_sim_bridge, "configure_gps", None)
-    if configure is not None:
-        configure(position_drift_mm, heading_drift_rad, driving_bias_percent, driving_drift_percent)
+    read = xrp_sim_bridge.camera_observation
+    xrp_sim_bridge.configure_gps(
+        position_drift_mm, heading_drift_rad, driving_bias_percent, driving_drift_percent
+    )
 
     def observe(now_ms):
         value = read(now_ms, rate_hz, latency_ms, dropout_start_ms, dropout_duration_ms)
