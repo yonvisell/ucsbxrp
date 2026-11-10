@@ -14,6 +14,7 @@ katex 0.18.7 — MIT
 marked 18.0.11 — MIT
 monaco-editor 0.56.0 — MIT
 marked 14.0.0 — MIT
+node-diff3 3.2.1 — MIT
 react 19.2.8 — MIT
 react-dom 19.2.8 — MIT
 scheduler 0.27.0 — MIT

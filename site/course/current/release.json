@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "release_id": "2026.11-dev.100",
-  "release_sequence": 100,
+  "release_id": "2026.11-dev.101",
+  "release_sequence": 101,
   "status": "development",
   "application_version": "0.1.0",
   "course_api_revision": "0.8.0-draft",
