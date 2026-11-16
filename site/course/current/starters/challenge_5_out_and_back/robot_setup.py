@@ -95,16 +95,16 @@ def make_grid_planner():
     return SuppliedGridPlanner()
 
 # Apply Monitor controls to the active controller.
-# Apply slider settings without restarting the route.
+# Apply control settings without restarting the route.
 def apply_navigation_controls(navigation):
     current = navigation.config
-    cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed slider.
-    steering_rate_rad_s = STEERING_RATE.value  # Read the steering-rate slider.
+    cruise_speed_mm_s = CRUISE_SPEED.value  # Read the cruise-speed control.
+    steering_rate_rad_s = STEERING_RATE.value  # Read the steering-rate control.
     if (
         current.cruise_speed_mm_s == cruise_speed_mm_s
         and current.steering_rate_rad_s == steering_rate_rad_s
     ):
-        return  # Neither slider changed.
+        return  # Neither control changed.
     navigation.set_config(NavigationConfig(
         cruise_speed_mm_s=cruise_speed_mm_s,
         approach_speed_mm_s=APPROACH_SPEED_RATIO * cruise_speed_mm_s,

@@ -587,6 +587,32 @@ input[type="radio"] {
   white-space: nowrap;
 }
 
+.connection-pill.physical-target-status {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.25rem 0.4rem;
+  cursor: pointer;
+}
+
+.physical-target-status-panel {
+  position: fixed;
+  z-index: 100;
+  width: min(320px, calc(100vw - 16px));
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: 0 4px 16px #0003;
+  font-size: var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.physical-target-status-panel p {
+  margin: 6px 0;
+}
+
 .header-statuses {
   display: flex;
   min-width: 0;
