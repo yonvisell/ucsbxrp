@@ -66,6 +66,17 @@
     "published": true
   },
   {
+    "id": "roomba_grid_occupancy",
+    "group": "demonstrations",
+    "kind": "demo",
+    "source": "templates/roomba_grid_occupancy",
+    "label": "Exercise \u00b7 Reactive Driving and Mapping",
+    "short_label": "Exercise \u00b7 Reactive Driving and Mapping",
+    "summary": "Implement the function that updates an occupancy grid as the XRP drives through an unfamiliar arena.",
+    "entrypoint": "main.py",
+    "published": true
+  },
+  {
     "id": "demo_manual_drive",
     "group": "demonstrations",
     "kind": "demo",

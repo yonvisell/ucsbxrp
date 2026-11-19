@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="520" height="294" viewBox="0 0 520 294" role="img" aria-labelledby="title desc">
+  <title id="title">How the range estimate and map enter the next driving decision</title>
+  <desc id="desc">Each robot step supplies a pose and the latest range estimate to the controller. For each fresh estimate with usable grid evidence, the program finds the crossed cells and possible endpoint and calls the student function. Its changes to the stored map are available to the same controller.</desc>
+  <defs>
+    <marker id="tip" markerWidth="7" markerHeight="7" refX="5.6" refY="3.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L7 3.5 L0 7 Z" fill="#43535c"/></marker>
+  </defs>
+  <rect width="520" height="294" fill="white"/>
+  <g fill="none" stroke="#43535c" stroke-width="1.6" stroke-linejoin="round" marker-end="url(#tip)">
+    <path d="M146 51 V89"/>
+    <path d="M146 136 V175"/>
+    <path d="M146 224 V269 H265"/>
+    <path d="M373 51 V241"/>
+  </g>
+  <g fill="#fff" stroke="#64767e" stroke-width="1.3">
+    <rect x="41" y="5" width="438" height="46" rx="3"/>
+    <rect x="13" y="90" width="266" height="46" rx="3"/>
+    <rect x="13" y="176" width="266" height="48" rx="3" fill="#e7f1f4" stroke="#437181"/>
+    <rect x="266" y="242" width="246" height="48" rx="3"/>
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" fill="#21313a" text-anchor="middle">
+    <text x="260" y="34" font-size="18">Read wheel encoders and request a range estimate</text>
+    <text x="146" y="119" font-size="18">Trace the centerline on the grid</text>
+    <text x="146" y="205" font-family="monospace" font-size="17" font-weight="bold">update_occupancy</text>
+    <text x="389" y="272" font-size="18">Choose the next motion</text>
+  </g>
+  <g fill="#374b55" font-family="Arial, Helvetica, sans-serif" font-size="15.5">
+    <rect x="17" y="60" width="258" height="20" fill="white"/>
+    <text x="146" y="75" text-anchor="middle">Fresh estimate and acquisition pose</text>
+    <rect x="49" y="145" width="194" height="20" fill="white"/>
+    <text x="146" y="160" text-anchor="middle" font-family="monospace">free_cells, hit_cell</text>
+    <rect x="294" y="122" width="160" height="42" fill="white"/>
+    <text x="374" y="138" text-anchor="middle">Current pose and</text>
+    <text x="374" y="157" text-anchor="middle">latest range estimate</text>
+    <text x="154" y="251">Stored map</text>
+  </g>
+</svg>
