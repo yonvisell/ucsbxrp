@@ -20,12 +20,15 @@ _WATCH_AVOIDANCES = live.register_watch('avoidances')
 
 
 def publish_range(range_mm):
+    # Show the latest forward distance or the absence of an echo.
     _WATCH_RANGE_MM.value = range_mm if range_mm is not None else "No echo"
 
 
 def publish_phase(phase):
+    # Show the active avoidance state.
     _WATCH_PHASE.value = phase
 
 
 def publish_avoidance_count(count):
+    # Show the number of avoidance turns started since Run.
     _WATCH_AVOIDANCES.value = count

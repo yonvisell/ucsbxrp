@@ -15,7 +15,7 @@ distance, and steering rate during the run. Their current values appear in Monit
 
 - **challenge.py** contains the reverse duration, turn-angle range and random seed.
 - **world.json** defines the arena, divider and starting pose.
-- **main.py** implements the approach → reverse → turn sequence using the
+- **main.py** starts the robot. **avoidance.py** implements the approach → reverse → turn sequence using the
   supplied robot services. **live_variables.py** declares speed, obstacle distance and turn controls, and publishes the watch values;
   **robot_setup.py** contains robot-specific settings.
 
