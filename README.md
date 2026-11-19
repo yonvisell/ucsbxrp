@@ -6,5 +6,5 @@ This repository publishes the student website. Open the Guide and API from the
 website, and each project's README for its instructions. Supplied implementations
 of assigned classes are distributed as MicroPython bytecode.
 
-Release artifact: `964ae49037e914247852`. Third-party license notices are
+Release artifact: `9498ea380fff27e16a53`. Third-party license notices are
 in `site/third-party-licenses/README.txt`.
