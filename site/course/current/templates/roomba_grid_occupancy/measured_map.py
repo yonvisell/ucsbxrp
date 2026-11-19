@@ -98,12 +98,12 @@ class MeasuredMap(OccupancyMap):
             return False
         self._last_sequence = sequence
         range_mm = state.measurements.range_mm
-        free_cells, hit_cell = self.beam_cells(state.pose, range_mm, SENSOR_OFFSET_MM, MIN_RANGE_MM, MAP_RANGE_MM)
+        crossed_cells, hit_cell = self.beam_cells(state.pose, range_mm, SENSOR_OFFSET_MM, MIN_RANGE_MM, MAP_RANGE_MM)
         if hit_cell is not None and self._known_wall_echoes and self.wall_echo(state.pose, range_mm):
             hit_cell = None  # The known wall can explain this echo without an interior obstacle.
         self._changed = False
-        if free_cells or hit_cell is not None:
-            update_occupancy(self, free_cells, hit_cell)
+        if crossed_cells or hit_cell is not None:
+            update_occupancy(self, crossed_cells, hit_cell)
         return self._changed
 
     def can_move(self, pose, speed_mm_s):

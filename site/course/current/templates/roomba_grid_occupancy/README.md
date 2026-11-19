@@ -24,39 +24,34 @@ The calculation uses the pose when the estimate was obtained. In Figure 1 the ch
 
 ## From the projected line to map cells
 
-In world coordinates the origin is the arena center. Grid addresses start at a different place and count cells. Cell `(0, 0)` is at the southwest corner. An address is `(column, row)`, with columns increasing eastward and rows northward. To find a cell, the program measures east and north from that corner and divides each distance by the 50 mm cell size. For example, \(E\) is at approximately \((-997,-377)\) mm in world coordinates, or 527 mm east and 233 mm north of the southwest corner. Ten whole cell widths fit into the first distance and four into the second. The estimated surface position is therefore in cell `(10, 4)`.
-
-Now trace the line in Figure 2 with your finger, starting at the sensor. Within a square, moving farther along the line leaves its address unchanged. In this example each crossing changes either the column or the row. This is how the supplied `beam_cells` method converts a continuous line into an ordered sequence of cells.
+Trace the centerline in Figure 2 from the sensor toward the estimated surface. Each numbered square is one cell the beam crosses on the way. The dot at the end lies in a separate cell where the surface may be.
 
 ![The same beam traced from the sensor across five numbered cells to a separate endpoint cell.](figures/beam-crossings.svg)
 
-*Figure 2. Begin in column 8, row 7. The first crossing takes you south into row 6. The next takes you east into column 9 while you are still in row 6. Follow the remaining crossings and compare their order with the arguments below.*
+*Figure 2. Follow cells 1 through 5 in order. Even the short passage through the corner of cell 2 counts as a crossing. The dot beyond cell 5 marks the estimated endpoint.*
 
-The supplied program handles this geometry. When it calls `update_occupancy(grid, free_cells, hit_cell)`, `grid` is the same `MeasuredMap` object that holds the classifications from earlier estimates. The other two arguments for Figure 2 are shown below.
+The supplied `beam_cells` method traces this line for you. When `update_occupancy(grid, crossed_cells, hit_cell)` is called, `grid` holds the evidence from previous observations. Each cell address is a `(column, row)` pair that you can pass directly to the grid methods. For the beam in Figure 2, the arguments are
 
 ```python
-free_cells = [(8, 7), (8, 6), (9, 6),
-              (9, 5), (10, 5)]
+crossed_cells = [(8, 7), (8, 6), (9, 6),
+                 (9, 5), (10, 5)]
 hit_cell = (10, 4)
 ```
 
-The two inputs describe evidence from **one** range estimate. A cell in `free_cells` may already be free, may still be unknown, or may have been marked occupied on an earlier pass. The endpoint is kept separate because a surface may be present there. A second surface could be hidden beyond it, so the line ends at the first surface. Figure 3 shows how much of this particular observation was new.
+All five entries in `crossed_cells` give evidence of free space, including the last one. The estimated surface is in `hit_cell`. Figure 3 shows how that distinction changes the map.
 
 ![Changes to the stored map along the same projected line, with four previously free cells, one newly free cell and one newly occupied endpoint.](figures/beam-update.svg)
 
-*Figure 3. Four cells along this line were already free. The last crossed cell, `(10, 5)`, changes from unknown to free (light blue). The endpoint cell, `(10, 4)`, changes from unknown to occupied (orange). The cell just beyond it, `(10, 3)`, stays unknown (white).*
+*Figure 3. The first four crossed cells were already free. The fifth changes from unknown to free (light blue), and the endpoint changes from unknown to occupied (orange). The cell beyond the endpoint stays unknown (white).*
 
-Sometimes there are crossed cells and no interior endpoint. For example, a known arena wall can explain the range estimate, or the surface can lie beyond the 750 mm mapping distance. The program can still trace the part of the line within the map and mapping distance. It passes `None` for `hit_cell` in these cases. A missing range estimate or one below the 20 mm mapping minimum supplies no cells to update.
+A line can cross cells without identifying a surface inside the arena. For example, the known wall may account for the range estimate. In that case `hit_cell` is `None` and the crossed cells still provide evidence of free space.
 
 ## Implementing the map update
 
-Open [occupancy_update.py](occupancy_update.py). Replace `pass` with the full body of `update_occupancy`. The function changes the existing `grid` in place and returns `None`. The imports above it give you the three state names and the crossing threshold.
+Open [occupancy_update.py](occupancy_update.py) and replace `pass` with the body of `update_occupancy`. Update the existing `grid` in place and return `None`. The update has two parts.
 
-**Process the crossed cells.** Consider each cell in `free_cells` in turn. Use `grid.state(cell)` to find its current classification. A crossing is enough to change an `UNKNOWN` cell to `FREE` with `grid.set_state(cell, FREE)`. A cell already marked `FREE` needs no further change.
-
-Now suppose a later line passes through `(10, 4)`, the orange cell in Figure 3, and ends farther away. A line can pass through an empty corner of a cell that also contains part of a post. A single crossing therefore gives little reason to discard the earlier hit. When a crossed cell is `OCCUPIED`, `grid.count_clear_pass(cell)` records one crossing for that cell and returns its new count. Change its classification to `FREE` when that count reaches `CLEAR_PASSES`, which [settings.py](settings.py) sets to three. Observations elsewhere leave its count intact.
-
-**Record the endpoint.** After processing the crossed cells, consider `hit_cell` independently. When an endpoint is present, `grid.record_hit(hit_cell)` marks that cell `OCCUPIED` and restarts its crossing count, even if it was already occupied. This also handles a short line that ends in the sensor’s own cell, for which `free_cells` can be empty. Cells absent from both arguments keep their evidence for a later call.
+1. **Process `crossed_cells`.** For each `cell`, read its classification with `grid.state(cell)`. An `UNKNOWN` cell becomes `FREE` on its first crossing. Use `grid.set_state(cell, FREE)` to make that change. A `FREE` cell needs no update. For an `OCCUPIED` cell, one crossing could simply pass through an empty corner beside a post. Call `grid.count_clear_pass(cell)` once for that crossing. When the returned count reaches `CLEAR_PASSES` (three by default), change the cell to `FREE`.
+2. **Process `hit_cell`.** If the range estimate supplies an endpoint, call `grid.record_hit(hit_cell)`. This marks the cell `OCCUPIED` and restarts its crossing count. Handle the endpoint even if `crossed_cells` is empty. If `hit_cell` is `None`, the update is complete after the crossings.
 
 ## Where your function runs
 
@@ -66,7 +61,7 @@ Now suppose a later line passes through `(10, 4)`, the orange cell in Figure 3, 
 
 *Figure 4. A control step can produce a driving command even when there is no new map evidence. When there is new evidence, your function updates the stored map before the robot chooses its next motion.*
 
-The call `grid.observe(robot.range_sample_seq, state)` in [main.py](main.py) passes the acquisition number and the robot state, which contains the pose and range estimate. The `observe` method in [measured_map.py](measured_map.py) recognizes a new acquisition by its number. It then calls `beam_cells` in [occupancy_map.py](occupancy_map.py), checks the endpoint against the known walls and calls your function when there is evidence to record. The same `grid` persists throughout the drive. Monitor’s **World** view displays its changing classifications.
+In [measured_map.py](measured_map.py), `grid.observe` uses the acquisition number to skip a held result. For a fresh estimate it obtains `crossed_cells` and `hit_cell` from `beam_cells`, checks whether a known wall explains the endpoint, and calls `update_occupancy` if either input contains evidence. Monitor’s **World** view shows the resulting map.
 
 The robot normally drives forward. It steers through short arcs to look to either side and backs away and turns when forward travel is blocked. These turns let the fixed sensor observe places off the original line of travel. Before advancing, the controller checks both the latest range estimate and the space the whole chassis would sweep, using the occupied cells and the known walls.
 

@@ -136,9 +136,9 @@ class OccupancyMap:
         next_y = (ymin + (row + (uy > 0)) * size - sy) / uy if uy else infinity
         delta_x = size / abs(ux) if ux else infinity
         delta_y = size / abs(uy) if uy else infinity
-        free_cells = []
+        crossed_cells = []
         while True:
-            free_cells.append((col, row))
+            crossed_cells.append((col, row))
             crossing = min(next_x, next_y)
             if crossing >= leave - epsilon:
                 break
@@ -148,6 +148,6 @@ class OccupancyMap:
             if next_y <= crossing + epsilon:
                 row += step_y
                 next_y += delta_y
-        if free_cells[-1] == hit:
-            free_cells.pop()
-        return free_cells, hit
+        if crossed_cells[-1] == hit:
+            crossed_cells.pop()
+        return crossed_cells, hit

@@ -26,8 +26,8 @@
   <g fill="#374b55" font-family="Arial, Helvetica, sans-serif" font-size="15.5">
     <rect x="17" y="60" width="258" height="20" fill="white"/>
     <text x="146" y="75" text-anchor="middle">Fresh estimate and acquisition pose</text>
-    <rect x="49" y="145" width="194" height="20" fill="white"/>
-    <text x="146" y="160" text-anchor="middle" font-family="monospace">free_cells, hit_cell</text>
+    <rect x="30" y="145" width="232" height="20" fill="white"/>
+    <text x="146" y="160" text-anchor="middle" font-family="monospace">crossed_cells, hit_cell</text>
     <rect x="294" y="122" width="160" height="42" fill="white"/>
     <text x="374" y="138" text-anchor="middle">Current pose and</text>
     <text x="374" y="157" text-anchor="middle">latest range estimate</text>
